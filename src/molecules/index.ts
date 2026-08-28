@@ -28,7 +28,19 @@ export {
 	type AlertVariants,
 	alertVariants,
 } from "./Alert.js";
+export {
+	Attachment,
+	type AttachmentProps,
+	formatBytes,
+} from "./Attachment.js";
 export { Breadcrumb, type BreadcrumbProps, type Crumb } from "./Breadcrumb.js";
+export {
+	Bubble,
+	type BubbleProps,
+	type BubbleReaction,
+	type BubbleVariants,
+	bubbleVariants,
+} from "./Bubble.js";
 export {
 	ButtonGroup,
 	type ButtonGroupProps,

@@ -88,3 +88,81 @@ describe("resolvePosition", () => {
 		expect(position.arrow?.x).toBeGreaterThanOrEqual(8);
 	});
 });
+
+describe("resolvePosition in right-to-left", () => {
+	const anchor = { x: 400, y: 300, width: 100, height: 40 };
+
+	it("swaps the side for a horizontal placement", () => {
+		// A submenu asks for "right-start", meaning the inline end. In Arabic or
+		// Hebrew that is the left.
+		const ltr = resolvePosition(anchor, surface, viewport, {
+			placement: "right-start",
+		});
+		const rtl = resolvePosition(anchor, surface, viewport, {
+			placement: "right-start",
+			rtl: true,
+		});
+		expect(ltr.side).toBe("right");
+		expect(rtl.side).toBe("left");
+	});
+
+	it("leaves the alignment alone on a horizontal placement", () => {
+		// The cross axis there is vertical, and top/bottom do not mirror.
+		const rtl = resolvePosition(anchor, surface, viewport, {
+			placement: "right-start",
+			rtl: true,
+		});
+		expect(rtl.align).toBe("start");
+	});
+
+	it("swaps the alignment for a vertical placement", () => {
+		const ltr = resolvePosition(anchor, surface, viewport, {
+			placement: "bottom-start",
+		});
+		const rtl = resolvePosition(anchor, surface, viewport, {
+			placement: "bottom-start",
+			rtl: true,
+		});
+		expect(ltr.x).toBe(400);
+		// Mirrored to the anchor's right edge: 400 + 100 - 200.
+		expect(rtl.side).toBe("bottom");
+		expect(rtl.align).toBe("end");
+		expect(rtl.x).toBe(300);
+	});
+
+	it("leaves a centred placement untouched", () => {
+		const ltr = resolvePosition(anchor, surface, viewport, {
+			placement: "bottom",
+		});
+		const rtl = resolvePosition(anchor, surface, viewport, {
+			placement: "bottom",
+			rtl: true,
+		});
+		expect(rtl.x).toBe(ltr.x);
+		expect(rtl.align).toBe("center");
+	});
+
+	it("mirrors once, not twice", () => {
+		// Mirroring both halves of "bottom-start" would land back on itself —
+		// the bug this pairing exists to prevent.
+		const rtl = resolvePosition(anchor, surface, viewport, {
+			placement: "bottom-start",
+			rtl: true,
+		});
+		const ltr = resolvePosition(anchor, surface, viewport, {
+			placement: "bottom-start",
+		});
+		expect(rtl.x).not.toBe(ltr.x);
+	});
+
+	it("still flips off a viewport edge after mirroring", () => {
+		// Mirrored to the left, where there is no room — flip has to run on the
+		// mirrored side, not the requested one.
+		const nearLeft = { x: 20, y: 300, width: 40, height: 40 };
+		const rtl = resolvePosition(nearLeft, surface, viewport, {
+			placement: "right",
+			rtl: true,
+		});
+		expect(rtl.side).toBe("right");
+	});
+});

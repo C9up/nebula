@@ -75,6 +75,10 @@ export {
 export { HoverCard, type HoverCardProps } from "./HoverCard.js";
 export { Menubar, type MenubarMenu, type MenubarProps } from "./Menubar.js";
 export {
+	MessageScroller,
+	type MessageScrollerProps,
+} from "./MessageScroller.js";
+export {
 	type NavigationItem,
 	type NavigationLink,
 	NavigationMenu,

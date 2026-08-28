@@ -85,6 +85,18 @@
       "dependencies": []
     },
     {
+      "name": "attachment",
+      "title": "Attachment",
+      "layer": "molecules",
+      "files": [
+        "lib/cn.ts",
+        "lib/icons.ts",
+        "lib/props.ts",
+        "molecules/Attachment.ts"
+      ],
+      "dependencies": []
+    },
+    {
       "name": "auth-layout",
       "title": "AuthLayout",
       "layer": "templates",
@@ -131,6 +143,19 @@
         "lib/icons.ts",
         "lib/props.ts",
         "molecules/Breadcrumb.ts"
+      ],
+      "dependencies": []
+    },
+    {
+      "name": "bubble",
+      "title": "Bubble",
+      "layer": "molecules",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/cva.ts",
+        "lib/props.ts",
+        "molecules/Bubble.ts"
       ],
       "dependencies": []
     },
@@ -620,6 +645,19 @@
       "dependencies": []
     },
     {
+      "name": "marker",
+      "title": "Marker",
+      "layer": "atoms",
+      "files": [
+        "atoms/Marker.ts",
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/cva.ts",
+        "lib/props.ts"
+      ],
+      "dependencies": []
+    },
+    {
       "name": "menubar",
       "title": "Menubar",
       "layer": "organisms",
@@ -641,6 +679,48 @@
         "primitives/presence.ts",
         "primitives/rovingFocus.ts",
         "primitives/typeahead.ts"
+      ],
+      "dependencies": []
+    },
+    {
+      "name": "message",
+      "title": "Message",
+      "layer": "molecules",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/props.ts",
+        "molecules/Message.ts"
+      ],
+      "dependencies": [
+        "avatar",
+        "bubble"
+      ]
+    },
+    {
+      "name": "message-scroller",
+      "title": "MessageScroller",
+      "layer": "organisms",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/icons.ts",
+        "lib/id.ts",
+        "lib/props.ts",
+        "organisms/MessageScroller.ts"
+      ],
+      "dependencies": [
+        "button"
+      ]
+    },
+    {
+      "name": "native-select",
+      "title": "NativeSelect",
+      "layer": "atoms",
+      "files": [
+        "atoms/NativeSelect.ts",
+        "lib/cn.ts",
+        "lib/props.ts"
       ],
       "dependencies": []
     },
@@ -713,6 +793,26 @@
         "lib/props.ts"
       ],
       "dependencies": []
+    },
+    {
+      "name": "questionnaire",
+      "title": "Questionnaire",
+      "layer": "organisms",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/id.ts",
+        "lib/props.ts",
+        "organisms/Questionnaire.ts"
+      ],
+      "dependencies": [
+        "button",
+        "checkbox",
+        "input",
+        "progress",
+        "radio-group",
+        "textarea"
+      ]
     },
     {
       "name": "radio-group",

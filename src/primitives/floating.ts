@@ -55,6 +55,19 @@ export interface PositionOptions {
 	shift?: boolean;
 	/** Arrow size in px; centres the arrow and keeps it off the corners. */
 	arrowSize?: number;
+	/**
+	 * Mirror the placement for a right-to-left writing direction.
+	 *
+	 * Placements are written in physical terms — `"right-start"` for a submenu —
+	 * because that is what reads clearly at the call site and what CSS ends up
+	 * applying. In Arabic or Hebrew those names mean the wrong edge: a submenu
+	 * belongs on the *inline end*, which is the left. Rather than making every
+	 * component reason in logical directions, the mirror happens once, here.
+	 *
+	 * `autoPosition` reads it off the anchor's computed direction, so a component
+	 * never has to pass it.
+	 */
+	rtl?: boolean;
 }
 
 export interface Position {
@@ -93,7 +106,11 @@ export function resolvePosition(
 	const offset = options.offset ?? DEFAULT_OFFSET;
 	const padding = options.padding ?? DEFAULT_PADDING;
 	const requested = options.placement ?? "bottom";
-	const [requestedSide, align] = splitPlacement(requested);
+	const [physicalSide, physicalAlign] = splitPlacement(requested);
+	const [requestedSide, align] =
+		options.rtl === true
+			? mirrorForRtl(physicalSide, physicalAlign)
+			: [physicalSide, physicalAlign];
 
 	const side =
 		options.flip === false
@@ -161,6 +178,21 @@ function toAlign(value: string): Align {
 
 function isVertical(side: Side): boolean {
 	return side === "top" || side === "bottom";
+}
+
+/**
+ * Flip a placement across the vertical axis.
+ *
+ * Which half moves depends on the side. For `left` / `right` the *side* is the
+ * horizontal thing, so it swaps and the alignment (top/bottom) is untouched.
+ * For `top` / `bottom` the side is unaffected and it is the *alignment* that
+ * refers to a horizontal edge, so that swaps instead. Mirroring both would put
+ * a `bottom-start` menu back where it started.
+ */
+function mirrorForRtl(side: Side, align: Align): [Side, Align] {
+	if (!isVertical(side)) return [opposite(side), align];
+	if (align === "center") return [side, align];
+	return [side, align === "start" ? "end" : "start"];
 }
 
 function opposite(side: Side): Side {
@@ -324,6 +356,10 @@ export function autoPosition(
 ): AutoPosition {
 	function update(): void {
 		const anchorRect = anchor.getBoundingClientRect();
+		// Read per update, not once: a `dir` attribute can be toggled at runtime
+		// by a language switcher, and a surface open across that switch has to
+		// move with it.
+		const rtl = options.rtl ?? isRightToLeft(anchor);
 		if (options.matchWidth === true) {
 			floating.style.width = `${anchorRect.width}px`;
 		}
@@ -333,7 +369,7 @@ export function autoPosition(
 			anchorRect,
 			floatingRect,
 			{ width: window.innerWidth, height: window.innerHeight },
-			options,
+			{ ...options, rtl },
 		);
 
 		floating.style.position = "fixed";
@@ -385,6 +421,18 @@ export function autoPosition(
 			observer?.disconnect();
 		},
 	};
+}
+
+/**
+ * Is this element laid out right to left?
+ *
+ * The computed style rather than the `dir` attribute, so an element inheriting
+ * the direction from `<html dir="rtl">` is answered correctly without every
+ * anchor having to carry the attribute itself.
+ */
+function isRightToLeft(element: HTMLElement): boolean {
+	if (typeof getComputedStyle !== "function") return false;
+	return getComputedStyle(element).direction === "rtl";
 }
 
 /**
