@@ -6,9 +6,6 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "bin": {
-    "nebula": "./bin/nebula.js"
-  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -41,13 +38,21 @@
     "./registry.json": "./registry.json",
     "./theme.css": "./theme.css",
     "./nebula.css": "./nebula.css",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./configure": {
+      "types": "./src/configure.ts",
+      "import": "./src/configure.ts"
+    },
+    "./cli": {
+      "types": "./src/cli/index.ts",
+      "import": "./src/cli/index.ts"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "biome check src/ bin/",
+    "lint": "biome check src/",
     "test:coverage": "vitest run --coverage",
     "registry": "node --experimental-strip-types scripts/build-registry.ts",
     "css": "node --experimental-strip-types scripts/build-css.ts",
@@ -58,7 +63,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
-    "@c9up/aurora": "workspace:*",
+    "@c9up/aurora": "^0.1.30",
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^22.19.15",
     "happy-dom": "^15.11.7",
@@ -69,7 +74,6 @@
   "files": [
     "LICENSE",
     "README.md",
-    "bin",
     "dist",
     "nebula.css",
     "registry.json",
@@ -111,7 +115,15 @@
       "./registry.json": "./registry.json",
       "./theme.css": "./theme.css",
       "./nebula.css": "./nebula.css",
-      "./package.json": "./package.json"
+      "./package.json": "./package.json",
+      "./configure": {
+        "types": "./dist/configure.d.ts",
+        "import": "./dist/configure.js"
+      },
+      "./cli": {
+        "types": "./dist/cli/index.d.ts",
+        "import": "./dist/cli/index.js"
+      }
     },
     "access": "public"
   },

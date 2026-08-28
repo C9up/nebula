@@ -13,11 +13,12 @@ Sixty-nine components across four atomic layers, plus the headless behaviour lay
 ## Installation
 
 ```bash
-pnpm add @c9up/nebula
-npx nebula init --adapter tailwind
+ream add @c9up/nebula --adapter tailwind
 ```
 
-`init` writes `config/nebula.ts` and the stylesheet for your chosen engine, then prints the packages to install and the build command to register. It installs nothing and edits no `package.json` of yours.
+The same one-step install as every other ream package: it installs the package and dispatches to nebula's `configure()` hook, which writes `config/nebula.ts` and the stylesheet for your chosen engine, then prints the packages to install and the build command to register. It installs nothing itself and edits no `package.json` of yours.
+
+Changing the adapter later is `ream configure @c9up/nebula --adapter unocss`.
 
 ## Two ways to use it
 
@@ -26,22 +27,26 @@ npx nebula init --adapter tailwind
 import { Button, Card, CardHeader } from '@c9up/nebula'
 
 // Or take the source — what the library is really for
-// $ npx nebula add button card
+// $ ream nebula:add button card
 import { Button } from '#pages/atoms/Button.js'
 ```
 
-`nebula add` copies the component's source into your project and hands it over. No version, no upgrade path, no wrapper to fight when a design needs one class changed. That is shadcn's premise and nebula keeps it.
+`ream nebula:add` copies the component's source into your project and hands it over. No version, no upgrade path, no wrapper to fight when a design needs one class changed. That is shadcn's premise and nebula keeps it.
 
 ```bash
-npx nebula list                    # everything in the registry
-npx nebula list --layer organisms
-npx nebula add dialog data-table   # copies both, plus what they depend on
-npx nebula add button --force      # overwrite your edited copy
+ream nebula:list                    # everything in the registry
+ream nebula:list --layer organisms
+ream nebula:add dialog data-table   # copies both, plus what they depend on
+ream nebula:add button --force      # overwrite your edited copy
 ```
+
+Subcommands on the ream binary, not a CLI of nebula's own — the same place
+`ream nova:vapid:generate` lives. The registry logic stays in this package; the
+binary dispatches to it.
 
 Copies mirror the package's own layout, so `atoms/Button` finds `../lib/cva.js` for the same reason it does inside nebula. **No import is ever rewritten** — that is where a copy-the-source CLI usually accumulates its edge cases.
 
-**JavaScript by default.** An Aurora app serves `resources/pages` to the browser unbuilt — that zero-build-step promise is the framework's premise — so TypeScript dropped into that tree does not run. `nebula add` copies the compiled output instead: valid ESM, `.js` specifiers already correct, and every doc comment intact, so what you own is still readable source. The language is inferred from what your components directory already holds; `--ts` and `--js` override it.
+**JavaScript by default.** An Aurora app serves `resources/pages` to the browser unbuilt — that zero-build-step promise is the framework's premise — so TypeScript dropped into that tree does not run. `ream nebula:add` copies the compiled output instead: valid ESM, `.js` specifiers already correct, and every doc comment intact, so what you own is still readable source. The language is inferred from what your components directory already holds; `--ts` and `--js` override it.
 
 ## Zero runtime dependencies
 
@@ -132,7 +137,7 @@ export default defineConfig({
 | `unocss` | `presetWind4` — same class syntax, no PostCSS, faster. | `unocss @unocss/cli` |
 | `css` | Nothing. nebula ships a prebuilt stylesheet. | — |
 
-All three consume the same class names, which is what lets one set of components serve all of them. Switching is a one-word change plus `nebula init`.
+All three consume the same class names, which is what lets one set of components serve all of them. Switching is a one-word change plus `ream configure @c9up/nebula`.
 
 **The `css` adapter's limit, stated plainly.** `nebula.css` is compiled at nebula's release time and covers the components as published. Edit a copied component to add a utility nebula never used and nothing emits it — the class silently does nothing. Use it when you take the components as they are; use `tailwind` or `unocss` when you intend to retune them.
 

@@ -104,7 +104,7 @@ export function resolveItems(
 		const item = byName.get(name);
 		if (item === undefined) {
 			throw new Error(
-				`unknown component "${name}" — run \`nebula list\` to see what exists.`,
+				`unknown component "${name}" — run \`ream nebula:list\` to see what exists.`,
 			);
 		}
 		for (const dependency of item.dependencies) visit(dependency);
