@@ -26,7 +26,6 @@ import { uid } from "../lib/id.js";
 import { zoomInOut } from "../lib/motion.js";
 import { type Reactive, read } from "../lib/props.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
-import { focusSilently } from "../primitives/focusable.js";
 
 const OPEN_DELAY_MS = 150;
 const CLOSE_DELAY_MS = 250;
@@ -74,13 +73,9 @@ export const NavigationMenu = component<NavigationMenuProps>((props) => {
 
 	onUnmount(clear);
 
-	function close(returnFocus: boolean): void {
+	function close(): void {
 		clear();
-		const index = openIndex();
 		openIndex(-1);
-		if (!returnFocus) return;
-		const id = triggerIds[index];
-		if (id !== undefined) focusSilently(document.getElementById(id));
 	}
 
 	floatingSurface({
@@ -89,7 +84,7 @@ export const NavigationMenu = component<NavigationMenuProps>((props) => {
 			return id === undefined ? null : document.getElementById(id);
 		},
 		open: () => openIndex() !== -1,
-		onClose: () => close(false),
+		onClose: close,
 		placement: "bottom-start",
 		offset: 6,
 		content: () =>
@@ -102,9 +97,6 @@ export const NavigationMenu = component<NavigationMenuProps>((props) => {
 				)}"
 				@pointerenter="${clear}"
 				@pointerleave="${() => schedule(-1, CLOSE_DELAY_MS)}"
-				@keydown="${(event: KeyboardEvent) => {
-					if (event.key === "Escape") close(true);
-				}}"
 			>${renderPanel(props.items[openIndex()])}</div>`,
 	});
 
@@ -142,7 +134,7 @@ export const NavigationMenu = component<NavigationMenuProps>((props) => {
 				aria-controls="${() => (openIndex() === index ? contentId : undefined)}"
 				data-state="${() => (openIndex() === index ? "open" : "closed")}"
 				class="${triggerClasses}"
-				@click="${() => (openIndex() === index ? close(false) : openIndex(index))}"
+				@click="${() => (openIndex() === index ? close() : openIndex(index))}"
 				@pointerenter="${() => schedule(index, OPEN_DELAY_MS)}"
 				@pointerleave="${() => schedule(-1, CLOSE_DELAY_MS)}"
 				@keydown="${(event: KeyboardEvent) => {

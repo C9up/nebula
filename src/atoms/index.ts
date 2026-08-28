@@ -30,6 +30,18 @@ export { Checkbox, type CheckboxProps, checkboxClasses } from "./Checkbox.js";
 export { Input, type InputProps, inputClasses } from "./Input.js";
 export { Kbd, type KbdProps } from "./Kbd.js";
 export { Label, type LabelProps, labelClasses } from "./Label.js";
+export {
+	Marker,
+	type MarkerProps,
+	type MarkerVariants,
+	markerVariants,
+} from "./Marker.js";
+export {
+	NativeSelect,
+	type NativeSelectOption,
+	type NativeSelectProps,
+	nativeSelectClasses,
+} from "./NativeSelect.js";
 export { Progress, type ProgressProps } from "./Progress.js";
 export {
 	ScrollArea,

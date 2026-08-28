@@ -90,6 +90,18 @@ export {
 	popoverContentClasses,
 } from "./Popover.js";
 export {
+	type Answer,
+	type Answers,
+	type FreeformQuestion,
+	isAnswered,
+	type MultipleChoiceQuestion,
+	type Question,
+	Questionnaire,
+	type QuestionnaireProps,
+	type QuestionOption,
+	type SingleChoiceQuestion,
+} from "./Questionnaire.js";
+export {
 	Select,
 	type SelectOption,
 	type SelectProps,

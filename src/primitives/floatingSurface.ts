@@ -65,6 +65,16 @@ export interface FloatingSurfaceOptions {
 
 interface Live {
 	readonly mount: Portal;
+	/**
+	 * The anchor this surface actually opened against.
+	 *
+	 * Held rather than re-read on close, because the accessor is often derived
+	 * from the open state — Menubar and NavigationMenu resolve theirs from the
+	 * index of the open menu, which is already cleared by the time the surface
+	 * tears down. Asking again at that point returns null and the focus
+	 * restoration silently does nothing.
+	 */
+	readonly anchor: HTMLElement;
 	readonly element: HTMLElement;
 	readonly position: AutoPosition;
 	readonly layer: DismissableLayer;
@@ -127,7 +137,7 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 			focusSilently(options.initialFocus?.(element) ?? firstFocusable(element));
 		}
 
-		live = { mount, element, position, layer, trap, cancelExit: null };
+		live = { mount, anchor, element, position, layer, trap, cancelExit: null };
 		options.onOpened?.(element);
 	}
 
@@ -140,6 +150,7 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 		current.layer.remove();
 		current.position.stop();
 		current.trap?.release();
+		returnFocusToAnchor(current.element, current.anchor);
 		current.element.setAttribute("data-state", "closed");
 		options.onClosed?.();
 
@@ -147,6 +158,29 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 			current.mount.close();
 			if (live === current) live = null;
 		});
+	}
+
+	/**
+	 * Hand focus back to the anchor when the surface held it.
+	 *
+	 * Dismissal by keyboard leaves focus inside a subtree that is about to be
+	 * removed; without this it falls to `<body>` and the next Tab restarts at
+	 * the top of the page. `dismissable` handles Escape from a *captured*
+	 * document listener and stops propagation, so a component cannot do this in
+	 * its own keydown handler — the event never reaches it.
+	 *
+	 * Guarded on containment, so a dismissal caused by clicking somewhere else
+	 * does not steal focus back from wherever the user just put it. A trapped
+	 * surface has already restored focus by the time this runs, and the guard
+	 * makes it a no-op there too.
+	 */
+	function returnFocusToAnchor(
+		surface: HTMLElement,
+		anchor: HTMLElement,
+	): void {
+		const active = document.activeElement;
+		if (!(active instanceof Node) || !surface.contains(active)) return;
+		focusSilently(anchor);
 	}
 
 	function teardown(): void {

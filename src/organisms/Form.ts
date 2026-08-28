@@ -111,10 +111,16 @@ export interface TextFieldProps extends FieldShellProps {
 /**
  * A labelled text input bound to one field.
  *
- * The error is shown only once the field has been touched. Validation runs on
- * every keystroke — that is what keeps `valid` accurate for the submit button
- * — but reporting "Required" into an empty field the user has not reached yet
- * is the fastest way to make a form feel hostile.
+ * The error is shown only once the field has been touched, which is what stops
+ * a pristine form opening with "Required" under every empty box.
+ *
+ * When errors actually appear is Aurora's decision, not this file's, and it is
+ * worth knowing: `form()` populates them on `validate()` — which `handleSubmit`
+ * calls — and clears a field's error as soon as it is written to. So the
+ * sequence is: submit, see every problem at once, and watch each one disappear
+ * as it is fixed. Typing into an untouched field does not raise an error, and
+ * `markTouched` on blur does not validate; it only lifts the gate for an error
+ * that validation has already found.
  */
 export const TextField = component<TextFieldProps>((props) => {
 	const ids = fieldIds();

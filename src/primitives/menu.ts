@@ -270,6 +270,17 @@ export interface WireMenuOptions {
 	onCloseAll: () => void;
 	/** Focus the first item as soon as the panel opens. */
 	autoFocusFirst?: boolean;
+	/**
+	 * Close *this* panel and return focus to whatever opened it.
+	 *
+	 * Supplied only when wiring a submenu, and it is what makes ArrowLeft and
+	 * Escape work inside one. A submenu is portalled, so its keydowns never
+	 * bubble to the parent panel's listener — the parent hands down a way to be
+	 * called instead. Without it the two keys fall through: ArrowLeft does
+	 * nothing at all, and Escape reaches the document and closes the entire
+	 * stack rather than one level.
+	 */
+	onCloseSelf?: () => void;
 }
 
 /**
@@ -344,7 +355,13 @@ export function wireMenu(
 			escapeKey: false,
 		});
 
-		const inner = wireMenu(element, options);
+		const inner = wireMenu(element, {
+			...options,
+			onCloseSelf: () => {
+				closeSubmenusFrom(0);
+				focusSilently(trigger);
+			},
+		});
 		const firstItem = element.querySelector("[data-nebula-item]");
 		if (firstItem instanceof HTMLElement) focusSilently(firstItem);
 
@@ -373,21 +390,25 @@ export function wireMenu(
 			return;
 		}
 
-		if (event.key === "ArrowLeft" && open.length > 0) {
-			event.preventDefault();
-			event.stopPropagation();
-			closeSubmenusFrom(open.length - 1);
-			return;
-		}
-
-		if (event.key === "Escape") {
-			if (open.length === 0) return;
-			// One level per press: a submenu three deep takes three Escapes, not
-			// one. `dismissable` handles the last level, closing the root menu.
-			event.preventDefault();
-			event.stopPropagation();
-			closeSubmenusFrom(open.length - 1);
-			return;
+		// One level per press for both keys: a submenu three deep takes three
+		// Escapes, not one. Closing a child we opened comes first; with none
+		// open, this panel is itself the child and asks its parent to close it.
+		// `dismissable` handles the last level, closing the root menu.
+		if (event.key === "ArrowLeft" || event.key === "Escape") {
+			if (open.length > 0) {
+				event.preventDefault();
+				event.stopPropagation();
+				closeSubmenusFrom(open.length - 1);
+				return;
+			}
+			if (options.onCloseSelf !== undefined) {
+				event.preventDefault();
+				event.stopPropagation();
+				options.onCloseSelf();
+				return;
+			}
+			// A root menu ignores ArrowLeft and lets `dismissable` see Escape.
+			if (event.key === "ArrowLeft") return;
 		}
 
 		if (event.key === "Tab") {
@@ -407,7 +428,11 @@ export function wireMenu(
 		if (item.hasAttribute("data-disabled")) return;
 
 		focusSilently(item);
+		// Hover focuses the row directly rather than going through rovingFocus,
+		// so its `onFocusChange` never runs — the close has to be explicit here
+		// or the pointer leaves a trail of open panels behind it.
 		if (item.getAttribute("data-submenu") !== null) openSubmenu(item);
+		else closeSubmenusFrom(0);
 	}
 
 	panel.addEventListener("keydown", onKeyDown);

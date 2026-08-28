@@ -279,10 +279,29 @@ export const Calendar = component<CalendarProps>((props) => {
 		return props.disabled?.(date) === true;
 	}
 
+	/**
+	 * Show the month containing `date`, if it is not already showing.
+	 *
+	 * The guard is load-bearing. `month` is a signal the whole grid is derived
+	 * from, so writing a fresh `Date` for the month already on screen rebuilds
+	 * all 42 cells — destroying the one the user just clicked, and with it the
+	 * focus that was on it.
+	 */
+	function showMonthOf(date: Date): void {
+		const current = month();
+		if (
+			current.getFullYear() === date.getFullYear() &&
+			current.getMonth() === date.getMonth()
+		) {
+			return;
+		}
+		month(new Date(date.getFullYear(), date.getMonth(), 1));
+	}
+
 	function choose(date: Date): void {
 		if (isDisabled(date)) return;
 		cursor(date);
-		month(new Date(date.getFullYear(), date.getMonth(), 1));
+		showMonthOf(date);
 		if (isRange) chooseInRange(date);
 		else props.onValueChange?.(date);
 	}

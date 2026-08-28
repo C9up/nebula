@@ -77,12 +77,16 @@ export const Menubar = component<MenubarProps>((props) => {
 				labelledBy: triggerIds[openIndex()],
 			}),
 		onOpened: (panel) => {
+			const enterItems = focusFirstOnOpen;
+			focusFirstOnOpen = false;
 			unwire = wireMenu(panel, {
 				onCloseAll: close,
-				autoFocusFirst: focusFirstOnOpen,
+				autoFocusFirst: enterItems,
 			});
-			focusFirstOnOpen = false;
-			panel.focus({ preventScroll: true });
+			// Only when no item took focus. Focusing the panel unconditionally
+			// steals focus back from the item `autoFocusFirst` just landed on, and
+			// opening a menu with the keyboard would never reach its first entry.
+			if (!enterItems) panel.focus({ preventScroll: true });
 			// Left/right walk the bar from inside the open panel. `menu.js` claims
 			// ArrowLeft for closing a submenu and stops propagation when it does,
 			// so this only fires at the top level.

@@ -70,14 +70,18 @@ export const DropdownMenu = component<DropdownMenuProps>((props) => {
 				class: read(props.contentClass),
 			}),
 		onOpened: (panel) => {
+			const enterItems = enterOnOpen;
+			enterOnOpen = false;
 			unwire = wireMenu(panel, {
 				onCloseAll: close,
-				autoFocusFirst: enterOnOpen,
+				autoFocusFirst: enterItems,
 			});
-			enterOnOpen = false;
-			// The panel itself takes focus even when no item does, so Escape and
-			// the arrow keys reach it rather than the page behind.
-			panel.focus({ preventScroll: true });
+			// The panel takes focus only when no item did — it needs to hold focus
+			// so Escape and the arrows reach it rather than the page behind, but
+			// focusing it unconditionally steals focus straight back from the item
+			// `autoFocusFirst` just landed on, and opening with the keyboard would
+			// never reach the first entry.
+			if (!enterItems) panel.focus({ preventScroll: true });
 		},
 		onClosed: () => {
 			unwire?.();

@@ -95,6 +95,7 @@ export {
 	type ItemVariants,
 	itemVariants,
 } from "./Item.js";
+export { Message, type MessageProps } from "./Message.js";
 export {
 	type PageSlot,
 	Pagination,
