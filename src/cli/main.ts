@@ -12,6 +12,7 @@
 
 import { join } from "node:path";
 import { adapterNames, isAdapterName } from "../adapters/index.js";
+import type { Language } from "../config.js";
 import { add } from "./add.js";
 import { init } from "./init.js";
 import { loadRegistry, packageRoot } from "./registry.js";
@@ -19,11 +20,14 @@ import { loadRegistry, packageRoot } from "./registry.js";
 const USAGE = `nebula — shadcn/ui for Aurora, organised as atomic design
 
   nebula init [--adapter tailwind|unocss|css]   write config + style stubs
-  nebula add <component…> [--force]             copy components into the project
+  nebula add <component…> [--force] [--ts|--js] copy components into the project
   nebula list [--layer atoms|molecules|…]       show what the registry holds
 
 Flags
   --adapter <name>   CSS engine to configure (default: tailwind)
+  --ts, --js         what to copy. Defaults to whatever the components
+                     directory already holds, then to --js: an Aurora app
+                     serves its pages to the browser unbuilt
   --layer <name>     restrict \`list\` to one atomic layer
   --force            overwrite files that already exist
   --dry-run          print what would happen, write nothing
@@ -146,6 +150,7 @@ function runAdd(
 	const result = add({
 		cwd,
 		names: positional,
+		language: languageFlag(flags),
 		force: flags.get("force") === true,
 		dryRun: flags.get("dry-run") === true,
 	});
@@ -159,7 +164,21 @@ function runAdd(
 			"\nExisting files were left alone. Use --force to overwrite.\n",
 		);
 	}
+	// Stated rather than assumed: the language was inferred from the tree in
+	// most runs, and copying the wrong one produces files the project cannot
+	// load — a silent failure worth one line of output to prevent.
+	process.stdout.write(
+		`\nCopied as ${result.language === "ts" ? "TypeScript" : "JavaScript"}. ` +
+			"Override with --ts or --js.\n",
+	);
 	return 0;
+}
+
+/** `--ts` / `--js`, when the caller overrode the detection. */
+function languageFlag(flags: Map<string, string | true>): Language | undefined {
+	if (flags.get("ts") === true) return "ts";
+	if (flags.get("js") === true) return "js";
+	return undefined;
 }
 
 function runList(cwd: string, flags: Map<string, string | true>): number {

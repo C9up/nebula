@@ -39,7 +39,9 @@ npx nebula add dialog data-table   # copies both, plus what they depend on
 npx nebula add button --force      # overwrite your edited copy
 ```
 
-Copies mirror the package's own layout, so `resources/pages/atoms/Button.ts` finds `../lib/cva.js` for the same reason it does inside nebula. **No import is ever rewritten** — that is where a copy-the-source CLI usually accumulates its edge cases.
+Copies mirror the package's own layout, so `atoms/Button` finds `../lib/cva.js` for the same reason it does inside nebula. **No import is ever rewritten** — that is where a copy-the-source CLI usually accumulates its edge cases.
+
+**JavaScript by default.** An Aurora app serves `resources/pages` to the browser unbuilt — that zero-build-step promise is the framework's premise — so TypeScript dropped into that tree does not run. `nebula add` copies the compiled output instead: valid ESM, `.js` specifiers already correct, and every doc comment intact, so what you own is still readable source. The language is inferred from what your components directory already holds; `--ts` and `--js` override it.
 
 ## Zero runtime dependencies
 

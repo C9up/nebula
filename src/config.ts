@@ -26,6 +26,21 @@
 
 export type AdapterName = "tailwind" | "unocss" | "css";
 
+/**
+ * What `nebula add` writes into the project.
+ *
+ * `"js"` copies the compiled output — valid ESM with `.js` specifiers and every
+ * doc comment intact, which a browser loads directly. That is the default,
+ * because an Aurora app serves `resources/pages` to the browser unbuilt; that
+ * zero-build-step promise is the framework's premise, and TypeScript sources
+ * dropped into that tree simply do not run.
+ *
+ * `"ts"` copies the TypeScript sources, for a project that compiles its front
+ * end. `nebula add` infers it from what the components directory already holds
+ * and only falls back to this setting when the directory is empty.
+ */
+export type Language = "ts" | "js";
+
 export interface NebulaPaths {
 	/** Root of the atomic component tree. Layer directories live under it. */
 	components: string;
@@ -45,6 +60,8 @@ export interface NebulaConfig {
 	 * components reference, and nothing has to be installed.
 	 */
 	adapter: AdapterName;
+	/** Overridden per-run by `--ts` / `--js`, and by what the tree already holds. */
+	language?: Language;
 	paths?: Partial<NebulaPaths>;
 	/**
 	 * Override design tokens. Anything omitted keeps nebula's default, so a

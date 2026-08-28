@@ -180,8 +180,8 @@ describe("nebula (argument parsing and commands)", () => {
 	it("adds a component and reports what it wrote", () => {
 		const { code, out } = capture(() => main(["add", "button"], project));
 		expect(code).toBe(0);
-		expect(out).toContain("atoms/Button.ts");
-		expect(existsSync(join(project, "resources/pages/atoms/Button.ts"))).toBe(
+		expect(out).toContain("atoms/Button.js");
+		expect(existsSync(join(project, "resources/pages/atoms/Button.js"))).toBe(
 			true,
 		);
 	});
@@ -199,8 +199,8 @@ describe("nebula (argument parsing and commands)", () => {
 			main(["add", "badge", "--dry-run"], project),
 		);
 		expect(code).toBe(0);
-		expect(out).toContain("atoms/Badge.ts");
-		expect(existsSync(join(project, "resources/pages/atoms/Badge.ts"))).toBe(
+		expect(out).toContain("atoms/Badge.js");
+		expect(existsSync(join(project, "resources/pages/atoms/Badge.js"))).toBe(
 			false,
 		);
 	});
@@ -210,5 +210,16 @@ describe("nebula (argument parsing and commands)", () => {
 		const { out } = capture(() => main(["add", "button"], project));
 		expect(out).toContain("exists");
 		expect(out).toContain("--force");
+	});
+
+	it("copies TypeScript when asked with --ts", () => {
+		const { code, out } = capture(() =>
+			main(["add", "badge", "--ts"], project),
+		);
+		expect(code).toBe(0);
+		expect(out).toContain("Copied as TypeScript");
+		expect(existsSync(join(project, "resources/pages/atoms/Badge.ts"))).toBe(
+			true,
+		);
 	});
 });

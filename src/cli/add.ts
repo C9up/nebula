@@ -15,15 +15,17 @@
  * changes must not silently discard them.
  */
 
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { defaultPaths, type NebulaPaths } from "../config.js";
+import { defaultPaths, type Language, type NebulaPaths } from "../config.js";
 import { loadRegistry, packageRoot, resolveItems } from "./registry.js";
 
 export interface AddOptions {
 	cwd: string;
 	names: readonly string[];
 	paths?: Partial<NebulaPaths>;
+	/** Overrides both the detected language and the configured one. */
+	language?: Language;
 	force?: boolean;
 	/** Print what would happen and write nothing. */
 	dryRun?: boolean;
@@ -32,6 +34,40 @@ export interface AddOptions {
 export interface AddResult {
 	written: string[];
 	skipped: string[];
+	/** What was actually copied, so the caller can report it. */
+	language: Language;
+}
+
+/**
+ * Which language the project's component tree is written in.
+ *
+ * Read from what is already there rather than configured, because the answer
+ * is sitting on disk and a mismatched setting produces files the project
+ * cannot load. A tree holding `.ts` gets TypeScript; anything else — including
+ * a tree of `.js`, which is what an unbuilt Aurora app has — gets JavaScript.
+ * `undefined` when the directory does not exist yet.
+ */
+export function detectLanguage(componentsRoot: string): Language | undefined {
+	if (!existsSync(componentsRoot)) return undefined;
+
+	const stack = [componentsRoot];
+	let sawJs = false;
+	while (stack.length > 0) {
+		const dir = stack.pop();
+		if (dir === undefined) continue;
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			if (entry.name === "node_modules") continue;
+			const full = join(dir, entry.name);
+			if (entry.isDirectory()) {
+				stack.push(full);
+				continue;
+			}
+			if (entry.name.endsWith(".d.ts")) continue;
+			if (entry.name.endsWith(".ts")) return "ts";
+			if (entry.name.endsWith(".js")) sawJs = true;
+		}
+	}
+	return sawJs ? "js" : undefined;
 }
 
 export function add(options: AddOptions): AddResult {
@@ -43,6 +79,18 @@ export function add(options: AddOptions): AddResult {
 		options.cwd,
 		options.paths?.components ?? defaultPaths.components,
 	);
+	const language = options.language ?? detectLanguage(target) ?? "js";
+
+	// The compiled output is what a browser can load. It ships in the package
+	// and `prepublishOnly` rebuilds it, so an installed copy always has it;
+	// inside this workspace it needs `pnpm build` first.
+	const sourceRoot = join(root, language === "ts" ? "src" : "dist");
+	if (!existsSync(sourceRoot)) {
+		throw new Error(
+			`${sourceRoot} is missing — run \`pnpm build\` in the nebula package before adding in ${language} mode.`,
+		);
+	}
+
 	const written: string[] = [];
 	const skipped: string[] = [];
 	// Shared files — `lib/cn.ts`, the primitives — belong to several items, so
@@ -56,14 +104,17 @@ export function add(options: AddOptions): AddResult {
 			if (handled.has(file)) continue;
 			handled.add(file);
 
-			const from = join(root, "src", file);
-			const to = join(target, file);
+			// The registry lists `.ts` paths; the compiled tree mirrors it exactly,
+			// so only the extension changes.
+			const relative = language === "ts" ? file : file.replace(/\.ts$/, ".js");
+			const from = join(sourceRoot, relative);
+			const to = join(target, relative);
 
 			if (existsSync(to) && options.force !== true) {
-				skipped.push(file);
+				skipped.push(relative);
 				continue;
 			}
-			written.push(file);
+			written.push(relative);
 			if (options.dryRun === true) continue;
 
 			mkdirSync(dirname(to), { recursive: true });
@@ -71,5 +122,5 @@ export function add(options: AddOptions): AddResult {
 		}
 	}
 
-	return { written, skipped };
+	return { written, skipped, language };
 }
