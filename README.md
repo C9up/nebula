@@ -40,9 +40,15 @@ ream nebula:add dialog data-table   # copies both, plus what they depend on
 ream nebula:add button --force      # overwrite your edited copy
 ```
 
-Subcommands on the ream binary, not a CLI of nebula's own — the same place
-`ream nova:vapid:generate` lives. The registry logic stays in this package; the
-binary dispatches to it.
+Command classes shipped by this package and registered in `reamrc.commands` by
+`configure()` — the channel Ream provides for exactly this, which directory
+discovery cannot see. `ream` forwards any unrecognised name to the app's
+console kernel, so nothing is compiled into the binary and a new nebula command
+never waits on a release of it.
+
+Like atlas's seven migration commands, and for the same reason, this needs no
+dependency on `@c9up/ream`: `src/console/contract.ts` declares the shape the
+kernel dispatches against rather than importing it.
 
 Copies mirror the package's own layout, so `atoms/Button` finds `../lib/cva.js` for the same reason it does inside nebula. **No import is ever rewritten** — that is where a copy-the-source CLI usually accumulates its edge cases.
 

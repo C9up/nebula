@@ -16,11 +16,16 @@ interface Written {
 
 function recorder() {
 	const files: Written[] = [];
+	const commands: string[] = [];
 	return {
 		files,
+		commands,
 		codemods: {
 			writeFile: async (path: string, content: string): Promise<void> => {
 				files.push({ path, content });
+			},
+			registerCommand: async (importPath: string): Promise<void> => {
+				commands.push(importPath);
 			},
 		},
 	};
@@ -114,5 +119,19 @@ describe("configure", () => {
 		const { codemods } = recorder();
 		await configure(codemods);
 		expect(stderr.join("")).toContain("ream nebula:add");
+	});
+
+	it("registers its commands on the channel Ream provides for packages", async () => {
+		// `reamrc.commands` is what directory discovery cannot see. Going through
+		// it is what keeps `ream nebula:add` out of the Rust binary — otherwise
+		// every package wanting a command waits on a release of that binary.
+		silenceStderr();
+		const { commands, codemods } = recorder();
+		await configure(codemods);
+
+		expect(commands).toEqual([
+			"@c9up/nebula/commands/add",
+			"@c9up/nebula/commands/list",
+		]);
 	});
 });

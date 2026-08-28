@@ -1,6 +1,6 @@
 {
   "name": "@c9up/nebula",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nebula \u2014 shadcn/ui ported to Aurora, organised as atomic design. Zero-dependency headless primitives, cva reimplemented, copy-the-source registry.",
   "license": "MIT",
   "type": "module",
@@ -46,6 +46,14 @@
     "./cli": {
       "types": "./src/cli/index.ts",
       "import": "./src/cli/index.ts"
+    },
+    "./commands/add": {
+      "types": "./src/console/AddCommand.ts",
+      "import": "./src/console/AddCommand.ts"
+    },
+    "./commands/list": {
+      "types": "./src/console/ListCommand.ts",
+      "import": "./src/console/ListCommand.ts"
     }
   },
   "scripts": {
@@ -123,6 +131,14 @@
       "./cli": {
         "types": "./dist/cli/index.d.ts",
         "import": "./dist/cli/index.js"
+      },
+      "./commands/add": {
+        "types": "./dist/console/AddCommand.d.ts",
+        "import": "./dist/console/AddCommand.js"
+      },
+      "./commands/list": {
+        "types": "./dist/console/ListCommand.d.ts",
+        "import": "./dist/console/ListCommand.js"
       }
     },
     "access": "public"

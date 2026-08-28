@@ -33,6 +33,8 @@ interface Codemods {
 		content: string,
 		options?: { force?: boolean },
 	): Promise<void>;
+	/** Appends to `reamrc.commands` — the channel for package-shipped commands. */
+	registerCommand(importPath: string): Promise<void>;
 }
 
 /** Flags forwarded from `ream add` / `ream configure`, as the CLI encodes them. */
@@ -87,6 +89,14 @@ export async function configure(
 	const config = resolveConfig({ adapter: name });
 
 	await codemods.writeFile("config/nebula.ts", configFile(name));
+
+	// `reamrc.commands` is the channel Ream provides for commands a package
+	// ships, which directory discovery cannot see. `ream` forwards any
+	// unrecognised name to the app's console kernel, so these exist without a
+	// line of Rust and without waiting on a release of the binary.
+	await codemods.registerCommand("@c9up/nebula/commands/add");
+	await codemods.registerCommand("@c9up/nebula/commands/list");
+
 	for (const file of adapter.files(config)) {
 		await codemods.writeFile(file.path, file.contents);
 	}
