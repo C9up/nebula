@@ -21,7 +21,7 @@ import { type Reactive, read } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import type { Placement } from "../primitives/floating.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
-import { type MenuEntry, menuPanel, wireMenu } from "./menu.js";
+import { type MenuEntry, menuPanel, wireMenu } from "../primitives/menu.js";
 
 export interface DropdownMenuProps {
 	trigger?: Slot;

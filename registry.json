@@ -283,13 +283,41 @@
       "dependencies": []
     },
     {
+      "name": "command-dialog",
+      "title": "CommandDialog",
+      "layer": "organisms",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/id.ts",
+        "lib/motion.ts",
+        "lib/props.ts",
+        "organisms/CommandDialog.ts",
+        "primitives/controllable.ts",
+        "primitives/dismissable.ts",
+        "primitives/floating.ts",
+        "primitives/focusTrap.ts",
+        "primitives/focusable.ts",
+        "primitives/modalSurface.ts",
+        "primitives/portal.ts",
+        "primitives/presence.ts",
+        "primitives/scrollLock.ts"
+      ],
+      "dependencies": [
+        "command",
+        "dialog"
+      ]
+    },
+    {
       "name": "context-menu",
       "title": "ContextMenu",
       "layer": "organisms",
       "files": [
         "lib/children.ts",
         "lib/cn.ts",
+        "lib/icons.ts",
         "lib/id.ts",
+        "lib/motion.ts",
         "lib/props.ts",
         "organisms/ContextMenu.ts",
         "primitives/dismissable.ts",
@@ -297,12 +325,13 @@
         "primitives/floatingSurface.ts",
         "primitives/focusTrap.ts",
         "primitives/focusable.ts",
+        "primitives/menu.ts",
         "primitives/portal.ts",
-        "primitives/presence.ts"
+        "primitives/presence.ts",
+        "primitives/rovingFocus.ts",
+        "primitives/typeahead.ts"
       ],
-      "dependencies": [
-        "menu"
-      ]
+      "dependencies": []
     },
     {
       "name": "data-table",
@@ -345,6 +374,32 @@
       "dependencies": [
         "button",
         "calendar"
+      ]
+    },
+    {
+      "name": "date-range-picker",
+      "title": "DateRangePicker",
+      "layer": "organisms",
+      "files": [
+        "lib/cn.ts",
+        "lib/icons.ts",
+        "lib/id.ts",
+        "lib/motion.ts",
+        "lib/props.ts",
+        "organisms/DateRangePicker.ts",
+        "primitives/controllable.ts",
+        "primitives/dismissable.ts",
+        "primitives/floating.ts",
+        "primitives/floatingSurface.ts",
+        "primitives/focusTrap.ts",
+        "primitives/focusable.ts",
+        "primitives/portal.ts",
+        "primitives/presence.ts"
+      ],
+      "dependencies": [
+        "button",
+        "calendar",
+        "date-picker"
       ]
     },
     {
@@ -403,7 +458,9 @@
       "files": [
         "lib/children.ts",
         "lib/cn.ts",
+        "lib/icons.ts",
         "lib/id.ts",
+        "lib/motion.ts",
         "lib/props.ts",
         "organisms/DropdownMenu.ts",
         "primitives/controllable.ts",
@@ -412,12 +469,13 @@
         "primitives/floatingSurface.ts",
         "primitives/focusTrap.ts",
         "primitives/focusable.ts",
+        "primitives/menu.ts",
         "primitives/portal.ts",
-        "primitives/presence.ts"
+        "primitives/presence.ts",
+        "primitives/rovingFocus.ts",
+        "primitives/typeahead.ts"
       ],
-      "dependencies": [
-        "menu"
-      ]
+      "dependencies": []
     },
     {
       "name": "empty",
@@ -562,8 +620,8 @@
       "dependencies": []
     },
     {
-      "name": "menu",
-      "title": "menu",
+      "name": "menubar",
+      "title": "Menubar",
       "layer": "organisms",
       "files": [
         "lib/children.ts",
@@ -572,37 +630,19 @@
         "lib/id.ts",
         "lib/motion.ts",
         "lib/props.ts",
-        "organisms/menu.ts",
-        "primitives/dismissable.ts",
-        "primitives/floating.ts",
-        "primitives/focusable.ts",
-        "primitives/portal.ts",
-        "primitives/rovingFocus.ts",
-        "primitives/typeahead.ts"
-      ],
-      "dependencies": []
-    },
-    {
-      "name": "menubar",
-      "title": "Menubar",
-      "layer": "organisms",
-      "files": [
-        "lib/children.ts",
-        "lib/cn.ts",
-        "lib/id.ts",
-        "lib/props.ts",
         "organisms/Menubar.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
         "primitives/focusTrap.ts",
         "primitives/focusable.ts",
+        "primitives/menu.ts",
         "primitives/portal.ts",
-        "primitives/presence.ts"
+        "primitives/presence.ts",
+        "primitives/rovingFocus.ts",
+        "primitives/typeahead.ts"
       ],
-      "dependencies": [
-        "menu"
-      ]
+      "dependencies": []
     },
     {
       "name": "navigation-menu",
@@ -799,7 +839,8 @@
       ],
       "dependencies": [
         "button",
-        "sheet"
+        "sheet",
+        "tooltip"
       ]
     },
     {

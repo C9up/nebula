@@ -20,7 +20,7 @@ import { cn } from "../lib/cn.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read } from "../lib/props.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
-import { type MenuEntry, menuPanel, wireMenu } from "./menu.js";
+import { type MenuEntry, menuPanel, wireMenu } from "../primitives/menu.js";
 
 export interface MenubarMenu {
 	label: Child;

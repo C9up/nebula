@@ -27,10 +27,33 @@ import { ChevronLeftIcon, ChevronRightIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read } from "../lib/props.js";
 
+/**
+ * A span of days. `to` is absent while the second end is still being picked —
+ * that half-open state is what the hover preview renders against, so it is
+ * part of the type rather than something the component hides internally.
+ */
+export interface DateRange {
+	readonly from: Date;
+	readonly to?: Date;
+}
+
 export interface CalendarProps {
-	/** Selected day. Local midnight. */
+	/**
+	 * `"range"` picks a span in two clicks. Default `"single"`.
+	 *
+	 * The two modes carry their value in separate props rather than one union.
+	 * A union would make every read of `value` a narrowing exercise for the
+	 * caller as much as for this file, and the two `onChange` shapes genuinely
+	 * differ — a range handler that receives a bare `Date` has no way to say
+	 * which end moved.
+	 */
+	mode?: "single" | "range";
+	/** Selected day, in `"single"` mode. Local midnight. */
 	value?: Reactive<Date | undefined>;
 	defaultValue?: Date;
+	/** Selected span, in `"range"` mode. */
+	range?: Reactive<DateRange | undefined>;
+	defaultRange?: DateRange;
 	/** Month shown at first render. Defaults to the selection, then today. */
 	defaultMonth?: Date;
 	min?: Date;
@@ -41,7 +64,10 @@ export interface CalendarProps {
 	weekStartsOn?: number;
 	locale?: string;
 	class?: Reactive<string>;
+	/** `"single"` mode. */
 	onValueChange?: (date: Date) => void;
+	/** `"range"` mode. Fires on both clicks — `to` is absent after the first. */
+	onRangeChange?: (range: DateRange) => void;
 }
 
 // ─── date helpers ────────────────────────────────────────────────────
@@ -117,6 +143,62 @@ function localeWeekStart(locale: string | undefined): number {
 	return resolved.getWeekInfo().firstDay % 7;
 }
 
+// ─── range logic (pure) ──────────────────────────────────────────────
+
+/** Where a day sits within a span. `"single"` is a span of one day. */
+export type RangePosition = "single" | "start" | "end" | "middle" | "none";
+
+/**
+ * Place a day relative to a span.
+ *
+ * `end` is passed in rather than read off the range because it may be the
+ * *preview* end — wherever the pointer is, before the second click. Keeping
+ * that decision at the call site is what lets this stay a pure function over
+ * three dates, which is the part worth testing exhaustively.
+ */
+export function rangePosition(
+	date: Date,
+	range: DateRange | undefined,
+	end: Date | undefined,
+): RangePosition {
+	if (range === undefined) return "none";
+	if (end === undefined) {
+		return isSameDay(date, range.from) ? "single" : "none";
+	}
+
+	// Ordered, because the preview end can sit before the fixed start while the
+	// pointer sweeps backwards.
+	const [lo, hi] = range.from <= end ? [range.from, end] : [end, range.from];
+	// A one-day span is both ends at once, and squaring either side of it would
+	// leave a lone cell with a flat edge against nothing.
+	if (isSameDay(lo, hi)) return isSameDay(date, lo) ? "single" : "none";
+	if (isSameDay(date, lo)) return "start";
+	if (isSameDay(date, hi)) return "end";
+	return date > lo && date < hi ? "middle" : "none";
+}
+
+/**
+ * The span after clicking `date`.
+ *
+ * A click before the fixed start restarts the span rather than producing an
+ * inverted one. Silently swapping the ends would be the other option, and it
+ * is worse: the user who clicked the 3rd after the 10th almost always meant to
+ * start again, not to select the week between them.
+ */
+export function nextRange(
+	current: DateRange | undefined,
+	date: Date,
+): DateRange {
+	if (
+		current === undefined ||
+		current.to !== undefined ||
+		date < current.from
+	) {
+		return { from: date };
+	}
+	return { from: current.from, to: date };
+}
+
 // ─── component ───────────────────────────────────────────────────────
 
 export const Calendar = component<CalendarProps>((props) => {
@@ -125,14 +207,64 @@ export const Calendar = component<CalendarProps>((props) => {
 	const locale = props.locale;
 	const weekStartsOn = props.weekStartsOn ?? safeWeekStart(locale);
 
+	const isRange = props.mode === "range";
 	const today = startOfDay(new Date());
-	const initial = props.defaultValue ?? props.defaultMonth ?? today;
+	const initial =
+		props.defaultValue ??
+		props.defaultRange?.from ??
+		props.defaultMonth ??
+		today;
 	const month = signal(new Date(initial.getFullYear(), initial.getMonth(), 1));
 	/** The day the keyboard is on. Only this cell is tabbable. */
 	const cursor = signal(startOfDay(initial));
 
 	const selected = (): Date | undefined =>
 		read(props.value) ?? props.defaultValue;
+
+	/** The span being built, when the caller does not control it. */
+	const draft = signal<DateRange | undefined>(props.defaultRange);
+	/** The day under the pointer, for the preview half of an open range. */
+	const hovered = signal<Date | undefined>(undefined);
+
+	const activeRange = (): DateRange | undefined => read(props.range) ?? draft();
+
+	/**
+	 * The far end of the span as currently drawn.
+	 *
+	 * While only one end is fixed, that is wherever the pointer is — which is
+	 * what makes the range visibly follow the cursor before the second click.
+	 * Keyboard users get no preview, and that is fine: for them the span
+	 * appears on Enter, and a preview tied to the roving cursor would announce
+	 * a selection that has not happened.
+	 */
+	function rangeEnd(): Date | undefined {
+		const current = activeRange();
+		if (current === undefined) return undefined;
+		return current.to ?? hovered();
+	}
+
+	type RangePosition = "single" | "start" | "end" | "middle" | "none";
+
+	function rangePositionOf(date: Date): RangePosition {
+		const current = activeRange();
+		if (current === undefined) return "none";
+
+		const end = rangeEnd();
+		if (end === undefined) {
+			return isSameDay(date, current.from) ? "single" : "none";
+		}
+
+		// Ordered, because the preview end can sit before the fixed start while
+		// the pointer sweeps backwards.
+		const [lo, hi] =
+			current.from <= end ? [current.from, end] : [end, current.from];
+		// A one-day span is both ends at once, and squaring either side of it
+		// would leave a lone cell with a flat edge against nothing.
+		if (isSameDay(lo, hi)) return isSameDay(date, lo) ? "single" : "none";
+		if (isSameDay(date, lo)) return "start";
+		if (isSameDay(date, hi)) return "end";
+		return date > lo && date < hi ? "middle" : "none";
+	}
 
 	const monthLabel = new Intl.DateTimeFormat(locale, {
 		month: "long",
@@ -151,7 +283,17 @@ export const Calendar = component<CalendarProps>((props) => {
 		if (isDisabled(date)) return;
 		cursor(date);
 		month(new Date(date.getFullYear(), date.getMonth(), 1));
-		props.onValueChange?.(date);
+		if (isRange) chooseInRange(date);
+		else props.onValueChange?.(date);
+	}
+
+	function chooseInRange(date: Date): void {
+		const next = nextRange(activeRange(), date);
+		draft(next);
+		// Drop the preview: it belonged to the span that just closed, and leaving
+		// it would paint a band to wherever the pointer happens to rest.
+		hovered(undefined);
+		props.onRangeChange?.(next);
 	}
 
 	function moveCursor(next: Date): void {
@@ -247,7 +389,10 @@ export const Calendar = component<CalendarProps>((props) => {
 
 	function renderDay(date: Date): Child {
 		const outside = date.getMonth() !== month().getMonth();
+		const position = (): RangePosition =>
+			isRange ? rangePositionOf(date) : "none";
 		const chosen = (): boolean => {
+			if (isRange) return position() !== "none";
 			const current = selected();
 			return current !== undefined && isSameDay(current, date);
 		};
@@ -261,6 +406,10 @@ export const Calendar = component<CalendarProps>((props) => {
 			data-cursor="${() => (onCursor() ? "" : undefined)}"
 			data-outside="${outside ? "" : undefined}"
 			data-today="${isSameDay(date, today) ? "" : undefined}"
+			data-range="${() => {
+				const at = position();
+				return at === "none" ? undefined : at;
+			}}"
 			aria-label="${fullDate.format(date)}"
 			aria-selected="${() => (chosen() ? "true" : "false")}"
 			aria-current="${isSameDay(date, today) ? "date" : undefined}"
@@ -272,10 +421,17 @@ export const Calendar = component<CalendarProps>((props) => {
 					"hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 focus-visible:ring-[3px]",
 					"aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary",
 					"data-[today]:bg-accent data-[today]:aria-selected:bg-primary",
+					// The interior of a span is a flat band: square, and in accent
+					// rather than primary, so the two ends stay the emphasis.
+					"data-[range=middle]:bg-accent data-[range=middle]:text-accent-foreground data-[range=middle]:rounded-none",
+					"data-[range=start]:rounded-r-none data-[range=end]:rounded-l-none",
 					outside ? "text-muted-foreground opacity-50" : "",
 					disabled ? "pointer-events-none opacity-30" : "",
 				)}"
 			@click="${() => choose(date)}"
+			@pointerenter="${() => {
+				if (isRange && !disabled) hovered(date);
+			}}"
 		>${date.getDate()}</button>`;
 	}
 });

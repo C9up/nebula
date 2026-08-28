@@ -2,7 +2,8 @@
  * Command — a searchable list of actions.
  *
  * The palette pattern: type to filter, arrows to move, Enter to run. Used on
- * its own inside a Popover, or full-screen through `CommandDialog`.
+ * its own — inside a Popover, a Sheet, or a page — while `CommandDialog` wraps
+ * this same component in a modal for the full-screen palette.
  *
  * The filter is the interesting decision. `cmdk`, which shadcn wraps, scores
  * matches with a fuzzy algorithm; nebula matches on substring, plus an

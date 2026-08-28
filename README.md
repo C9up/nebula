@@ -8,7 +8,7 @@ Part of **[Ream](https://github.com/C9up/ream)** — a Rust-powered, AdonisJS-co
 
 shadcn/ui is React. [Aurora](https://github.com/C9up/aurora) is a tagged-template DOM runtime with signals and no build step. nebula is the shadcn component set — the same markup, the same Tailwind classes, the same behaviour — written for Aurora.
 
-Sixty components across four atomic layers, plus the headless behaviour layer Radix would otherwise provide.
+Sixty-two components across four atomic layers, plus the headless behaviour layer Radix would otherwise provide. Every component in shadcn's registry has a counterpart; several are deliberately narrower, and the [parity section](#parity-with-shadcn) says exactly which.
 
 ## Installation
 
@@ -60,10 +60,27 @@ shadcn stands on Radix, `clsx`, `tailwind-merge`, `class-variance-authority`, `l
 | `react-hook-form` | `form()` from `@c9up/aurora`, bound by `organisms/Form.ts` |
 | `tw-animate-css` | four keyframes in `theme.css` |
 
-Two of those are narrower than what they replace, on purpose:
+Several of those are narrower than what they replace — see [parity with shadcn](#parity-with-shadcn) for the full list rather than a reassuring summary.
 
-- **Chart** draws line, area and bar over one categorical axis. Stacked negatives, dual axes and brushes are a charting library's job.
-- **DataTable** works on an in-memory array. Past a few thousand rows the work belongs on the server, so it stays client-side rather than growing a half-server-side mode.
+## Parity with shadcn
+
+Every one of shadcn's 57 registry components has a counterpart here, and the ~40 simple ones are faithful down to the class strings, the variants and the ARIA attributes. The components shadcn builds by wrapping a third-party library are reimplementations, and they are narrower. Stated plainly, because "complete port" would not be true:
+
+| Component | shadcn | nebula |
+| --- | --- | --- |
+| Chart | Recharts, in full | line, area and bar over one categorical axis |
+| DataTable | TanStack Table (column grouping, virtualisation, pinning, faceted filters, server-side) | sort, filter, page, select — in memory |
+| Sidebar | ~15 parts | the parts that are not re-skinned atoms — see below |
+| Carousel | embla (loop, autoplay, N slides per view) | scroll-snap, one slide per view, no loop or autoplay |
+| Toaster | sonner (promise toasts, arbitrary JSX, multiple positions) | four variants, action, pause on hover |
+| Resizable | arbitrary nesting, persisted layouts, collapse-to-zero | two panes, one handle |
+| Combobox | single, multi-select and creatable recipes | single-select |
+| ScrollArea | scrollbars redrawn by Radix | native scrollbars, styled |
+| Calendar | react-day-picker, every selection mode | single date and range; no multi-month, no multi-select |
+
+Two API-wide differences, both consequences of the runtime rather than choices about scope: there is no `asChild` (a compiled template has no element to clone), and compound components take data rather than children (Aurora has no React context).
+
+**The Sidebar deserves its own note**, because porting it part-for-part would have fought the atomic taxonomy rather than following it. `SidebarInput`, `SidebarSeparator` and `SidebarMenuSkeleton` are the existing `Input`, `Separator` and `Skeleton` atoms with a prefix — redeclaring them would break the composition rule the whole library is organised on. `SidebarProvider` is React context, and nebula's sidebar owns its own shared signal instead. `SidebarInset` is the content column beside the rail, which is `AppShell`, a template. What was genuinely missing and has been added: `SidebarMenuSub`, `SidebarMenuSubItem`, `SidebarMenuAction`, a badge slot, and tooltips when the rail is collapsed.
 
 ## Choose your CSS engine
 
@@ -112,13 +129,13 @@ resources/pages/
 The rule is composition, not complexity. Slider is an atom though it is interactive, because it is one input. Card is a molecule though it is trivial, because it assembles parts.
 
 <details>
-<summary><strong>All 60 components</strong></summary>
+<summary><strong>All 62 components</strong></summary>
 
 **atoms (17)** — AspectRatio, Avatar, Badge, Button, Checkbox, Input, Kbd, Label, Progress, ScrollArea, Separator, Skeleton, Slider, Spinner, Switch, Textarea, Toggle
 
 **molecules (18)** — Accordion, Alert, Breadcrumb, ButtonGroup, Card, Collapsible, Empty, Field, InputGroup, InputOTP, Item, Pagination, RadioGroup, Resizable, Table, Tabs, ToggleGroup, Typography
 
-**organisms (22)** — AlertDialog, Calendar, Carousel, Chart, Combobox, Command, ContextMenu, DataTable, DatePicker, Dialog, Drawer, DropdownMenu, Form, HoverCard, Menubar, NavigationMenu, Popover, Select, Sheet, Sidebar, Toaster, Tooltip
+**organisms (24)** — AlertDialog, Calendar, Carousel, Chart, Combobox, Command, CommandDialog, ContextMenu, DataTable, DatePicker, DateRangePicker, Dialog, Drawer, DropdownMenu, Form, HoverCard, Menubar, NavigationMenu, Popover, Select, Sheet, Sidebar, Toaster, Tooltip
 
 **templates (3)** — AppShell, AuthLayout, SettingsLayout
 
@@ -191,7 +208,7 @@ The headless layer is most of this package, and it is where shadcn's behaviour a
 ## Development
 
 ```bash
-pnpm test        # 83 unit tests
+pnpm test        # 94 unit tests
 pnpm typecheck
 pnpm lint
 pnpm registry    # regenerate registry.json from the source tree

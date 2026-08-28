@@ -25,6 +25,7 @@ import {
 	html,
 	onMount,
 	onUnmount,
+	type Signal,
 	signal,
 } from "@c9up/aurora";
 import { Button } from "../atoms/Button.js";
@@ -33,10 +34,39 @@ import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { PanelLeftIcon } from "../lib/icons.js";
 import { type Reactive, read } from "../lib/props.js";
-import { styledDiv } from "../lib/styled.js";
+import { type StyledProps, styledDiv } from "../lib/styled.js";
 import { Sheet } from "./Sheet.js";
+import { Tooltip } from "./Tooltip.js";
 
 const COOKIE_NAME = "nebula:sidebar";
+
+/**
+ * The open/collapsed state, shared by every part of the sidebar.
+ *
+ * shadcn publishes this through a `SidebarProvider` and React context, so that
+ * a menu item three levels down can know the sidebar is collapsed and show a
+ * tooltip instead of a label. Aurora has no context, and the honest
+ * replacement is a module-level signal: an app has one sidebar, so one signal
+ * is the whole of what the provider was carrying.
+ *
+ * Created on first use rather than at import, because `cookieState` reads the
+ * cookie immediately and this module is imported during SSR too.
+ */
+let sharedOpen: Signal<boolean> | undefined;
+
+export function sidebarState(defaultOpen = true): Signal<boolean> {
+	sharedOpen ??= cookieState(COOKIE_NAME, defaultOpen, booleanCookie, {
+		path: "/",
+		maxAge: COOKIE_MAX_AGE_DAYS * 24 * 60 * 60,
+		sameSite: "lax",
+	});
+	return sharedOpen;
+}
+
+/** Is the sidebar collapsed to its icon rail right now? */
+export function sidebarCollapsed(): boolean {
+	return !sidebarState()();
+}
 const COOKIE_MAX_AGE_DAYS = 365;
 /** Below this width the sidebar becomes a Sheet. Matches Tailwind's `md`. */
 const MOBILE_BREAKPOINT = 768;
@@ -59,20 +89,8 @@ export interface SidebarProps {
 export const Sidebar = component<SidebarProps>((props) => {
 	const side = props.side ?? "left";
 	const collapsible = props.collapsible ?? "icon";
-	// Aurora's `cookieState` is a signal that mirrors itself into a cookie, and
-	// reads from the SSR seed on the server. Writing `document.cookie` by hand
-	// here would work in the browser and silently do nothing during SSR, which
-	// is the half that matters — the server has to know the width to render.
-	const open = cookieState(
-		COOKIE_NAME,
-		props.defaultOpen ?? true,
-		booleanCookie,
-		{
-			path: "/",
-			maxAge: COOKIE_MAX_AGE_DAYS * 24 * 60 * 60,
-			sameSite: "lax",
-		},
-	);
+	// The shared signal, so the menu items collapse in step with the panel.
+	const open = sidebarState(props.defaultOpen ?? true);
 	const mobile = signal(false);
 
 	function toggle(): void {
@@ -202,6 +220,16 @@ export interface SidebarMenuItemProps {
 	href?: string;
 	icon?: Child;
 	active?: Reactive<boolean>;
+	/**
+	 * Shown as a tooltip while the sidebar is collapsed to icons.
+	 *
+	 * Only then: an entry whose label is already on screen does not need the
+	 * same words repeated on hover. Without it a collapsed rail is a column of
+	 * unlabelled glyphs, so give one to every entry that has an icon.
+	 */
+	tooltip?: string;
+	/** A trailing control — the count of unread items, a status dot. */
+	badge?: Child;
 	onClick?: () => void;
 }
 
@@ -216,20 +244,93 @@ export const SidebarMenuItem = component<SidebarMenuItemProps>((props) => {
 	const classes =
 		"hover:bg-sidebar-accent hover:text-sidebar-accent-foreground aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium flex h-8 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring [&>svg]:size-4 [&>svg]:shrink-0";
 
-	if (props.href !== undefined) {
-		return html`<a
-			data-slot="sidebar-menu-item"
-			href="${props.href}"
-			aria-current="${() => (read(props.active) === true ? "page" : undefined)}"
-			class="${classes}"
-		>${props.icon}<span class="truncate">${props.label}</span></a>`;
-	}
+	/**
+	 * The label and badge fold away with the rail, the icon does not.
+	 *
+	 * `sr-only` rather than `hidden`: the entry keeps its accessible name when
+	 * collapsed, so a screen reader still reads "Settings" off a column that
+	 * shows only a cog.
+	 */
+	const foldable = (): string => (sidebarCollapsed() ? "sr-only" : "truncate");
 
+	const body = html`${props.icon}<span class="${foldable}">${props.label}</span>${() =>
+		props.badge === undefined || sidebarCollapsed()
+			? null
+			: html`<span
+					data-slot="sidebar-menu-badge"
+					class="text-sidebar-foreground/70 ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums"
+				>${props.badge}</span>`}`;
+
+	const entry =
+		props.href !== undefined
+			? html`<a
+					data-slot="sidebar-menu-item"
+					href="${props.href}"
+					aria-current="${() => (read(props.active) === true ? "page" : undefined)}"
+					class="${classes}"
+				>${body}</a>`
+			: html`<button
+					type="button"
+					data-slot="sidebar-menu-item"
+					aria-current="${() => (read(props.active) === true ? "page" : undefined)}"
+					class="${classes}"
+					@click="${props.onClick}"
+				>${body}</button>`;
+
+	if (props.tooltip === undefined) return entry;
+
+	// Wrapped once, not toggled: swapping the wrapper on collapse would remount
+	// the entry and lose focus mid-keyboard-navigation. The tooltip decides for
+	// itself whether to open, which is the cheaper half to make conditional.
+	return html`${() =>
+		sidebarCollapsed()
+			? Tooltip({ trigger: entry, content: props.tooltip, placement: "right" })
+			: entry}`;
+});
+
+/**
+ * A second control on a menu row — a "more" menu, a remove button.
+ *
+ * Absolutely positioned rather than a flex sibling, so it can overlap a long
+ * label instead of squeezing it. It disappears with the rail: there is no room
+ * for two controls in an icon-width column, and the row's own action is the
+ * one that matters.
+ */
+export const SidebarMenuAction = component<SidebarMenuItemProps>((props) => {
 	return html`<button
 		type="button"
-		data-slot="sidebar-menu-item"
-		aria-current="${() => (read(props.active) === true ? "page" : undefined)}"
-		class="${classes}"
+		data-slot="sidebar-menu-action"
+		aria-label="${props.tooltip}"
+		class="${() =>
+			cn(
+				"text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-1 right-1 flex aspect-square w-5 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring [&>svg]:size-4 [&>svg]:shrink-0",
+				sidebarCollapsed() ? "hidden" : "",
+			)}"
 		@click="${props.onClick}"
-	>${props.icon}<span class="truncate">${props.label}</span></button>`;
+	>${props.icon ?? props.label}</button>`;
 });
+
+/**
+ * A nested list under a menu entry.
+ *
+ * A real `<ul>`, so the nesting is structure a screen reader can announce
+ * rather than an indent. Hidden entirely when collapsed — an indented tree in
+ * an icon-width rail is unreadable, and the parent entry is still reachable.
+ */
+export const SidebarMenuSub = component<StyledProps>((props) => {
+	return html`<ul
+		data-slot="sidebar-menu-sub"
+		class="${() =>
+			cn(
+				"border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5",
+				sidebarCollapsed() ? "hidden" : "",
+				read(props.class),
+			)}"
+	>${slot(props.children)}</ul>`;
+});
+
+/** One row of a nested list. Wrap a `SidebarMenuItem` in it. */
+export const SidebarMenuSubItem = styledDiv(
+	"sidebar-menu-sub-item",
+	"relative flex min-w-0 items-center",
+);

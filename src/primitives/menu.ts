@@ -28,12 +28,12 @@ import { cn } from "../lib/cn.js";
 import { CheckIcon, ChevronRightIcon, DotIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
 import { zoomInOut } from "../lib/motion.js";
-import { dismissable } from "../primitives/dismissable.js";
-import { autoPosition } from "../primitives/floating.js";
-import { focusSilently } from "../primitives/focusable.js";
-import { portal } from "../primitives/portal.js";
-import { rovingFocus } from "../primitives/rovingFocus.js";
-import { typeahead } from "../primitives/typeahead.js";
+import { dismissable } from "./dismissable.js";
+import { autoPosition } from "./floating.js";
+import { focusSilently } from "./focusable.js";
+import { portal } from "./portal.js";
+import { rovingFocus } from "./rovingFocus.js";
+import { typeahead } from "./typeahead.js";
 
 // ─── entries ─────────────────────────────────────────────────────────
 

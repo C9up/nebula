@@ -54,6 +54,18 @@ export {
 	type FocusTrapOptions,
 	focusTrap,
 } from "./focusTrap.js";
+export {
+	type MenuAction,
+	type MenuCheckbox,
+	type MenuEntry,
+	type MenuLabel,
+	type MenuRadioGroup,
+	type MenuSeparator,
+	type MenuSubmenu,
+	menuPanel,
+	menuPanelClasses,
+	wireMenu,
+} from "./menu.js";
 export { type ModalSurfaceOptions, modalSurface } from "./modalSurface.js";
 export { type Portal, type PortalOptions, portal } from "./portal.js";
 export {

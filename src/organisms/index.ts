@@ -19,6 +19,7 @@ export {
 	addMonths,
 	Calendar,
 	type CalendarProps,
+	type DateRange,
 	isSameDay,
 	monthGrid,
 	startOfDay,
@@ -42,9 +43,14 @@ export {
 	type CommandProps,
 	defaultFilter,
 } from "./Command.js";
+export { CommandDialog, type CommandDialogProps } from "./CommandDialog.js";
 export { ContextMenu, type ContextMenuProps } from "./ContextMenu.js";
 export { type Column, DataTable, type DataTableProps } from "./DataTable.js";
 export { DatePicker, type DatePickerProps, toISODate } from "./DatePicker.js";
+export {
+	DateRangePicker,
+	type DateRangePickerProps,
+} from "./DateRangePicker.js";
 export {
 	Dialog,
 	type DialogProps,
@@ -69,18 +75,6 @@ export {
 export { HoverCard, type HoverCardProps } from "./HoverCard.js";
 export { Menubar, type MenubarMenu, type MenubarProps } from "./Menubar.js";
 export {
-	type MenuAction,
-	type MenuCheckbox,
-	type MenuEntry,
-	type MenuLabel,
-	type MenuRadioGroup,
-	type MenuSeparator,
-	type MenuSubmenu,
-	menuPanel,
-	menuPanelClasses,
-	wireMenu,
-} from "./menu.js";
-export {
 	type NavigationItem,
 	type NavigationLink,
 	NavigationMenu,
@@ -103,11 +97,16 @@ export {
 	SidebarGroup,
 	SidebarGroupLabel,
 	SidebarMenu,
+	SidebarMenuAction,
 	SidebarMenuItem,
 	type SidebarMenuItemProps,
+	SidebarMenuSub,
+	SidebarMenuSubItem,
 	type SidebarProps,
 	SidebarTrigger,
 	type SidebarTriggerProps,
+	sidebarCollapsed,
+	sidebarState,
 } from "./Sidebar.js";
 export {
 	Toaster,
