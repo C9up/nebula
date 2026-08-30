@@ -105,10 +105,7 @@ export async function configure(
 	// CSS dependency at all — the app owns its build tooling, and a UI library
 	// quietly adding one to someone's dependency tree is how a tree gets away
 	// from them.
-	const lines = [
-		"",
-		"[@c9up/nebula] configured with the " + name + " adapter.",
-	];
+	const lines = ["", `[@c9up/nebula] configured with the ${name} adapter.`];
 
 	if (adapter.packages.length > 0) {
 		lines.push(
