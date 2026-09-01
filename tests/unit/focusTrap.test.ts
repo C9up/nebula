@@ -138,3 +138,50 @@ describe("focusTrap", () => {
 		expect(document.activeElement?.id).toBe("elsewhere");
 	});
 });
+
+describe("focusTrap > two portalled siblings", () => {
+	it("leaves the focus to the innermost trap instead of fighting over it", () => {
+		// Every modal surface here is portalled to document.body, so a dialog
+		// opened over a dialog is a SIBLING, not a descendant. The `contains`
+		// guard read that as "focus is outside me" on BOTH traps, and each
+		// pulled it back from the other.
+		const outer = panel('<button id="outer-a">a</button>');
+		const inner = panel('<button id="inner-a">b</button>');
+
+		const outerTrap = focusTrap(outer);
+		const innerTrap = focusTrap(inner);
+
+		// Focus starts in the inner one, which is the one the user is in.
+		expect(document.activeElement?.id).toBe("inner-a");
+
+		// A stray focusin from the page behind: only the innermost trap reacts,
+		// and it reclaims focus for itself.
+		document.body.focus();
+		document.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+		expect(inner.contains(document.activeElement)).toBe(true);
+
+		// Closing the inner one hands the trap back to the outer.
+		innerTrap.release();
+		document.body.focus();
+		document.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+		expect(outer.contains(document.activeElement)).toBe(true);
+
+		outerTrap.release();
+	});
+
+	it("survives surfaces closing out of order", () => {
+		const outer = panel('<button id="o">a</button>');
+		const inner = panel('<button id="i">b</button>');
+		const outerTrap = focusTrap(outer);
+		const innerTrap = focusTrap(inner);
+
+		// The outer closes first — a route change tearing down a page while a
+		// popover is still open.
+		outerTrap.release();
+		document.body.focus();
+		document.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+		expect(inner.contains(document.activeElement)).toBe(true);
+
+		innerTrap.release();
+	});
+});

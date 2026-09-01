@@ -23,6 +23,21 @@
 
 import { firstFocusable, focusableWithin, focusSilently } from "./focusable.js";
 
+/**
+ * Every active trap, in the order they were created — innermost last.
+ *
+ * Only the last one acts. `contains` was the guard before, on the assumption
+ * that a nested dialog is a DESCENDANT of the one it opened over. Every modal
+ * surface here is portalled to `document.body`, so two open dialogs are
+ * SIBLINGS: each trap saw the other's focus as outside itself and pulled it
+ * back, and the focus bounced between them until it settled in the wrong one.
+ *
+ * A stack is also what makes release order not matter: an outer surface that
+ * closes first splices itself out, and whichever trap is innermost then is the
+ * one holding focus.
+ */
+const active: object[] = [];
+
 export interface FocusTrapOptions {
 	/**
 	 * Where focus goes when the trap activates. Defaults to the first focusable
@@ -56,6 +71,19 @@ export function focusTrap(
 ): FocusTrap {
 	const previouslyFocused = activeElement();
 
+	/**
+	 * This trap's identity in the {@link active} stack, pushed BEFORE the
+	 * initial focus: moving focus fires `focusin`, and a trap that was not yet
+	 * on the stack had its own initial focus reclaimed by the one below it.
+	 */
+	const token = {};
+	active.push(token);
+
+	/** Whether this is the trap the user is actually inside. */
+	function isTopmost(): boolean {
+		return active[active.length - 1] === token;
+	}
+
 	if (!container.hasAttribute("tabindex")) {
 		container.setAttribute("tabindex", "-1");
 	}
@@ -68,6 +96,7 @@ export function focusTrap(
 
 	function onKeyDown(event: KeyboardEvent): void {
 		if (event.key !== "Tab") return;
+		if (!isTopmost()) return;
 
 		const focusables = focusableWithin(container);
 		if (focusables.length === 0) {
@@ -94,11 +123,11 @@ export function focusTrap(
 	/**
 	 * Pull focus back when it lands outside by any route other than Tab.
 	 *
-	 * Guarded on `contains`, and only ever moves focus *into* the trap, so it
-	 * cannot fight a nested trap: an inner dialog's container is a descendant
-	 * of the outer one, so the outer handler sees the focus as already inside.
+	 * Only the topmost trap does this. See {@link active}: guarding on
+	 * `contains` alone made two portalled siblings fight over the focus.
 	 */
 	function onFocusIn(event: FocusEvent): void {
+		if (!isTopmost()) return;
 		const target = event.target;
 		if (!(target instanceof Node)) return;
 		if (container.contains(target)) return;
@@ -113,6 +142,9 @@ export function focusTrap(
 		release(): void {
 			if (released) return;
 			released = true;
+			// Spliced, not popped: surfaces do not always close innermost-first.
+			const index = active.indexOf(token);
+			if (index !== -1) active.splice(index, 1);
 			document.removeEventListener("keydown", onKeyDown, true);
 			document.removeEventListener("focusin", onFocusIn, true);
 

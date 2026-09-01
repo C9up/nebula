@@ -89,7 +89,15 @@ export function Form<T>(props: FormProps<T>): ReturnType<typeof html> {
 		novalidate
 		class="${() => cn("flex flex-col gap-6", read(props.class))}"
 		@submit="${(event: Event) => {
-			void props.form.handleSubmit(event);
+			// A DOM listener returns nothing, so this promise is nobody's to
+			// await. `command.run` always resolves — failures route to
+			// `onFail` — but `validate()` runs first, and a validator that
+			// throws rejects here: the form would silently do nothing and leave
+			// a bare `Uncaught (in promise)` behind. Reported, so the thing
+			// that broke is the thing the console names.
+			void props.form.handleSubmit(event).catch((error: unknown) => {
+				console.error("[nebula] Form submit failed:", error);
+			});
 		}}"
 	>${slot(props.children)}</form>`;
 }
