@@ -6,6 +6,9 @@
  * here it is a recorder, which is all the hook actually needs.
  */
 
+import * as fsp from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configure } from "../../src/configure.js";
 
@@ -133,5 +136,96 @@ describe("configure", () => {
 			"@c9up/nebula/commands/add",
 			"@c9up/nebula/commands/list",
 		]);
+	});
+});
+
+/**
+ * The stylesheet is never overwritten — it is the app's. The failure that
+ * caused is silent: components get copied in, every class name is present in
+ * the markup, and the page renders grey because the tokens they resolve
+ * against were never defined.
+ */
+describe("configure > a stylesheet that was left in place", () => {
+	async function inProject(css: string | null): Promise<string> {
+		const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "nebula-cfg-"));
+		if (css !== null) {
+			await fsp.mkdir(path.join(dir, "resources/css"), { recursive: true });
+			await fsp.writeFile(path.join(dir, "resources/css/app.css"), css);
+		}
+		vi.spyOn(process, "cwd").mockReturnValue(dir);
+		const lines = silenceStderr();
+		await configure(recorder().codemods, {});
+		return lines.join("");
+	}
+
+	it("names the tokens the app's own stylesheet does not define", async () => {
+		const out = await inProject(
+			'@import "tailwindcss";\n@source "../pages";\n',
+		);
+
+		expect(out).toContain("already existed");
+		expect(out).toContain("--color-primary");
+	});
+
+	it("says nothing when the app imports nebula's theme", async () => {
+		const out = await inProject(
+			'@import "tailwindcss";\n@import "@c9up/nebula/theme.css";\n',
+		);
+
+		expect(out).not.toContain("already existed");
+	});
+
+	// Declaring `--color-*` directly is the other correct way: no theme import,
+	// no `@theme inline`, and every utility still resolves.
+	it("says nothing when the app declares the tokens itself", async () => {
+		const declared = [
+			'@import "tailwindcss";',
+			"@theme {",
+			...[
+				"background",
+				"foreground",
+				"card",
+				"card-foreground",
+				"popover",
+				"popover-foreground",
+				"primary",
+				"primary-foreground",
+				"secondary",
+				"secondary-foreground",
+				"muted",
+				"muted-foreground",
+				"accent",
+				"accent-foreground",
+				"destructive",
+				"destructive-foreground",
+				"border",
+				"input",
+				"ring",
+				"sidebar",
+				"sidebar-foreground",
+				"sidebar-primary",
+				"sidebar-primary-foreground",
+				"sidebar-accent",
+				"sidebar-accent-foreground",
+				"sidebar-border",
+				"sidebar-ring",
+				"chart-1",
+				"chart-2",
+				"chart-3",
+				"chart-4",
+				"chart-5",
+			].map((name) => `  --color-${name}: oklch(0.5 0 0);`),
+			"}",
+		].join("\n");
+
+		const out = await inProject(declared);
+
+		expect(out).not.toContain("already existed");
+	});
+
+	it("says nothing when there was no stylesheet to skip", async () => {
+		const out = await inProject(null);
+
+		expect(out).not.toContain("already existed");
 	});
 });

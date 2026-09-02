@@ -16,7 +16,10 @@
  * its adapters run at build time. An empty provider would be ceremony.
  */
 
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { adapterFor, isAdapterName } from "./adapters/index.js";
+import type { GeneratedFile } from "./adapters/types.js";
 import { type AdapterName, resolveConfig } from "./config.js";
 
 /**
@@ -97,8 +100,21 @@ export async function configure(
 	await codemods.registerCommand("@c9up/nebula/commands/add");
 	await codemods.registerCommand("@c9up/nebula/commands/list");
 
-	for (const file of adapter.files(config)) {
-		await codemods.writeFile(file.path, file.contents);
+	const generated = adapter.files(config);
+	for (const file of generated) {
+		// `skipIfExists` is the adapter saying the app owns this file. Pass it
+		// through rather than relying on the codemod's default, so the contract
+		// is the thing that decides.
+		await codemods.writeFile(file.path, file.contents, {
+			force: !file.skipIfExists,
+		});
+	}
+
+	const gaps: Array<{ path: string; missing: string[] }> = [];
+	for (const file of generated) {
+		if (!file.skipIfExists) continue;
+		const missing = await missingFrom(file);
+		if (missing.length > 0) gaps.push({ path: file.path, missing });
 	}
 
 	// On stderr, and never installed on the user's behalf. nebula declares no
@@ -128,7 +144,60 @@ export async function configure(
 	lines.push(
 		"  Then add components with `ream nebula:add button card` — they are copied",
 		"  into your project and are yours to edit.",
-		"",
 	);
+
+	for (const gap of gaps) {
+		lines.push(
+			"",
+			`  ${gap.path} already existed, so it was left alone — it is yours.`,
+			"  The components resolve against tokens it does not define:",
+			...gap.missing.map((token) => `      ${token}`),
+			"",
+			'  Import nebula\'s theme (`@import "@c9up/nebula/theme.css"` plus the',
+			"  `@theme inline` block), or declare them yourself. Without them the",
+			"  utilities still compile and every colour resolves to nothing.",
+		);
+	}
+
+	lines.push("");
 	process.stderr.write(lines.join("\n"));
+}
+
+/**
+ * Which of the tokens the components resolve against are absent from the
+ * stylesheet that was left in place.
+ *
+ * `skipIfExists` means an app's own stylesheet is never overwritten, which is
+ * right — it is theirs once it exists. The cost is that a project that already
+ * had one gets the components copied in and nothing for them to resolve
+ * against. Nothing throws, every class name is present in the markup, and the
+ * page comes out grey.
+ *
+ * Tokens rather than directives, because there is more than one correct way to
+ * supply them: importing nebula's theme, or declaring `--color-*` directly in
+ * an `@theme` block. Only the second half of that is checkable by reading, so
+ * the import short-circuits the question.
+ */
+async function missingFrom(file: GeneratedFile): Promise<string[]> {
+	let existing: string;
+	try {
+		existing = await readFile(resolve(process.cwd(), file.path), "utf8");
+	} catch {
+		// No file to read means nothing was skipped: it was written as generated.
+		return [];
+	}
+	if (existing.includes("@c9up/nebula/theme.css")) return [];
+	return colorTokensOf(file.contents).filter(
+		(token) => !new RegExp(`${token}\\s*:`).test(existing),
+	);
+}
+
+/** The `--color-*` names a generated stylesheet makes available. */
+function colorTokensOf(css: string): string[] {
+	const found = new Set<string>();
+	for (const match of css.matchAll(/(--color-[a-z-]+)\s*:/g)) {
+		const name = match[1];
+		if (name !== undefined) found.add(name);
+	}
+	return [...found];
 }
