@@ -1,6 +1,6 @@
 {
   "name": "@c9up/nebula",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Nebula \u2014 shadcn/ui ported to Aurora, organised as atomic design. Zero-dependency headless primitives, cva reimplemented, copy-the-source registry.",
   "license": "MIT",
   "type": "module",
