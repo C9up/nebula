@@ -31,6 +31,50 @@ const FOCUSABLE_SELECTOR = [
 ].join(",");
 
 /**
+ * Does a collapsed `<details>` hide this element?
+ *
+ * Nothing else in this file can answer it. A browser refuses to render the
+ * contents of a closed `<details>`, yet it still hands out a full box for
+ * them: Chromium reports `offsetParent: <body>`, a 62x21 rect and
+ * `display: inline-block` for a button inside one, while `checkVisibility()`
+ * answers false and `focus()` silently does nothing. Layout lies here and the
+ * computed styles lie with it, so only the markup can be asked.
+ *
+ * The `<summary>` is the exception: it is the part that stays rendered, and it
+ * is focusable in both states. The walk continues past an open `<details>`
+ * because a nested one can still sit inside a collapsed parent.
+ */
+function isInsideClosedDetails(el: HTMLElement): boolean {
+	for (
+		let details = el.closest("details");
+		details !== null;
+		details = details.parentElement?.closest("details") ?? null
+	) {
+		if (details.open) continue;
+		const summary = details.querySelector(":scope > summary");
+		if (summary === null || !summary.contains(el)) return true;
+	}
+	return false;
+}
+
+/**
+ * The next node up, leaving a shadow tree by its host.
+ *
+ * `parentElement` is null for the top node of a shadow tree — what sits above
+ * it is a DocumentFragment, not an Element — so an ancestor walk stops at the
+ * boundary and never sees a host that is `display: none`. The node inside then
+ * keeps its own `display: inline-block` and reads as rendered while the browser
+ * gives it a zero-sized box.
+ */
+function ancestorOf(node: HTMLElement): HTMLElement | null {
+	if (node.parentElement !== null) return node.parentElement;
+	const root = node.getRootNode();
+	return root instanceof ShadowRoot && root.host instanceof HTMLElement
+		? root.host
+		: null;
+}
+
+/**
  * Is the element rendered and interactive right now?
  *
  * `offsetParent` is a layout answer, and only a real layout engine has one to
@@ -43,11 +87,18 @@ const FOCUSABLE_SELECTOR = [
  *
  * The fallback walks the ancestors because `display` does not inherit: a node
  * with `display: block` inside a `display: none` container is still not
- * rendered. `visibility` does inherit, so the element's own value settles it.
+ * rendered. `visibility` does inherit, so the element's own value settles it,
+ * and the walk crosses shadow boundaries because the host can hide the tree.
  */
 export function isVisible(el: HTMLElement): boolean {
 	if (el.hasAttribute("inert")) return false;
 	if (el.closest("[inert]") !== null) return false;
+
+	// These two settle before the fast path because they are the cases layout
+	// answers *wrongly* rather than not at all: `offsetParent` reports a
+	// confident ancestor for a node the browser will not render or focus.
+	if (!el.isConnected) return false;
+	if (isInsideClosedDetails(el)) return false;
 
 	if (el.offsetParent instanceof Element) return true;
 
@@ -58,7 +109,7 @@ export function isVisible(el: HTMLElement): boolean {
 	for (
 		let node: HTMLElement | null = el;
 		node !== null;
-		node = node.parentElement
+		node = ancestorOf(node)
 	) {
 		if (getComputedStyle(node).display === "none") return false;
 	}
