@@ -99,6 +99,7 @@ export async function configure(
 	// line of Rust and without waiting on a release of the binary.
 	await codemods.registerCommand("@c9up/nebula/commands/add");
 	await codemods.registerCommand("@c9up/nebula/commands/list");
+	await codemods.registerCommand("@c9up/nebula/commands/diff");
 
 	const generated = adapter.files(config);
 	for (const file of generated) {

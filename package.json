@@ -54,6 +54,10 @@
     "./commands/list": {
       "types": "./src/console/ListCommand.ts",
       "import": "./src/console/ListCommand.ts"
+    },
+    "./commands/diff": {
+      "types": "./src/console/DiffCommand.ts",
+      "import": "./src/console/DiffCommand.ts"
     }
   },
   "scripts": {
@@ -139,6 +143,10 @@
       "./commands/list": {
         "types": "./dist/console/ListCommand.d.ts",
         "import": "./dist/console/ListCommand.js"
+      },
+      "./commands/diff": {
+        "types": "./dist/console/DiffCommand.d.ts",
+        "import": "./dist/console/DiffCommand.js"
       }
     },
     "access": "public"

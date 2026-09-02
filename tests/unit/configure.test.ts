@@ -135,6 +135,7 @@ describe("configure", () => {
 		expect(commands).toEqual([
 			"@c9up/nebula/commands/add",
 			"@c9up/nebula/commands/list",
+			"@c9up/nebula/commands/diff",
 		]);
 	});
 });

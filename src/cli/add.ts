@@ -18,6 +18,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { defaultPaths, type Language, type NebulaPaths } from "../config.js";
+import { hashOf, writeManifest } from "./manifest.js";
 import { loadRegistry, packageRoot, resolveItems } from "./registry.js";
 
 export interface AddOptions {
@@ -93,6 +94,11 @@ export function add(options: AddOptions): AddResult {
 
 	const written: string[] = [];
 	const skipped: string[] = [];
+	// What each file looked like when it was copied. `nebula diff` reads this
+	// to tell a change you made from one released upstream that you have not
+	// seen — without it every edited component reads as "differs", which is
+	// true of all of them by design.
+	const copiedHashes: Record<string, string> = {};
 	// Shared files — `lib/cn.ts`, the primitives — belong to several items, so
 	// one run reaches the same path repeatedly. Without this, the second visit
 	// finds the file the first visit just wrote and reports it as pre-existing,
@@ -119,7 +125,13 @@ export function add(options: AddOptions): AddResult {
 
 			mkdirSync(dirname(to), { recursive: true });
 			copyFileSync(from, to);
+			const hash = hashOf(to);
+			if (hash !== undefined) copiedHashes[relative] = hash;
 		}
+	}
+
+	if (options.dryRun !== true && Object.keys(copiedHashes).length > 0) {
+		writeManifest(target, copiedHashes);
 	}
 
 	return { written, skipped, language };

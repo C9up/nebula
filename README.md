@@ -33,10 +33,13 @@ import { Button } from '#pages/atoms/Button.js'
 
 `ream nebula:add` copies the component's source into your project and hands it over. No version, no upgrade path, no wrapper to fight when a design needs one class changed. That is shadcn's premise and nebula keeps it.
 
+The bill for that premise is that a fix released here never reaches a project on its own, and nothing reports it — the files are local, no lockfile mentions them, `pnpm update` does not touch them. `ream nebula:diff` is where that becomes visible. It records the hash of what it copied, so it can separate a change you made from one you have not seen: `edited` is yours and needs nothing, `outdated` means the package moved while your copy stayed put and re-copying loses nothing, `conflict` means both moved. Components copied before the record existed report `unknown`, which is the honest answer — there is no way to tell which side moved.
+
 ```bash
 ream nebula:list                    # everything in the registry
 ream nebula:list --layer organisms
 ream nebula:add dialog data-table   # copies both, plus what they depend on
+ream nebula:diff                    # which copies the package has since changed
 ream nebula:add button --force      # overwrite your edited copy
 ```
 
