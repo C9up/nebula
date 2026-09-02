@@ -342,12 +342,6 @@ const cases: readonly Case[] = [
 	{
 		name: "form",
 		slot: "form",
-		// happy-dom 15.11.7 throws from `HTMLFormElement.remove()` — "the node to
-		// be removed is not a child of this node" — while `parentElement` is
-		// correct and `parent.removeChild(form)` on the same node succeeds. A
-		// `<div>` in the same position removes cleanly, so it is specific to
-		// form elements in this DOM implementation, not to nebula or Aurora.
-		skipUnmount: true,
 		build: () =>
 			organisms.Form({
 				form: form({ initial: { email: "" }, submit: async () => undefined }),

@@ -33,21 +33,36 @@ const FOCUSABLE_SELECTOR = [
 /**
  * Is the element rendered and interactive right now?
  *
- * `offsetParent === null` catches `display: none` on the element or any
- * ancestor in one property read, which is much cheaper than walking the tree.
- * It reports null for `position: fixed` elements too, so those fall through to
- * the explicit style checks — that branch is why dialogs and popovers, which
- * are routinely fixed, are not wrongly treated as hidden.
+ * `offsetParent` is a layout answer, and only a real layout engine has one to
+ * give. An element there is positive proof that this node is rendered, so it
+ * stays the cheap fast path. Its *absence* proves nothing: a browser reports
+ * null for `position: fixed` nodes and for `<body>`, and a headless DOM has no
+ * layout at all — jsdom answers null for every element alike, happy-dom does
+ * not implement the property. Reading that absence as "hidden" is what makes
+ * the check fall through to the styles instead of answering from it.
+ *
+ * The fallback walks the ancestors because `display` does not inherit: a node
+ * with `display: block` inside a `display: none` container is still not
+ * rendered. `visibility` does inherit, so the element's own value settles it.
  */
 export function isVisible(el: HTMLElement): boolean {
 	if (el.hasAttribute("inert")) return false;
 	if (el.closest("[inert]") !== null) return false;
 
-	if (el.offsetParent !== null) return true;
+	if (el.offsetParent instanceof Element) return true;
 
-	const style = getComputedStyle(el);
-	if (style.position !== "fixed") return false;
-	return style.display !== "none" && style.visibility !== "hidden";
+	const own = getComputedStyle(el);
+	if (own.visibility === "hidden" || own.visibility === "collapse")
+		return false;
+
+	for (
+		let node: HTMLElement | null = el;
+		node !== null;
+		node = node.parentElement
+	) {
+		if (getComputedStyle(node).display === "none") return false;
+	}
+	return true;
 }
 
 /**

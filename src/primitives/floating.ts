@@ -438,7 +438,7 @@ function isRightToLeft(element: HTMLElement): boolean {
 /**
  * Watch elements for size changes, where the platform supports it.
  *
- * happy-dom (nebula's unit-test environment) has no `ResizeObserver`, and the
+ * jsdom (nebula's unit-test environment) has no `ResizeObserver`, and the
  * scroll and resize listeners already cover the common cases, so its absence
  * degrades rather than throws.
  */

@@ -98,7 +98,7 @@ describe("presence", () => {
 	});
 
 	it("unmounts immediately when nothing is animating", () => {
-		// happy-dom reports no animation, which is the same answer a real browser
+		// jsdom reports no animation, which is the same answer a real browser
 		// gives for an element with no exit rules — the node must not be stranded.
 		const p = presence(true);
 		const element = document.createElement("div");

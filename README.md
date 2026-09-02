@@ -255,7 +255,7 @@ pnpm build
 
 `registry.json` is derived from the imports rather than maintained by hand, and a test asserts that every file an item ships actually resolves — the failure it guards is otherwise silent, showing up in a user's build rather than here.
 
-Coverage sits around 83% of statements. The shape matters more than the number: every component is mounted and unmounted by `render-smoke.test.ts`, the shared surfaces and the headless primitives are tested directly, and the overlays are opened rather than only rendered closed. What the suite cannot reach is pointer-drag — happy-dom has no `setPointerCapture`, so Drawer's swipe-to-dismiss and Resizable's drag are covered by their keyboard paths only.
+Coverage sits around 83% of statements. The shape matters more than the number: every component is mounted and unmounted by `render-smoke.test.ts`, the shared surfaces and the headless primitives are tested directly, and the overlays are opened rather than only rendered closed. What the suite cannot reach is pointer-drag — jsdom has no `setPointerCapture`, so Drawer's swipe-to-dismiss and Resizable's drag are covered by their keyboard paths only.
 
 ## Licence
 
