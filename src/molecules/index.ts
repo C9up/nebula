@@ -78,6 +78,7 @@ export {
 export {
 	InputGroup,
 	InputGroupAddon,
+	InputGroupInput,
 	type InputGroupProps,
 	inputGroupControlClasses,
 } from "./InputGroup.js";

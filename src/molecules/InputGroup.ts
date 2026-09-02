@@ -11,6 +11,7 @@
  */
 
 import { component, html } from "@c9up/aurora";
+import { Input, type InputProps } from "../atoms/Input.js";
 import { type Slot, slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { type Reactive, read } from "../lib/props.js";
@@ -30,9 +31,14 @@ export interface InputGroupProps {
 /**
  * Strip the inner input of its own chrome.
  *
- * Exported so a caller passing a plain `<input>` rather than nebula's `Input`
- * can apply it too — without this the input draws a second border inside the
- * group's, which is the one way this component visibly goes wrong.
+ * Put these ON the input. The group cannot do it from the outside: a descendant
+ * variant like `[&_input]:border-0` has to exist as a literal for Tailwind to
+ * generate a rule for it, and building one by joining this string at runtime
+ * produces class names no stylesheet ever defines — the input keeps its border
+ * and draws a second one inside the group's, with nothing raised to say so.
+ *
+ * {@link InputGroupInput} applies them for you. This export is for a caller
+ * passing a plain `<input>` instead.
  */
 export const inputGroupControlClasses =
 	"flex-1 border-0 bg-transparent px-0 shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 disabled:opacity-100";
@@ -48,13 +54,27 @@ export const InputGroup = component<InputGroupProps>((props) => {
 				"focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
 				"aria-invalid:border-destructive aria-invalid:ring-destructive/20",
 				"data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-				`[&_input]:${inputGroupControlClasses.split(" ").join(" [&_input]:")}`,
 				read(props.class),
 			)}"
 	>
 		${slot(props.leading)}${slot(props.children)}${slot(props.trailing)}
 	</div>`;
 });
+
+/**
+ * The input that belongs inside an {@link InputGroup}.
+ *
+ * Same component as {@link Input}, with the group's stripping applied first so
+ * a caller's own `class` still wins. This is where the classes have to live:
+ * the group carries the border and the ring, and the input has to bring none
+ * of its own.
+ */
+export const InputGroupInput = component<InputProps>((props) =>
+	Input({
+		...props,
+		class: () => cn(inputGroupControlClasses, read(props.class)),
+	}),
+);
 
 export const InputGroupAddon = styledDiv(
 	"input-group-addon",

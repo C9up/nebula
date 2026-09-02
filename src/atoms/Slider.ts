@@ -9,22 +9,27 @@
  * free.
  *
  * The cost is the thumb, which can only be reached through the two vendor
- * pseudo-elements. Both are written out; they cannot be combined into one
- * selector, since a browser drops an entire rule containing a pseudo-element
- * it does not recognise.
+ * pseudo-elements. Both are written out, as literals — see `sliderClasses`.
  */
 
 import { component, html } from "@c9up/aurora";
 import { cn } from "../lib/cn.js";
 import { accessor, type Reactive, read } from "../lib/props.js";
 
-const THUMB =
-	"size-4 appearance-none rounded-full border border-primary bg-background shadow-sm transition-[color,box-shadow]";
-
+// Every thumb variant is written out, and the repetition is the point.
+//
+// Tailwind finds class names by SCANNING this file as text — it never runs it.
+// A variant built at runtime, `[&::-webkit-slider-thumb]:${THUMB.split(...)}`,
+// is never a literal here, so no rule is generated for it and the attribute
+// ends up naming classes that do not exist. Nothing throws and the markup looks
+// right; the thumb simply falls back to the browser's default.
+//
+// The two vendor pseudo-elements cannot be folded into one selector either: a
+// browser drops an entire rule containing a pseudo-element it does not know.
 export const sliderClasses = cn(
 	"h-1.5 w-full cursor-pointer appearance-none rounded-full bg-primary/20 outline-none disabled:pointer-events-none disabled:opacity-50",
-	`[&::-webkit-slider-thumb]:${THUMB.split(" ").join(" [&::-webkit-slider-thumb]:")}`,
-	`[&::-moz-range-thumb]:${THUMB.split(" ").join(" [&::-moz-range-thumb]:")}`,
+	"[&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:bg-background [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:transition-[color,box-shadow]",
+	"[&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-primary [&::-moz-range-thumb]:bg-background [&::-moz-range-thumb]:shadow-sm [&::-moz-range-thumb]:transition-[color,box-shadow]",
 	"focus-visible:[&::-webkit-slider-thumb]:ring-ring/50 focus-visible:[&::-webkit-slider-thumb]:ring-[3px]",
 	"focus-visible:[&::-moz-range-thumb]:ring-ring/50 focus-visible:[&::-moz-range-thumb]:ring-[3px]",
 );

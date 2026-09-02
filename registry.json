@@ -592,7 +592,9 @@
         "lib/styled.ts",
         "molecules/InputGroup.ts"
       ],
-      "dependencies": []
+      "dependencies": [
+        "input"
+      ]
     },
     {
       "name": "input-otp",
