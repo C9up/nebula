@@ -187,7 +187,7 @@ describe("Tabs", () => {
 			Tabs({
 				items: [
 					{ value: "a", label: "A", content: "x", disabled: true },
-					items[1],
+					...items.slice(1, 2),
 				],
 			}),
 		);
