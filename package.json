@@ -64,7 +64,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "biome check src/",
+    "lint": "biome check src/ tests/",
     "test:coverage": "vitest run --coverage",
     "registry": "node --experimental-strip-types scripts/build-registry.ts",
     "css": "node --experimental-strip-types scripts/build-css.ts",
