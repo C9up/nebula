@@ -49,7 +49,27 @@ export default defineConfig({
   content: {
     filesystem: ['${config.paths.components}/**/*.{ts,js}'],
   },
-  preflights: [{ getCSS: () => tokens }],
+  preflights: [
+    { getCSS: () => tokens },
+    /*
+     * Give \`border\` a colour.
+     *
+     * presetWind4 follows Tailwind v4 and leaves a bare \`border\` at
+     * \`currentColor\`, so a component that lets the base layer colour its
+     * border takes the colour of its own TEXT — white, in a dark app. Written
+     * out rather than \`@apply\`d because a preflight is plain CSS.
+     */
+    {
+      getCSS: () => \`* {
+  border-color: var(--border);
+  outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+}
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}\`,
+    },
+  ],
   // \`dark:\` follows a \`.dark\` class, so a theme toggle can override the OS.
   darkMode: 'class',
   theme: {

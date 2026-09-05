@@ -81,6 +81,27 @@ function stylesheet(config: ResolvedNebulaConfig): string {
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
+
+/*
+ * Give \`border\` a colour.
+ *
+ * Tailwind v4 dropped v3's default border colour: a bare \`border\` sets a width
+ * and leaves \`border-color\` at \`currentColor\`. Components written the way
+ * shadcn writes them — \`border\` with the colour left to the base layer — then
+ * take the colour of their own TEXT, which in a dark app is white. The tokens
+ * are all defined and none of them is applied.
+ *
+ * \`body\` is here for the same reason: the page's own background is a token
+ * too, and nothing else claims it.
+ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
 `;
 }
 

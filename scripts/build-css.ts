@@ -70,6 +70,22 @@ writeFileSync(
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
+
+/*
+ * Same base layer the tailwind adapter emits, for the same reason: v4 leaves
+ * a bare \`border\` at \`currentColor\`, so without this every component that
+ * lets the base layer colour its border takes the colour of its own text.
+ * The css adapter ships this file as-is and runs no scanner, so anything
+ * missing here is missing for good.
+ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
 `,
 );
 

@@ -20,6 +20,32 @@ describe("style adapters", () => {
 		expect(adapterFor("css").packages).toEqual([]);
 	});
 
+	it("colours a bare `border`, which v4 leaves at currentColor", () => {
+		// The defect this guards renders, it does not error: every token is
+		// defined, none is applied, and a component whose border colour comes
+		// from the base layer paints it in its own TEXT colour — white borders
+		// everywhere in a dark app.
+		const config = resolveConfig({ adapter: "tailwind" });
+		const [stylesheet] = adapterFor("tailwind").files(config);
+		expect(stylesheet?.contents).toContain("@layer base");
+		expect(stylesheet?.contents).toContain(
+			"@apply border-border outline-ring/50",
+		);
+		expect(stylesheet?.contents).toContain(
+			"@apply bg-background text-foreground",
+		);
+	});
+
+	it("carries the same base rules into the UnoCSS preflight", () => {
+		// A preflight is plain CSS — no `@apply` — so the rules are written out,
+		// and the two adapters would drift apart without this.
+		const config = resolveConfig({ adapter: "unocss" });
+		const files = adapterFor("unocss").files(config);
+		const uno = files.map((f) => f.contents).join("\n");
+		expect(uno).toContain("border-color: var(--border)");
+		expect(uno).toContain("background-color: var(--background)");
+	});
+
 	it("resolves @source relative to the stylesheet, not the project root", () => {
 		// The failure this guards is silent: a wrong path means Tailwind scans
 		// nothing, emits no utilities, and the page renders unstyled with no
