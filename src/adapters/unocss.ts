@@ -21,6 +21,7 @@ const CONFIG_PATH = "uno.config.ts";
 
 function unoConfig(config: ResolvedNebulaConfig): string {
 	return `import { defineConfig, presetWind4 } from 'unocss'
+import presetAnimations from 'unocss-preset-animations'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
@@ -45,7 +46,15 @@ const tokens = readFileSync(require.resolve('@c9up/nebula/theme.css'), 'utf8')
 const color = (name: string) => \`var(--\${name})\`
 
 export default defineConfig({
-  presets: [presetWind4()],
+  /*
+   * \`presetAnimations\` is the UnoCSS port of the same utilities shadcn uses
+   * through \`tw-animate-css\`: \`animate-in\` / \`animate-out\` and the
+   * \`fade-*\` / \`zoom-*\` / \`slide-*\` modifiers. nebula's components emit
+   * shadcn's class strings verbatim, so the utilities have to exist under every
+   * engine — and registering them is what makes a missing setup produce no
+   * animation rather than an overlay that never finishes closing.
+   */
+  presets: [presetWind4(), presetAnimations()],
   content: {
     filesystem: ['${config.paths.components}/**/*.{ts,js}'],
   },
@@ -117,7 +126,7 @@ export const unocssAdapter: StyleAdapter = {
 	name: "unocss",
 	summary:
 		"UnoCSS with presetWind4 — same class syntax, no PostCSS, faster builds.",
-	packages: ["unocss", "@unocss/cli"],
+	packages: ["unocss", "@unocss/cli", "unocss-preset-animations"],
 
 	files(config: ResolvedNebulaConfig): readonly GeneratedFile[] {
 		return [

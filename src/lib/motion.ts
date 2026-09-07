@@ -1,32 +1,41 @@
 /**
  * Enter and exit animations for overlays.
  *
- * shadcn drives these with `animate-in` / `animate-out` from `tw-animate-css`
- * — a Tailwind plugin, and a dependency. nebula declares the four keyframes it
- * needs in `theme.css` and references them through arbitrary animation values,
- * which every one of the three adapters supports and none of them needs a
- * plugin for.
+ * These are shadcn's own class strings, verbatim, and they come from the same
+ * place shadcn's do: `tw-animate-css`, which registers `animate-in` /
+ * `animate-out` and the `fade-*` / `zoom-*` / `slide-*` modifiers through
+ * `@theme inline` and `@utility`.
  *
- * The durations are asymmetric on purpose: entering is slower than leaving.
- * A surface appearing wants to be noticed, a surface dismissed wants to be out
- * of the way — matching them makes closing feel sluggish.
+ * nebula used to declare four bespoke keyframes and reference them through
+ * ARBITRARY animation values (`animate-[nebula-zoom-out_120ms_ease-in]`), to
+ * avoid the plugin. That is what made a missing stylesheet fatal rather than
+ * cosmetic: Tailwind compiles an arbitrary value unconditionally, so the
+ * `animation` property was always set while the keyframes behind it might exist
+ * nowhere — the browser then never fires `animationend` and every closed
+ * overlay stays in the document. With a theme-registered utility the class
+ * simply is not emitted when the theme is absent, the element animates not at
+ * all, and closing is instant. That is the whole reason upstream registers
+ * rather than inlines, and it is why the deviation is gone.
  *
- * Every string ends in `motion-reduce:animate-none`. That is not only a
- * courtesy: `onExitFinished` reads the computed style to decide whether to
- * wait, sees no animation, and removes the node immediately. Reduced motion
- * therefore gets an instant close rather than a delayed one, with no branch in
- * the component.
+ * The durations are shadcn's too, which means asymmetric by way of the sheet
+ * variants only; everything else takes `tw-animate-css`'s defaults.
  */
 
 import type { Side } from "../primitives/floating.js";
 
-/** Popovers, menus, selects — scale up from the anchor. */
+/**
+ * Popovers, menus, selects — scale up from the anchor.
+ *
+ * shadcn's dialog and popover string. `motion-reduce:animate-none` is ours and
+ * stays: it also makes `onExitFinished` see no animation and remove the node at
+ * once, so reduced motion gets an instant close with no branch in the component.
+ */
 export const zoomInOut =
-	"data-[state=open]:animate-[nebula-zoom-in_150ms_ease-out] data-[state=closed]:animate-[nebula-zoom-out_120ms_ease-in] motion-reduce:animate-none";
+	"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 motion-reduce:animate-none";
 
 /** Backdrops and tooltips — no movement, just opacity. */
 export const fadeInOut =
-	"data-[state=open]:animate-[nebula-fade-in_150ms_ease-out] data-[state=closed]:animate-[nebula-fade-out_120ms_ease-in] motion-reduce:animate-none";
+	"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 motion-reduce:animate-none";
 
 /**
  * Panels that slide in from an edge — Sheet, Drawer.
@@ -35,14 +44,9 @@ export const fadeInOut =
  * depends on the panel's own size and only `translate-x-full` knows that.
  */
 export function slideFrom(side: Side): string {
-	const axis =
-		side === "left"
-			? "data-[state=closed]:-translate-x-full"
-			: side === "right"
-				? "data-[state=closed]:translate-x-full"
-				: side === "top"
-					? "data-[state=closed]:-translate-y-full"
-					: "data-[state=closed]:translate-y-full";
-
-	return `transition-transform duration-300 ease-in-out data-[state=open]:translate-x-0 data-[state=open]:translate-y-0 ${axis} motion-reduce:transition-none`;
+	// shadcn's sheet: a slide utility per side, and its asymmetric durations —
+	// entering is slower than leaving, because a surface appearing wants to be
+	// noticed while one dismissed wants to be out of the way.
+	const slide = `data-[state=open]:slide-in-from-${side} data-[state=closed]:slide-out-to-${side}`;
+	return `data-[state=open]:animate-in data-[state=closed]:animate-out ${slide} data-[state=open]:duration-500 data-[state=closed]:duration-300 motion-reduce:animate-none`;
 }

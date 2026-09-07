@@ -26,7 +26,7 @@ afterEach(() => {
 /** Declare an animation whose keyframes do not exist. */
 function declareMissingAnimation(): void {
 	vi.spyOn(window, "getComputedStyle").mockReturnValue({
-		animationName: "nebula-zoom-out",
+		animationName: "exit",
 		animationDuration: "120ms",
 		animationDelay: "0s",
 		transitionDuration: "0s",
@@ -144,8 +144,10 @@ describe("nebula > a missing stylesheet says so", () => {
 			// Immediately, with no deadline to sit through: the answer was
 			// knowable.
 			expect(done).toHaveBeenCalledTimes(1);
+			// And it names where the utilities come from — the same package
+			// shadcn tells you to install.
 			expect(warn.mock.calls.map((c) => String(c[0])).join("")).toContain(
-				"theme.css",
+				"tw-animate-css",
 			);
 		} finally {
 			warn.mockRestore();

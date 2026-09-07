@@ -14,6 +14,13 @@
  *   a v4 setup produces an unstyled page.
  * - `@custom-variant dark` makes `dark:` respond to a `.dark` class rather
  *   than the system preference, so a theme toggle can override the OS.
+ * - `tw-animate-css` supplies `animate-in` / `animate-out` and the `fade-*`,
+ *   `zoom-*` and `slide-*` modifiers — where shadcn gets them too. Imported
+ *   rather than reimplemented, so the components use its class strings
+ *   verbatim. nebula previously declared four keyframes of its own and reached
+ *   them through arbitrary animation values, which Tailwind compiles whether or
+ *   not the keyframes exist: an app that skipped the stylesheet got overlays
+ *   that never finished CLOSING rather than overlays that never animated.
  * - `@theme inline` maps nebula's plain custom properties onto Tailwind's
  *   colour namespace, which is what turns `--primary` into a `bg-primary`
  *   utility.
@@ -133,7 +140,10 @@ function relativeFromCss(config: ResolvedNebulaConfig): string {
 export const tailwindAdapter: StyleAdapter = {
 	name: "tailwind",
 	summary: "Tailwind CSS v4, configured in CSS. What shadcn/ui itself targets.",
-	packages: ["tailwindcss", "@tailwindcss/cli"],
+	// `tw-animate-css` is where the overlay animations come from — the same
+	// package shadcn tells you to install, and the reason the components can use
+	// its class strings verbatim.
+	packages: ["tailwindcss", "@tailwindcss/cli", "tw-animate-css"],
 
 	files(config: ResolvedNebulaConfig): readonly GeneratedFile[] {
 		return [

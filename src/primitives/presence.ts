@@ -147,7 +147,7 @@ export function onExitFinished(
 
 	// A deadline, because `animationName` is a DECLARATION, not a promise.
 	//
-	// The computed style reads back `nebula-zoom-out` whether or not those
+	// The computed style reads back the declared name whether or not those
 	// keyframes exist anywhere — an application that has not imported the
 	// stylesheet, or that scopes it away, declares an animation the browser
 	// will never run. `animationend` then never fires, `done()` never runs, and
@@ -268,7 +268,7 @@ function warnMissingKeyframes(name: string): void {
 	if (WARNED.has(name)) return;
 	WARNED.add(name);
 	console.warn(
-		`[nebula] the animation '${name}' is declared but its @keyframes are defined nowhere, so overlays close without animating. Add \`@import "@c9up/nebula/theme.css"\` to your stylesheet.`,
+		`[nebula] the animation '${name}' is declared but its @keyframes are defined nowhere, so this element closes without animating. Overlay animations come from tw-animate-css (UnoCSS: unocss-preset-animations) — check your stylesheet imports it, or generate one with \`nebula init\`.`,
 	);
 }
 

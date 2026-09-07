@@ -68,7 +68,7 @@ const panels = () => [...document.querySelectorAll("[data-panel]")];
  */
 function keepExitPending(): void {
 	vi.spyOn(window, "getComputedStyle").mockReturnValue({
-		animationName: "nebula-zoom-out",
+		animationName: "exit",
 		animationDuration: "120ms",
 		animationDelay: "0s",
 		transitionDuration: "0s",

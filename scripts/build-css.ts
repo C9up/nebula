@@ -29,6 +29,7 @@ const entry = join(workspace, "entry.css");
 writeFileSync(
 	entry,
 	`@import "tailwindcss";
+@import "tw-animate-css";
 @import "${join(root, "theme.css")}";
 @source "${join(root, "src")}";
 @custom-variant dark (&:is(.dark *));
