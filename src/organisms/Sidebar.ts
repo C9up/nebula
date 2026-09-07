@@ -230,6 +230,15 @@ export interface SidebarMenuItemProps {
 	tooltip?: string;
 	/** A trailing control — the count of unread items, a status dot. */
 	badge?: Child;
+	/**
+	 * Extra classes, merged over the defaults.
+	 *
+	 * Every other component in this library takes one; this one did not, and a
+	 * caller who wanted something as ordinary as dimming a disabled entry had
+	 * to work around it. `cn` is tailwind-merge, so an override wins over the
+	 * default it collides with rather than fighting it on specificity.
+	 */
+	class?: Reactive<string>;
 	onClick?: () => void;
 }
 
@@ -261,19 +270,23 @@ export const SidebarMenuItem = component<SidebarMenuItemProps>((props) => {
 					class="text-sidebar-foreground/70 ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums"
 				>${props.badge}</span>`}`;
 
+	// Reactive, because `props.class` may be a signal — a caller dimming an
+	// entry as its state changes should not have to remount it.
+	const merged = () => cn(classes, read(props.class));
+
 	const entry =
 		props.href !== undefined
 			? html`<a
 					data-slot="sidebar-menu-item"
 					href="${props.href}"
 					aria-current="${() => (read(props.active) === true ? "page" : undefined)}"
-					class="${classes}"
+					class="${merged}"
 				>${body}</a>`
 			: html`<button
 					type="button"
 					data-slot="sidebar-menu-item"
 					aria-current="${() => (read(props.active) === true ? "page" : undefined)}"
-					class="${classes}"
+					class="${merged}"
 					@click="${props.onClick}"
 				>${body}</button>`;
 

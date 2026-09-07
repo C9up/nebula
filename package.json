@@ -1,7 +1,7 @@
 {
   "name": "@c9up/nebula",
-  "version": "0.1.5",
-  "description": "Nebula \u2014 shadcn/ui ported to Aurora, organised as atomic design. Zero-dependency headless primitives, cva reimplemented, copy-the-source registry.",
+  "version": "0.1.6",
+  "description": "Nebula — shadcn/ui ported to Aurora, organised as atomic design. Zero-dependency headless primitives, cva reimplemented, copy-the-source registry.",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.ts",

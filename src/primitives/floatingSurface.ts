@@ -92,17 +92,26 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 	let live: Live | null = null;
 
 	function show(): void {
-		if (live !== null) {
-			// Already open and mid-exit: cancel the teardown and reuse the node
-			// rather than stacking a second copy on top of the one fading out.
-			live.cancelExit?.();
-			live.cancelExit = null;
-			live.element.setAttribute("data-state", "open");
-			return;
-		}
-
 		const anchor = options.anchor();
 		if (anchor === null) return;
+
+		if (live !== null) {
+			if (live.anchor === anchor) {
+				// The SAME anchor, already open and possibly mid-exit: cancel
+				// the teardown and reuse the node rather than stacking a second
+				// copy on top of the one fading out.
+				live.cancelExit?.();
+				live.cancelExit = null;
+				live.element.setAttribute("data-state", "open");
+				return;
+			}
+			// A DIFFERENT anchor. Content is built once per open, so reusing
+			// this node would show the previous anchor's content — one surface
+			// shared by the rows of a table showed the first row's entries
+			// however many rows were clicked. Its position, dismissal listeners
+			// and focus trap all belong to the old anchor too.
+			teardown();
+		}
 
 		const mount = portal(options.content());
 		const element = mount.host.firstElementChild;

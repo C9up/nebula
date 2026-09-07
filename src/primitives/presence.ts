@@ -138,11 +138,28 @@ export function onExitFinished(
 	}
 
 	function cancel(): void {
+		if (safety !== undefined) clearTimeout(safety);
 		element.removeEventListener("animationend", finish);
 		element.removeEventListener("animationcancel", finish);
 		element.removeEventListener("transitionend", finish);
 		element.removeEventListener("transitioncancel", finish);
 	}
+
+	// A deadline, because `animationName` is a DECLARATION, not a promise.
+	//
+	// The computed style reads back `nebula-zoom-out` whether or not those
+	// keyframes exist anywhere — an application that has not imported the
+	// stylesheet, or that scopes it away, declares an animation the browser
+	// will never run. `animationend` then never fires, `done()` never runs, and
+	// the node stays in the document: every closed Dialog, Select, Popover and
+	// Tooltip piles up as an invisible layer swallowing the clicks underneath.
+	//
+	// That turns a missing stylesheet — cosmetic — into a page that stops
+	// responding, which reads as "the floating layer does not work".
+	const safety = setTimeout(() => {
+		cancel();
+		done();
+	}, declaredDuration(element) + SAFETY_MARGIN_MS);
 
 	element.addEventListener("animationend", finish);
 	element.addEventListener("animationcancel", finish);
@@ -159,6 +176,32 @@ export function onExitFinished(
  * mean there is nothing to wait for, and waiting anyway would strand the node
  * in the DOM forever — the failure mode this check exists to prevent.
  */
+/**
+ * Slack added to the declared duration before the deadline fires.
+ *
+ * Long enough that a real animation always wins the race — the listener is what
+ * should end the wait — and short enough that a stuck overlay clears within a
+ * frame or two of when it should have.
+ */
+const SAFETY_MARGIN_MS = 100;
+
+/**
+ * How long the element SAYS its exit lasts: the longest declared animation or
+ * transition, plus its delay. Capped, because a stylesheet is free to declare
+ * minutes and the deadline exists to bound the wait, not to honour it.
+ */
+function declaredDuration(element: HTMLElement): number {
+	if (typeof getComputedStyle !== "function") return 0;
+	const style = getComputedStyle(element);
+	const animation =
+		parseDuration(style.animationDuration) +
+		parseDuration(style.animationDelay);
+	const transition =
+		parseDuration(style.transitionDuration) +
+		parseDuration(style.transitionDelay);
+	return Math.min(Math.max(animation, transition), 5000);
+}
+
 function isAnimating(element: HTMLElement): boolean {
 	if (typeof getComputedStyle !== "function") return false;
 

@@ -72,8 +72,26 @@ export const NativeSelect = component<NativeSelectProps>((props) => {
 		return out;
 	}
 
+	/**
+	 * `?selected` on each option, NOT `.value` on the select alone.
+	 *
+	 * A property binding sits on the opening tag, so it is assigned before the
+	 * options exist. `select.value = 'x'` against a childless `<select>` is a
+	 * no-op the DOM does not report, and nothing re-runs it afterwards: the
+	 * control then shows its FIRST option while holding the value it was given.
+	 * Nothing throws and nothing logs, so the value the user sees is not the
+	 * value the form will submit — in a form that edits money or tax status
+	 * that is a wrong record written on save.
+	 *
+	 * Marking the option is order-independent, and it is also what makes the
+	 * choice correct in server-rendered HTML before any script runs.
+	 */
 	const renderOption = (option: NativeSelectOption) =>
-		html`<option value="${option.value}" ?disabled="${option.disabled === true}">
+		html`<option
+			value="${option.value}"
+			?disabled="${option.disabled === true}"
+			?selected="${() => read(props.value) === option.value}"
+		>
 			${option.label}
 		</option>`;
 
@@ -92,7 +110,14 @@ export const NativeSelect = component<NativeSelectProps>((props) => {
 			${
 				props.placeholder === undefined
 					? null
-					: html`<option value="" disabled selected>${props.placeholder}</option>`
+					: html`<option
+							value=""
+							disabled
+							?selected="${() => {
+								const current = read(props.value);
+								return current === undefined || current === "";
+							}}"
+						>${props.placeholder}</option>`
 			}
 			${runs().map((run) =>
 				run.group === undefined
