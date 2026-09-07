@@ -18,7 +18,6 @@
  */
 
 import { component, html, signal } from "@c9up/aurora";
-import type { Child } from "../lib/children.js";
 import { type Slot, slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { XIcon } from "../lib/icons.js";
@@ -36,9 +35,17 @@ export const dialogPanelClasses =
 export interface DialogProps {
 	/** Rendered inside the trigger button. Omit to drive `open` yourself. */
 	trigger?: Slot;
-	/** Announced on open. Hide it visually with `srOnlyTitle`. */
-	title: Child;
-	description?: Child;
+	/**
+	 * Announced on open. Hide it visually with `srOnlyTitle`.
+	 *
+	 * A `Slot`, so it may be an accessor: one Dialog driven between "create" and
+	 * "edit" needs a title that follows. It already behaved that way — the
+	 * renderer binds whatever it is given — while the type said `Child` and
+	 * refused the function, so the working call did not compile and the type
+	 * disagreed with `children` beside it for no reason.
+	 */
+	title: Slot;
+	description?: Slot;
 	children?: Slot;
 	/** Actions, laid out bottom-right. */
 	footer?: Slot;
@@ -92,7 +99,7 @@ export const Dialog = component<DialogProps>((props) => {
 								"text-lg leading-none font-semibold",
 								props.srOnlyTitle === true ? "sr-only" : "",
 							)}"
-						>${props.title}</h2>
+						>${slot(props.title)}</h2>
 						${
 							props.description === undefined
 								? null
@@ -100,7 +107,7 @@ export const Dialog = component<DialogProps>((props) => {
 									id="${descriptionId}"
 									data-slot="dialog-description"
 									class="text-muted-foreground text-sm"
-								>${props.description}</p>`
+								>${slot(props.description)}</p>`
 						}
 					</div>
 					${slot(props.children)}
