@@ -202,13 +202,93 @@ function declaredDuration(element: HTMLElement): number {
 	return Math.min(Math.max(animation, transition), 5000);
 }
 
+/**
+ * Is a `@keyframes` of this name defined anywhere in the document?
+ *
+ * `animationName` is a DECLARATION. It reads back whatever the stylesheet said,
+ * whether or not the keyframes behind it exist — so an application that has not
+ * imported nebula's stylesheet declares animations the browser will never run,
+ * and the only honest answer comes from looking for the rule itself.
+ *
+ * Answers `true` when it cannot tell. A cross-origin stylesheet throws on
+ * `cssRules`, and refusing to animate because a font sheet was unreadable would
+ * be a worse trade than waiting: the deadline in `onExitFinished` already bounds
+ * the cost of being wrong here.
+ */
+function keyframesExist(name: string): boolean {
+	const cached = KEYFRAME_CACHE.get(name);
+	if (cached !== undefined) return cached;
+
+	let found = false;
+	let readable = false;
+	for (const sheet of Array.from(document.styleSheets)) {
+		let rules: CSSRuleList;
+		try {
+			const own = sheet.cssRules;
+			if (own === null) continue;
+			rules = own;
+		} catch {
+			// Cross-origin: not ours to read, and not evidence of anything.
+			continue;
+		}
+		readable = true;
+		for (const rule of Array.from(rules)) {
+			if (isKeyframesNamed(rule, name)) {
+				found = true;
+				break;
+			}
+		}
+		if (found) break;
+	}
+	const answer = found || !readable;
+	KEYFRAME_CACHE.set(name, answer);
+	return answer;
+}
+
+/** Per-document memo: this walks every rule, and it is asked on every close. */
+const KEYFRAME_CACHE = new Map<string, boolean>();
+
+function isKeyframesNamed(rule: CSSRule, name: string): boolean {
+	// `instanceof CSSKeyframesRule` is unreliable across documents (an iframe
+	// has its own constructors), so the shape is checked instead.
+	const named = Reflect.get(rule, "name");
+	return typeof named === "string" && named === name;
+}
+
+/**
+ * Say once that the stylesheet is missing, and what to do about it.
+ *
+ * The symptom without this is not "my overlays do not animate" — which would
+ * point straight at a missing sheet — but "the floating layer behaves oddly",
+ * which points everywhere else. Warned rather than thrown: a missing stylesheet
+ * is a cosmetic dependency, and taking an application down over one is a worse
+ * trade than a line in the console.
+ */
+function warnMissingKeyframes(name: string): void {
+	if (WARNED.has(name)) return;
+	WARNED.add(name);
+	console.warn(
+		`[nebula] the animation '${name}' is declared but its @keyframes are defined nowhere, so overlays close without animating. Add \`@import "@c9up/nebula/theme.css"\` to your stylesheet.`,
+	);
+}
+
+const WARNED = new Set<string>();
+
 function isAnimating(element: HTMLElement): boolean {
 	if (typeof getComputedStyle !== "function") return false;
 
 	const style = getComputedStyle(element);
-	const hasAnimation =
-		style.animationName !== "" && style.animationName !== "none";
-	if (hasAnimation) return true;
+	const declared = style.animationName;
+	const hasAnimation = declared !== "" && declared !== "none";
+	if (hasAnimation) {
+		// Declared is not the same as defined. Waiting on an animation whose
+		// keyframes exist nowhere is what left every closed overlay in the
+		// document; the deadline now bounds that, but there is no reason to
+		// wait at all when the answer is knowable — and every reason to say so.
+		if (keyframesExist(declared)) return true;
+		warnMissingKeyframes(declared);
+		return parseDuration(style.transitionDuration) > 0;
+	}
 
 	return parseDuration(style.transitionDuration) > 0;
 }

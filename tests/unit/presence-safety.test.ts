@@ -89,3 +89,98 @@ describe("nebula > onExitFinished never strands a node", () => {
 		expect(done).not.toHaveBeenCalled();
 	});
 });
+
+/**
+ * A declared animation whose keyframes exist nowhere.
+ *
+ * The deadline stops the node being stranded, but it does not explain anything:
+ * the symptom becomes "overlays behave oddly", which points everywhere except
+ * at the missing stylesheet. Looking for the rule itself is what turns it back
+ * into "you have not imported the theme".
+ */
+describe("nebula > a missing stylesheet says so", () => {
+	function declare(name: string) {
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName: name,
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+	}
+
+	/**
+	 * A readable stylesheet, any stylesheet.
+	 *
+	 * With none at all the check cannot tell what is defined, and it answers
+	 * "assume it exists" on purpose — refusing to animate because the document
+	 * was unreadable would be the worse trade. jsdom starts with no sheets, so
+	 * a test about a MISSING keyframe has to give it something to read.
+	 */
+	function withSomeStylesheet(): HTMLStyleElement {
+		const style = document.createElement("style");
+		style.textContent = ".unrelated { color: red }";
+		document.head.appendChild(style);
+		return style;
+	}
+
+	/** Put a real @keyframes into the document. */
+	function defineKeyframes(name: string): HTMLStyleElement {
+		const style = document.createElement("style");
+		style.textContent = `@keyframes ${name} { from { opacity: 1 } to { opacity: 0 } }`;
+		document.head.appendChild(style);
+		return style;
+	}
+
+	it("does not wait for an animation nothing defines", () => {
+		const sheet = withSomeStylesheet();
+		declare("nebula-absent-a");
+		const done = vi.fn();
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		try {
+			onExitFinished(element, done);
+
+			// Immediately, with no deadline to sit through: the answer was
+			// knowable.
+			expect(done).toHaveBeenCalledTimes(1);
+			expect(warn.mock.calls.map((c) => String(c[0])).join("")).toContain(
+				"theme.css",
+			);
+		} finally {
+			warn.mockRestore();
+			sheet.remove();
+		}
+	});
+
+	it("waits normally when the keyframes are actually there", () => {
+		const sheet = defineKeyframes("nebula-present-b");
+		declare("nebula-present-b");
+		const done = vi.fn();
+
+		try {
+			onExitFinished(element, done);
+			// A real animation is running; the listener must decide, not us.
+			expect(done).not.toHaveBeenCalled();
+		} finally {
+			sheet.remove();
+		}
+	});
+
+	it("says it once, not on every close", () => {
+		const sheet = withSomeStylesheet();
+		declare("nebula-absent-c");
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			onExitFinished(element, () => {});
+			onExitFinished(element, () => {});
+			onExitFinished(element, () => {});
+
+			// A line per closing overlay is noise the reader learns to skip.
+			expect(warn).toHaveBeenCalledTimes(1);
+		} finally {
+			warn.mockRestore();
+			sheet.remove();
+		}
+	});
+});
