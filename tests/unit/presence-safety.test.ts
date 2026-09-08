@@ -397,6 +397,49 @@ describe("nebula > waiting for the right things", () => {
 		css.remove();
 	});
 
+	it("waits for two animations that share a name", () => {
+		// `animation-name: a, a` with two durations is two animations. A plain
+		// set of names collapsed them, so the first `animationend("a")` emptied
+		// it and the node went away while the longer one was still running.
+		const css = sheet("@keyframes a { from { opacity: 1 } }");
+		declare("a, a");
+		const done = vi.fn();
+
+		onExitFinished(element, done);
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "a" }),
+		);
+		expect(done).not.toHaveBeenCalled();
+
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "a" }),
+		);
+		expect(done).toHaveBeenCalledTimes(1);
+
+		css.remove();
+	});
+
+	it("keeps a presence mounted until both same-named animations end", () => {
+		const css = sheet("@keyframes a { from { opacity: 1 } }");
+		declare("a, a");
+		const p = presence(true);
+		p.attach(element);
+
+		p.close();
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "a" }),
+		);
+		expect(p.mounted()).toBe(true);
+
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "a" }),
+		);
+		expect(p.mounted()).toBe(false);
+
+		p.dispose();
+		css.remove();
+	});
+
 	it("does not let a cancelled close's deadline unmount the next one", () => {
 		// Reopening left the first close's timer running, and the second close
 		// overwrote the handle without clearing it. The old timer then fired on

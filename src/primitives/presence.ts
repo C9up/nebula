@@ -68,14 +68,14 @@ export function presence(initiallyOpen = false): Presence {
 		// close waits until none is outstanding.
 		const name = reportedName(event);
 		if (typeof name === "string" && outstanding.size > 0) {
-			outstanding.delete(name);
+			reportName(outstanding, name);
 			if (outstanding.size > 0) return;
 		}
 		finishClose();
 	}
 
 	/** Declared animations and transitions still waiting to report. */
-	let outstanding = new Set<string>();
+	let outstanding: Outstanding = new Map();
 
 	/**
 	 * Arm the wait for `el`'s exit, replacing whatever the last one armed.
@@ -208,7 +208,7 @@ export function onExitFinished(
 		if (event.target !== element) return;
 		const name = reportedName(event);
 		if (typeof name === "string" && outstanding.size > 0) {
-			outstanding.delete(name);
+			reportName(outstanding, name);
 			if (outstanding.size > 0) return;
 		}
 		cancel();
@@ -433,6 +433,23 @@ const WARNED = new Set<string>();
  * have reported — waiting for the first cut the longer one off mid-flight.
  */
 /**
+ * What is still expected to report, COUNTED.
+ *
+ * `animation-name: a, a` with two different durations is two animations, and a
+ * plain set of names collapsed them into one: the first `animationend("a")`
+ * emptied it and the node went away while the longer one was still running.
+ */
+type Outstanding = Map<string, number>;
+
+/** Mark one report against `name`, if it is one we are waiting for. */
+function reportName(outstanding: Outstanding, name: string): void {
+	const left = outstanding.get(name);
+	if (left === undefined) return;
+	if (left <= 1) outstanding.delete(name);
+	else outstanding.set(name, left - 1);
+}
+
+/**
  * Which animation or transition an end event is reporting for.
  *
  * `undefined` when the event carries neither — jsdom's plain `Event`, and any
@@ -447,14 +464,16 @@ function reportedName(
 	return undefined;
 }
 
-function declaredNames(element: HTMLElement): Set<string> {
-	const names = new Set<string>();
+function declaredNames(element: HTMLElement): Outstanding {
+	const names: Outstanding = new Map();
 	if (typeof getComputedStyle !== "function") return names;
 	const style = getComputedStyle(element);
 	const add = (list: string): void => {
 		for (const part of list.split(",")) {
 			const name = part.trim();
-			if (name !== "" && name !== "none" && name !== "all") names.add(name);
+			if (name !== "" && name !== "none" && name !== "all") {
+				names.set(name, (names.get(name) ?? 0) + 1);
+			}
 		}
 	};
 	add(style.animationName);
