@@ -9,7 +9,7 @@
  * work" rather than "a stylesheet is missing".
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { onExitFinished } from "../../src/primitives/presence.js";
+import { onExitFinished, presence } from "../../src/primitives/presence.js";
 
 let element: HTMLElement;
 
@@ -180,6 +180,144 @@ describe("nebula > a missing stylesheet says so", () => {
 
 			// A line per closing overlay is noise the reader learns to skip.
 			expect(warn).toHaveBeenCalledTimes(1);
+		} finally {
+			warn.mockRestore();
+			sheet.remove();
+		}
+	});
+});
+
+/**
+ * The public `presence()` had no deadline at all.
+ *
+ * `onExitFinished` was bounded; `presence().close()` set a flag and waited for
+ * an `animationend` nothing promises, so a declared animation the browser never
+ * runs left the surface mounted for good.
+ */
+describe("nebula > presence() is bounded too", () => {
+	function declareMissing() {
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName: "nebula-never-defined",
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+	}
+
+	it("unmounts on the deadline when the animation never runs", () => {
+		const sheet = document.createElement("style");
+		sheet.textContent = ".unrelated { color: red }";
+		document.head.appendChild(sheet);
+		declareMissing();
+		const p = presence(true);
+		p.attach(element);
+
+		p.close();
+		// Detected as undefined, so there is nothing to wait for at all.
+		expect(p.mounted()).toBe(false);
+
+		p.dispose();
+		sheet.remove();
+	});
+
+	it("waits for a real animation, then the event ends it", () => {
+		const sheet = document.createElement("style");
+		sheet.textContent =
+			"@keyframes nebula-real-exit { from { opacity: 1 } to { opacity: 0 } }";
+		document.head.appendChild(sheet);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName: "nebula-real-exit",
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+		const p = presence(true);
+		p.attach(element);
+
+		p.close();
+		expect(p.mounted()).toBe(true);
+
+		element.dispatchEvent(new Event("animationend"));
+		expect(p.mounted()).toBe(false);
+
+		p.dispose();
+		sheet.remove();
+	});
+
+	it("unmounts on the deadline if that event never comes", () => {
+		const sheet = document.createElement("style");
+		sheet.textContent =
+			"@keyframes nebula-real-exit { from { opacity: 1 } to { opacity: 0 } }";
+		document.head.appendChild(sheet);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName: "nebula-real-exit",
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+		const p = presence(true);
+		p.attach(element);
+		p.close();
+		expect(p.mounted()).toBe(true);
+
+		// The keyframes exist, so it waited — but a browser that never fires the
+		// event must not strand the node either.
+		vi.advanceTimersByTime(500);
+
+		expect(p.mounted()).toBe(false);
+		p.dispose();
+		sheet.remove();
+	});
+});
+
+describe("nebula > detecting keyframes precisely", () => {
+	it("finds keyframes nested in a group rule", () => {
+		// `@keyframes` inside `@media` or `@supports` is a nested rule; a flat
+		// scan reported it missing and warned about a stylesheet that was there.
+		const sheet = document.createElement("style");
+		sheet.textContent =
+			"@media screen { @keyframes nebula-nested { from { opacity: 1 } } }";
+		document.head.appendChild(sheet);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName: "nebula-nested",
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		try {
+			onExitFinished(element, () => {});
+			expect(warn).not.toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+			sheet.remove();
+		}
+	});
+
+	it("treats a comma-separated list as several names", () => {
+		// `animation-name` is a list. Looked up whole it matched nothing, so a
+		// page with two perfectly good animations was told both were missing.
+		const sheet = document.createElement("style");
+		sheet.textContent =
+			"@keyframes nebula-a { from { opacity: 1 } } @keyframes nebula-b { from { opacity: 1 } }";
+		document.head.appendChild(sheet);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName: "nebula-a, nebula-b",
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		try {
+			onExitFinished(element, () => {});
+			expect(warn).not.toHaveBeenCalled();
 		} finally {
 			warn.mockRestore();
 			sheet.remove();

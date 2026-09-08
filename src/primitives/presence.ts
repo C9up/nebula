@@ -42,8 +42,13 @@ export function presence(initiallyOpen = false): Presence {
 
 	let element: HTMLElement | null = null;
 	let pendingUnmount = false;
+	let deadline: ReturnType<typeof setTimeout> | undefined;
 
 	function finishClose(): void {
+		if (deadline !== undefined) {
+			clearTimeout(deadline);
+			deadline = undefined;
+		}
 		if (!pendingUnmount) return;
 		pendingUnmount = false;
 		mounted(false);
@@ -61,6 +66,10 @@ export function presence(initiallyOpen = false): Presence {
 	}
 
 	function detach(): void {
+		if (deadline !== undefined) {
+			clearTimeout(deadline);
+			deadline = undefined;
+		}
 		if (element === null) return;
 		element.removeEventListener("animationend", onAnimationEnd);
 		element.removeEventListener("animationcancel", onAnimationEnd);
@@ -91,7 +100,18 @@ export function presence(initiallyOpen = false): Presence {
 			}
 
 			pendingUnmount = true;
-			if (!isAnimating(element)) finishClose();
+			if (!isAnimating(element)) {
+				finishClose();
+				return;
+			}
+			// The same deadline `onExitFinished` has, and for the same reason:
+			// `animationend` is not promised by anything. Without it a declared
+			// animation the browser never runs left this mounted for good —
+			// `onExitFinished` was bounded and the public presence API was not.
+			deadline = setTimeout(
+				finishClose,
+				declaredDuration(element) + SAFETY_MARGIN_MS,
+			);
 		},
 
 		attach(next: HTMLElement | null): void {
@@ -215,13 +235,14 @@ function declaredDuration(element: HTMLElement): number {
  * be a worse trade than waiting: the deadline in `onExitFinished` already bounds
  * the cost of being wrong here.
  */
-function keyframesExist(name: string): boolean {
-	const cached = KEYFRAME_CACHE.get(name);
+function keyframesExist(doc: Document, name: string): boolean {
+	const cache = cacheFor(doc);
+	const cached = cache.get(name);
 	if (cached !== undefined) return cached;
 
 	let found = false;
 	let readable = false;
-	for (const sheet of Array.from(document.styleSheets)) {
+	for (const sheet of Array.from(doc.styleSheets)) {
 		let rules: CSSRuleList;
 		try {
 			const own = sheet.cssRules;
@@ -232,21 +253,83 @@ function keyframesExist(name: string): boolean {
 			continue;
 		}
 		readable = true;
-		for (const rule of Array.from(rules)) {
-			if (isKeyframesNamed(rule, name)) {
-				found = true;
-				break;
-			}
+		if (containsKeyframes(rules, name)) {
+			found = true;
+			break;
 		}
-		if (found) break;
 	}
 	const answer = found || !readable;
-	KEYFRAME_CACHE.set(name, answer);
+	cache.set(name, answer);
 	return answer;
 }
 
-/** Per-document memo: this walks every rule, and it is asked on every close. */
-const KEYFRAME_CACHE = new Map<string, boolean>();
+/**
+ * Walk a rule list, descending into group rules.
+ *
+ * `@keyframes` inside `@media`, `@supports` or `@layer` is a nested rule, not a
+ * top-level one — a flat scan of the sheet reported it missing and the caller
+ * concluded the stylesheet was absent.
+ */
+function containsKeyframes(rules: CSSRuleList, name: string): boolean {
+	for (const rule of Array.from(rules)) {
+		if (isKeyframesNamed(rule, name)) return true;
+		// `cssRules` on a group rule (media, supports, layer); absent on others.
+		const nested = Reflect.get(rule, "cssRules");
+		if (
+			nested !== null &&
+			typeof nested === "object" &&
+			typeof Reflect.get(nested, "length") === "number" &&
+			containsKeyframes(nested as CSSRuleList, name)
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Are all the animations this element declares actually defined?
+ *
+ * `animation-name` is a LIST: `fade-out, slide-out` is two names, and looking
+ * the whole string up as one found nothing and reported both missing. Every
+ * name has to resolve, because waiting on any undefined one is what strands the
+ * node.
+ */
+function allKeyframesExist(doc: Document, animationName: string): boolean {
+	return animationName
+		.split(",")
+		.map((part) => part.trim())
+		.filter((part) => part !== "" && part !== "none")
+		.every((part) => keyframesExist(doc, part));
+}
+
+/**
+ * Per-DOCUMENT memo, invalidated when the stylesheets change.
+ *
+ * A single global map was wrong three ways. An answer cached before the
+ * stylesheet finished loading stayed wrong for the life of the page; an iframe
+ * and its parent share neither styles nor documents but shared the cache; and
+ * nothing ever expired, so a sheet added later never took effect.
+ *
+ * Keyed on the document and on how many sheets it had when the answer was
+ * computed: a new stylesheet changes the count and the answers are recomputed.
+ * A `WeakMap` so a detached document does not keep its cache alive.
+ */
+const KEYFRAME_CACHE = new WeakMap<
+	Document,
+	{ sheets: number; answers: Map<string, boolean> }
+>();
+
+/** The memo for this document, discarded when its stylesheet list has moved. */
+function cacheFor(doc: Document): Map<string, boolean> {
+	const sheets = doc.styleSheets.length;
+	const existing = KEYFRAME_CACHE.get(doc);
+	if (existing !== undefined && existing.sheets === sheets)
+		return existing.answers;
+	const answers = new Map<string, boolean>();
+	KEYFRAME_CACHE.set(doc, { sheets, answers });
+	return answers;
+}
 
 function isKeyframesNamed(rule: CSSRule, name: string): boolean {
 	// `instanceof CSSKeyframesRule` is unreliable across documents (an iframe
@@ -285,7 +368,7 @@ function isAnimating(element: HTMLElement): boolean {
 		// keyframes exist nowhere is what left every closed overlay in the
 		// document; the deadline now bounds that, but there is no reason to
 		// wait at all when the answer is knowable — and every reason to say so.
-		if (keyframesExist(declared)) return true;
+		if (allKeyframesExist(element.ownerDocument, declared)) return true;
 		warnMissingKeyframes(declared);
 		return parseDuration(style.transitionDuration) > 0;
 	}
