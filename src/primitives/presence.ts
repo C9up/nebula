@@ -62,8 +62,25 @@ export function presence(initiallyOpen = false): Presence {
 	 */
 	function onAnimationEnd(event: AnimationEvent | TransitionEvent): void {
 		if (event.target !== element) return;
+		// The FIRST event used to end the close, so a surface running a fade and
+		// a slide together was unmounted when the shorter one finished — the
+		// other visibly cut off. Each declared name reports for itself, and the
+		// close waits until none is outstanding.
+		const name =
+			"animationName" in event
+				? event.animationName
+				: "propertyName" in event
+					? event.propertyName
+					: undefined;
+		if (typeof name === "string" && outstanding.size > 0) {
+			outstanding.delete(name);
+			if (outstanding.size > 0) return;
+		}
 		finishClose();
 	}
+
+	/** Declared animations and transitions still waiting to report. */
+	let outstanding = new Set<string>();
 
 	function detach(): void {
 		if (deadline !== undefined) {
@@ -104,6 +121,7 @@ export function presence(initiallyOpen = false): Presence {
 				finishClose();
 				return;
 			}
+			outstanding = declaredNames(element);
 			// The same deadline `onExitFinished` has, and for the same reason:
 			// `animationend` is not promised by anything. Without it a declared
 			// animation the browser never runs left this mounted for good —
@@ -115,9 +133,27 @@ export function presence(initiallyOpen = false): Presence {
 		},
 
 		attach(next: HTMLElement | null): void {
+			const wasClosing = pendingUnmount;
 			detach();
 			element = next;
-			if (element === null) return;
+			if (element === null) {
+				// Nothing left to wait for, and nothing to wait WITH: a close
+				// still pending would otherwise never complete.
+				if (wasClosing) finishClose();
+				return;
+			}
+			if (wasClosing) {
+				// `detach()` cleared the deadline. Handing over a new element
+				// mid-close without arming another left the surface mounted for
+				// good — the exact failure the deadline exists to prevent,
+				// reintroduced by the handover.
+				pendingUnmount = true;
+				outstanding = declaredNames(element);
+				deadline = setTimeout(
+					finishClose,
+					declaredDuration(element) + SAFETY_MARGIN_MS,
+				);
+			}
 			element.addEventListener("animationend", onAnimationEnd);
 			element.addEventListener("animationcancel", onAnimationEnd);
 			element.addEventListener("transitionend", onAnimationEnd);
@@ -259,7 +295,9 @@ function keyframesExist(doc: Document, name: string): boolean {
 		}
 	}
 	const answer = found || !readable;
-	cache.set(name, answer);
+	// Cached only when it was FOUND. A negative is re-checked, because a
+	// stylesheet arriving later is exactly what turns it positive.
+	if (answer) cache.set(name, true);
 	return answer;
 }
 
@@ -295,12 +333,16 @@ function containsKeyframes(rules: CSSRuleList, name: string): boolean {
  * name has to resolve, because waiting on any undefined one is what strands the
  * node.
  */
-function allKeyframesExist(doc: Document, animationName: string): boolean {
+function splitNames(animationName: string): string[] {
 	return animationName
 		.split(",")
 		.map((part) => part.trim())
-		.filter((part) => part !== "" && part !== "none")
-		.every((part) => keyframesExist(doc, part));
+		.filter((part) => part !== "" && part !== "none");
+}
+
+/** Which of the declared animations have no `@keyframes` anywhere. */
+function undefinedKeyframes(doc: Document, animationName: string): string[] {
+	return splitNames(animationName).filter((name) => !keyframesExist(doc, name));
 }
 
 /**
@@ -315,19 +357,23 @@ function allKeyframesExist(doc: Document, animationName: string): boolean {
  * computed: a new stylesheet changes the count and the answers are recomputed.
  * A `WeakMap` so a detached document does not keep its cache alive.
  */
-const KEYFRAME_CACHE = new WeakMap<
-	Document,
-	{ sheets: number; answers: Map<string, boolean> }
->();
+const KEYFRAME_CACHE = new WeakMap<Document, Map<string, boolean>>();
 
-/** The memo for this document, discarded when its stylesheet list has moved. */
+/**
+ * The memo for this document.
+ *
+ * Only POSITIVE answers are kept. A "found" is durable — keyframes do not
+ * usually disappear — while a "missing" is exactly the answer a later
+ * stylesheet can change, and keying on the sheet COUNT missed every way that
+ * happens without one being added: `insertRule`, `replaceSync`, HMR, or editing
+ * an existing `<style>`. Re-walking on a negative costs a scan only when
+ * something is already wrong.
+ */
 function cacheFor(doc: Document): Map<string, boolean> {
-	const sheets = doc.styleSheets.length;
 	const existing = KEYFRAME_CACHE.get(doc);
-	if (existing !== undefined && existing.sheets === sheets)
-		return existing.answers;
+	if (existing !== undefined) return existing;
 	const answers = new Map<string, boolean>();
-	KEYFRAME_CACHE.set(doc, { sheets, answers });
+	KEYFRAME_CACHE.set(doc, answers);
 	return answers;
 }
 
@@ -357,6 +403,30 @@ function warnMissingKeyframes(name: string): void {
 
 const WARNED = new Set<string>();
 
+/**
+ * Every animation name and transition property the element declares.
+ *
+ * What the close waits on. `animationend` and `transitionend` each name what
+ * finished, so a surface running two of them at once is only done when both
+ * have reported — waiting for the first cut the longer one off mid-flight.
+ */
+function declaredNames(element: HTMLElement): Set<string> {
+	const names = new Set<string>();
+	if (typeof getComputedStyle !== "function") return names;
+	const style = getComputedStyle(element);
+	const add = (list: string): void => {
+		for (const part of list.split(",")) {
+			const name = part.trim();
+			if (name !== "" && name !== "none" && name !== "all") names.add(name);
+		}
+	};
+	add(style.animationName);
+	if (parseDuration(style.transitionDuration) > 0) {
+		add(style.transitionProperty);
+	}
+	return names;
+}
+
 function isAnimating(element: HTMLElement): boolean {
 	if (typeof getComputedStyle !== "function") return false;
 
@@ -368,7 +438,14 @@ function isAnimating(element: HTMLElement): boolean {
 		// keyframes exist nowhere is what left every closed overlay in the
 		// document; the deadline now bounds that, but there is no reason to
 		// wait at all when the answer is knowable — and every reason to say so.
-		if (allKeyframesExist(element.ownerDocument, declared)) return true;
+		// ANY defined animation is a reason to wait: refusing because a second
+		// one is missing truncated the first, which was running perfectly well.
+		// The missing ones are still named, because they are still a mistake.
+		const missing = undefinedKeyframes(element.ownerDocument, declared);
+		if (missing.length < splitNames(declared).length) {
+			for (const name of missing) warnMissingKeyframes(name);
+			return true;
+		}
 		warnMissingKeyframes(declared);
 		return parseDuration(style.transitionDuration) > 0;
 	}

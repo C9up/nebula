@@ -324,3 +324,116 @@ describe("nebula > detecting keyframes precisely", () => {
 		}
 	});
 });
+
+/**
+ * The four ways an exit was truncated, stranded or mis-detected.
+ */
+describe("nebula > waiting for the right things", () => {
+	function sheet(css: string): HTMLStyleElement {
+		const style = document.createElement("style");
+		style.textContent = css;
+		document.head.appendChild(style);
+		return style;
+	}
+
+	function declare(animationName: string, transition = "0s") {
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName,
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: transition,
+			transitionProperty: "opacity",
+			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+	}
+
+	it("waits for EVERY animation, not the first one to finish", () => {
+		// A surface running a fade and a slide together was unmounted when the
+		// shorter one ended, cutting the other off mid-flight.
+		const css = sheet(
+			"@keyframes a { from { opacity: 1 } } @keyframes b { from { opacity: 1 } }",
+		);
+		declare("a, b");
+		const p = presence(true);
+		p.attach(element);
+		p.close();
+
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "a" }),
+		);
+		expect(p.mounted()).toBe(true);
+
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "b" }),
+		);
+		expect(p.mounted()).toBe(false);
+
+		p.dispose();
+		css.remove();
+	});
+
+	it("does not truncate a real animation because a second one is missing", () => {
+		// One defined, one not: refusing to wait cut off the one that was
+		// running perfectly well.
+		const css = sheet("@keyframes present { from { opacity: 1 } }");
+		declare("present, absent");
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const p = presence(true);
+		p.attach(element);
+
+		p.close();
+
+		expect(p.mounted()).toBe(true);
+		// And the missing one is still named — it is still a mistake.
+		expect(warn.mock.calls.map((c) => String(c[0])).join("")).toContain(
+			"absent",
+		);
+
+		warn.mockRestore();
+		p.dispose();
+		css.remove();
+	});
+
+	it("sees keyframes inserted into an existing sheet", () => {
+		// `insertRule`, `replaceSync` and HMR change no sheet COUNT, so a
+		// negative cached on the count stayed wrong for the life of the page.
+		const css = sheet(".unrelated { color: red }");
+		declare("added-later");
+		expect(presenceSeesAnimation()).toBe(false);
+
+		css.sheet?.insertRule("@keyframes added-later { from { opacity: 1 } }", 0);
+
+		expect(presenceSeesAnimation()).toBe(true);
+		css.remove();
+	});
+
+	/** Does `onExitFinished` treat the declared animation as real? */
+	function presenceSeesAnimation(): boolean {
+		let finishedAtOnce = false;
+		onExitFinished(element, () => {
+			finishedAtOnce = true;
+		});
+		return !finishedAtOnce;
+	}
+
+	it("re-arms the deadline when the element is swapped mid-close", () => {
+		// `attach()` clears the deadline; handing over a new element without
+		// arming another left the surface mounted for good.
+		const css = sheet("@keyframes slow { from { opacity: 1 } }");
+		declare("slow");
+		const p = presence(true);
+		p.attach(element);
+		p.close();
+		expect(p.mounted()).toBe(true);
+
+		const replacement = document.createElement("div");
+		document.body.appendChild(replacement);
+		p.attach(replacement);
+		vi.advanceTimersByTime(500);
+
+		expect(p.mounted()).toBe(false);
+		p.dispose();
+		replacement.remove();
+		css.remove();
+	});
+});
