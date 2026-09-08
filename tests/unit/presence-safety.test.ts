@@ -372,6 +372,56 @@ describe("nebula > waiting for the right things", () => {
 		css.remove();
 	});
 
+	it("waits for EVERY declared animation before removing a portalled node", () => {
+		// The portalled surfaces do not use `presence()` — they ask
+		// `onExitFinished` whether the node may go. It answered on the FIRST
+		// event, so a fade running alongside a slide had the node pulled out
+		// from under the slide.
+		const css = sheet(
+			"@keyframes a { from { opacity: 1 } } @keyframes b { from { opacity: 1 } }",
+		);
+		declare("a, b");
+		const done = vi.fn();
+
+		onExitFinished(element, done);
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "a" }),
+		);
+		expect(done).not.toHaveBeenCalled();
+
+		element.dispatchEvent(
+			Object.assign(new Event("animationend"), { animationName: "b" }),
+		);
+		expect(done).toHaveBeenCalledTimes(1);
+
+		css.remove();
+	});
+
+	it("does not let a cancelled close's deadline unmount the next one", () => {
+		// Reopening left the first close's timer running, and the second close
+		// overwrote the handle without clearing it. The old timer then fired on
+		// the FIRST close's schedule and unmounted a surface that was still
+		// animating shut.
+		const css = sheet("@keyframes a { from { opacity: 1 } }");
+		declare("a");
+		const p = presence(true);
+		p.attach(element);
+
+		p.close();
+		vi.advanceTimersByTime(200); // just short of the first deadline
+		p.open();
+		p.close();
+		vi.advanceTimersByTime(50); // past when the first one would have fired
+
+		expect(p.mounted()).toBe(true);
+
+		vi.advanceTimersByTime(200); // and the second one still ends it
+		expect(p.mounted()).toBe(false);
+
+		p.dispose();
+		css.remove();
+	});
+
 	it("does not truncate a real animation because a second one is missing", () => {
 		// One defined, one not: refusing to wait cut off the one that was
 		// running perfectly well.

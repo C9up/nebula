@@ -66,12 +66,7 @@ export function presence(initiallyOpen = false): Presence {
 		// a slide together was unmounted when the shorter one finished — the
 		// other visibly cut off. Each declared name reports for itself, and the
 		// close waits until none is outstanding.
-		const name =
-			"animationName" in event
-				? event.animationName
-				: "propertyName" in event
-					? event.propertyName
-					: undefined;
+		const name = reportedName(event);
 		if (typeof name === "string" && outstanding.size > 0) {
 			outstanding.delete(name);
 			if (outstanding.size > 0) return;
@@ -81,6 +76,19 @@ export function presence(initiallyOpen = false): Presence {
 
 	/** Declared animations and transitions still waiting to report. */
 	let outstanding = new Set<string>();
+
+	/**
+	 * Arm the wait for `el`'s exit, replacing whatever the last one armed.
+	 *
+	 * Overwriting `deadline` without clearing it left the older timer running:
+	 * it fired mid-way through a LATER close and unmounted a surface that was
+	 * still animating, cutting the exit off at the previous close's schedule.
+	 */
+	function armDeadline(el: HTMLElement): void {
+		if (deadline !== undefined) clearTimeout(deadline);
+		outstanding = declaredNames(el);
+		deadline = setTimeout(finishClose, declaredDuration(el) + SAFETY_MARGIN_MS);
+	}
 
 	function detach(): void {
 		if (deadline !== undefined) {
@@ -100,7 +108,16 @@ export function presence(initiallyOpen = false): Presence {
 		state,
 
 		open(): void {
+			// The close in progress is CANCELLED, not just un-pended. Clearing
+			// `pendingUnmount` alone left its deadline armed and its names
+			// outstanding, so the timer from a close the user had already undone
+			// went on to unmount the NEXT one part-way through.
 			pendingUnmount = false;
+			if (deadline !== undefined) {
+				clearTimeout(deadline);
+				deadline = undefined;
+			}
+			outstanding.clear();
 			mounted(true);
 			state("open");
 		},
@@ -121,15 +138,11 @@ export function presence(initiallyOpen = false): Presence {
 				finishClose();
 				return;
 			}
-			outstanding = declaredNames(element);
 			// The same deadline `onExitFinished` has, and for the same reason:
 			// `animationend` is not promised by anything. Without it a declared
 			// animation the browser never runs left this mounted for good —
 			// `onExitFinished` was bounded and the public presence API was not.
-			deadline = setTimeout(
-				finishClose,
-				declaredDuration(element) + SAFETY_MARGIN_MS,
-			);
+			armDeadline(element);
 		},
 
 		attach(next: HTMLElement | null): void {
@@ -148,11 +161,7 @@ export function presence(initiallyOpen = false): Presence {
 				// good — the exact failure the deadline exists to prevent,
 				// reintroduced by the handover.
 				pendingUnmount = true;
-				outstanding = declaredNames(element);
-				deadline = setTimeout(
-					finishClose,
-					declaredDuration(element) + SAFETY_MARGIN_MS,
-				);
+				armDeadline(element);
 			}
 			element.addEventListener("animationend", onAnimationEnd);
 			element.addEventListener("animationcancel", onAnimationEnd);
@@ -186,9 +195,22 @@ export function onExitFinished(
 		return () => {};
 	}
 
+	// Which declared animations and transitions have yet to report. The FIRST
+	// event used to end the wait, so a surface running a fade and a slide
+	// together had its node removed when the shorter one finished and the other
+	// was visibly cut off. `presence()` already waited for all of them; the
+	// portalled surfaces — Dialog, Popover, Select, Tooltip — go through here
+	// instead, and did not.
+	const outstanding = declaredNames(element);
+
 	function finish(event: AnimationEvent | TransitionEvent): void {
 		// Bubbled events from children would cut the parent's exit short.
 		if (event.target !== element) return;
+		const name = reportedName(event);
+		if (typeof name === "string" && outstanding.size > 0) {
+			outstanding.delete(name);
+			if (outstanding.size > 0) return;
+		}
 		cancel();
 		done();
 	}
@@ -410,6 +432,21 @@ const WARNED = new Set<string>();
  * finished, so a surface running two of them at once is only done when both
  * have reported — waiting for the first cut the longer one off mid-flight.
  */
+/**
+ * Which animation or transition an end event is reporting for.
+ *
+ * `undefined` when the event carries neither — jsdom's plain `Event`, and any
+ * synthetic one — in which case the caller falls back to treating it as the end
+ * of the whole exit.
+ */
+function reportedName(
+	event: AnimationEvent | TransitionEvent,
+): string | undefined {
+	if ("animationName" in event) return event.animationName;
+	if ("propertyName" in event) return event.propertyName;
+	return undefined;
+}
+
 function declaredNames(element: HTMLElement): Set<string> {
 	const names = new Set<string>();
 	if (typeof getComputedStyle !== "function") return names;
