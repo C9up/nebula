@@ -271,13 +271,87 @@ const SAFETY_MARGIN_MS = 100;
 function declaredDuration(element: HTMLElement): number {
 	if (typeof getComputedStyle !== "function") return 0;
 	const style = getComputedStyle(element);
-	const animation =
-		parseDuration(style.animationDuration) +
-		parseDuration(style.animationDelay);
-	const transition =
-		parseDuration(style.transitionDuration) +
-		parseDuration(style.transitionDelay);
-	return Math.min(Math.max(animation, transition), 5000);
+	let longest = 0;
+	const consider = (total: number): void => {
+		if (total > longest) longest = total;
+	};
+
+	// PER ENTRY. The longest duration and the longest delay used to be taken
+	// independently, so a short-but-late animation beside a long-but-immediate
+	// one produced a deadline neither of them needed — and the iteration count
+	// was not read at all, so 120ms played twice was cut off at 220.
+	const names = splitList(style.animationName);
+	const durations = splitList(style.animationDuration);
+	const delays = splitList(style.animationDelay);
+	const counts = splitList(style.animationIterationCount);
+	for (const [index, name] of names.entries()) {
+		if (name === "" || name === "none") continue;
+		consider(
+			parseTime(atIndex(durations, index)) *
+				parseIterations(atIndex(counts, index)) +
+				parseTime(atIndex(delays, index)),
+		);
+	}
+
+	// A property named twice in `transition-property` is ONE transition — the
+	// last entry is the one that runs (CSS Transitions Level 1) — so its
+	// duration and delay are read from that index.
+	const properties = splitList(style.transitionProperty);
+	const transitionDurations = splitList(style.transitionDuration);
+	const transitionDelays = splitList(style.transitionDelay);
+	const lastEntry = new Map<string, number>();
+	for (const [index, property] of properties.entries()) {
+		if (property === "" || property === "none") continue;
+		lastEntry.set(property, index);
+	}
+	for (const index of lastEntry.values()) {
+		consider(
+			parseTime(atIndex(transitionDurations, index)) +
+				parseTime(atIndex(transitionDelays, index)),
+		);
+	}
+
+	return Math.min(longest, 5000);
+}
+
+/**
+ * A comma-separated CSS list, entry by entry.
+ *
+ * Tolerates an absent longhand: a computed style is not always the complete
+ * one — a test double carries what its test cares about, and not every engine
+ * exposes every longhand.
+ */
+function splitList(value: string | undefined): string[] {
+	if (typeof value !== "string") return [];
+	return value.split(",").map((part) => part.trim());
+}
+
+/**
+ * The entry at `index`, the way CSS reads one: a list shorter than the
+ * animation list repeats to cover it.
+ */
+function atIndex(list: string[], index: number): string {
+	if (list.length === 0) return "";
+	return list[index % list.length] ?? "";
+}
+
+/** One CSS time, in milliseconds. */
+function parseTime(value: string): number {
+	const numeric = Number.parseFloat(value);
+	if (Number.isNaN(numeric)) return 0;
+	return value.endsWith("ms") ? numeric : numeric * 1000;
+}
+
+/**
+ * How many times one animation plays.
+ *
+ * `infinite` counts as one: it never fires `animationend`, so the deadline is
+ * the only way out and there is nothing to be gained by waiting longer.
+ */
+function parseIterations(value: string): number {
+	const numeric = Number.parseFloat(value);
+	if (!Number.isFinite(numeric) || numeric <= 0) return 1;
+	return numeric;
 }
 
 /**
@@ -468,17 +542,27 @@ function declaredNames(element: HTMLElement): Outstanding {
 	const names: Outstanding = new Map();
 	if (typeof getComputedStyle !== "function") return names;
 	const style = getComputedStyle(element);
-	const add = (list: string): void => {
-		for (const part of list.split(",")) {
-			const name = part.trim();
-			if (name !== "" && name !== "none" && name !== "all") {
-				names.set(name, (names.get(name) ?? 0) + 1);
-			}
-		}
-	};
-	add(style.animationName);
+
+	// An animation named twice IS two animations, and reports twice.
+	for (const name of splitList(style.animationName)) {
+		if (name === "" || name === "none" || name === "all") continue;
+		names.set(name, (names.get(name) ?? 0) + 1);
+	}
+
+	// A transition property named twice is ONE transition — the last entry
+	// wins (CSS Transitions Level 1) — so it reports once. Counting the
+	// duplicate made every such exit run to the deadline instead of ending
+	// when the browser said it had.
 	if (parseDuration(style.transitionDuration) > 0) {
-		add(style.transitionProperty);
+		const seen = new Set<string>();
+		for (const property of splitList(style.transitionProperty)) {
+			if (property === "" || property === "none" || property === "all") {
+				continue;
+			}
+			if (seen.has(property)) continue;
+			seen.add(property);
+			names.set(property, (names.get(property) ?? 0) + 1);
+		}
 	}
 	return names;
 }

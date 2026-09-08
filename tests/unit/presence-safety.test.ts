@@ -341,9 +341,24 @@ describe("nebula > waiting for the right things", () => {
 			animationName,
 			animationDuration: "120ms",
 			animationDelay: "0s",
+			animationIterationCount: "1",
 			transitionDuration: transition,
 			transitionProperty: "opacity",
 			transitionDelay: "0s",
+		} as unknown as CSSStyleDeclaration);
+	}
+
+	/** Everything the deadline reads, spelled out. */
+	function declareStyle(style: Record<string, string>) {
+		vi.spyOn(window, "getComputedStyle").mockReturnValue({
+			animationName: "none",
+			animationDuration: "0s",
+			animationDelay: "0s",
+			animationIterationCount: "1",
+			transitionDuration: "0s",
+			transitionProperty: "all",
+			transitionDelay: "0s",
+			...style,
 		} as unknown as CSSStyleDeclaration);
 	}
 
@@ -528,5 +543,62 @@ describe("nebula > waiting for the right things", () => {
 		p.dispose();
 		replacement.remove();
 		css.remove();
+	});
+
+	it("waits for every iteration of a repeating animation", () => {
+		// 120ms twice is 240ms. The deadline read the duration alone and fired
+		// at 220, cutting the second pass off — the surface vanished mid-exit.
+		const css = sheet("@keyframes a { from { opacity: 1 } }");
+		declareStyle({
+			animationName: "a",
+			animationDuration: "120ms",
+			animationIterationCount: "2",
+		});
+		const done = vi.fn();
+
+		onExitFinished(element, done);
+		vi.advanceTimersByTime(230);
+		expect(done).not.toHaveBeenCalled();
+
+		vi.advanceTimersByTime(200);
+		expect(done).toHaveBeenCalledTimes(1);
+
+		css.remove();
+	});
+
+	it("adds the delay of the SAME animation, not the longest of another", () => {
+		// The longest duration and the longest delay came from different
+		// entries, so a short-but-late animation next to a long-but-immediate
+		// one produced a deadline neither of them needed.
+		declareStyle({
+			animationName: "slow, late",
+			animationDuration: "300ms, 50ms",
+			animationDelay: "0s, 400ms",
+		});
+		const done = vi.fn();
+
+		onExitFinished(element, done);
+		// The real longest is `late`: 50 + 400 = 450, not 300 + 400 = 700.
+		vi.advanceTimersByTime(560);
+
+		expect(done).toHaveBeenCalledTimes(1);
+	});
+
+	it("treats a property repeated in transition-property as one transition", () => {
+		// CSS Transitions Level 1: a property listed twice transitions ONCE —
+		// the last entry wins — so exactly one `transitionend` arrives. Waiting
+		// for two meant every such exit ran to the deadline instead.
+		declareStyle({
+			transitionDuration: "100ms",
+			transitionProperty: "opacity, opacity",
+		});
+		const done = vi.fn();
+
+		onExitFinished(element, done);
+		element.dispatchEvent(
+			Object.assign(new Event("transitionend"), { propertyName: "opacity" }),
+		);
+
+		expect(done).toHaveBeenCalledTimes(1);
 	});
 });
