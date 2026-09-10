@@ -15,15 +15,26 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const output = join(root, "nebula.css");
 
-const workspace = mkdtempSync(join(tmpdir(), "nebula-css-"));
+// Inside the package, not the system temp directory. The entry below imports
+// `tailwindcss` and `tw-animate-css` by BARE SPECIFIER, and Tailwind resolves
+// those relative to the file that imports them — under the system temp dir
+// there is no `node_modules` to walk up to, and CI failed with "Can't resolve
+// 'tw-animate-css'". Everything else in the entry is an absolute path, which
+// is why those two alone broke.
+//
+// Resolving the stylesheet to an absolute path instead was tried and rejected:
+// it builds, but the output loses a theme token, so the bare specifier is not
+// merely a convenience — Tailwind treats the two differently.
+const scratch = join(root, "node_modules", ".cache");
+mkdirSync(scratch, { recursive: true });
+const workspace = mkdtempSync(join(scratch, "nebula-css-"));
 const entry = join(workspace, "entry.css");
 
 writeFileSync(
