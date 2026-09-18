@@ -103,6 +103,7 @@ export {
 	type PaginationProps,
 	pageWindow,
 } from "./Pagination.js";
+export { Picture, type PictureProps } from "./Picture.js";
 export {
 	RadioGroup,
 	type RadioGroupProps,

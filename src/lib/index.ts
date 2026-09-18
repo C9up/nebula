@@ -18,4 +18,28 @@ export {
 	type VariantShape,
 } from "./cva.js";
 export { byId, resetIds, uid } from "./id.js";
+export {
+	DEFAULT_RESOLUTIONS,
+	defaultImageResolver,
+	densitySrcSet,
+	fitClass,
+	formatFromSource,
+	getImageResolver,
+	type ImageFit,
+	type ImageFormat,
+	type ImageLayout,
+	type ImagePosition,
+	type ImageTransform,
+	type ImageUrlResolver,
+	imageSizes,
+	imageSrcSet,
+	imageUrl,
+	imageWidths,
+	LIMITED_RESOLUTIONS,
+	layoutClasses,
+	mimeType,
+	positionClass,
+	setImageEndpoint,
+	setImageResolver,
+} from "./image.js";
 export { accessor, callHandler, type Reactive, read, readOr } from "./props.js";

@@ -27,6 +27,16 @@ export {
 	buttonVariants,
 } from "./Button.js";
 export { Checkbox, type CheckboxProps, checkboxClasses } from "./Checkbox.js";
+export {
+	Image,
+	type ImageProps,
+	imageClasses,
+	loadingAttributes,
+	resolvedSizes,
+	resolvedSrc,
+	resolvedSrcSet,
+	resolvedWidths,
+} from "./Image.js";
 export { Input, type InputProps, inputClasses } from "./Input.js";
 export { Kbd, type KbdProps } from "./Kbd.js";
 export { Label, type LabelProps, labelClasses } from "./Label.js";

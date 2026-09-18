@@ -571,6 +571,18 @@
       "dependencies": []
     },
     {
+      "name": "image",
+      "title": "Image",
+      "layer": "atoms",
+      "files": [
+        "atoms/Image.ts",
+        "lib/cn.ts",
+        "lib/image.ts",
+        "lib/props.ts"
+      ],
+      "dependencies": []
+    },
+    {
       "name": "input",
       "title": "Input",
       "layer": "atoms",
@@ -761,6 +773,19 @@
       ],
       "dependencies": [
         "button"
+      ]
+    },
+    {
+      "name": "picture",
+      "title": "Picture",
+      "layer": "molecules",
+      "files": [
+        "lib/image.ts",
+        "lib/props.ts",
+        "molecules/Picture.ts"
+      ],
+      "dependencies": [
+        "image"
       ]
     },
     {

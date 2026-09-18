@@ -55,6 +55,17 @@ const cases: readonly Case[] = [
 		build: () => atoms.Avatar({ fallback: "AB" }),
 	},
 	{
+		name: "image",
+		slot: "image",
+		build: () =>
+			atoms.Image({
+				src: "/photo.jpg",
+				alt: "A photo",
+				width: 800,
+				height: 600,
+			}),
+	},
+	{
 		name: "badge",
 		slot: "badge",
 		build: () => atoms.Badge({ children: "New" }),
@@ -212,6 +223,17 @@ const cases: readonly Case[] = [
 		name: "message",
 		slot: "message",
 		build: () => molecules.Message({ children: "Hi", author: "Ada" }),
+	},
+	{
+		name: "picture",
+		slot: "picture",
+		build: () =>
+			molecules.Picture({
+				src: "/photo.jpg",
+				alt: "A photo",
+				width: 800,
+				height: 600,
+			}),
 	},
 	{
 		name: "pagination",
