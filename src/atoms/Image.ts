@@ -37,6 +37,7 @@ import {
 	imageUrl,
 	imageWidths,
 	layoutClasses,
+	offeredWidth,
 	positionClass,
 } from "../lib/image.js";
 import { type Reactive, read, readOr } from "../lib/props.js";
@@ -131,6 +132,7 @@ export function resolvedSrcSet(
 			format,
 			quality,
 			originalWidth: read(props.originalWidth),
+			breakpoints: read(props.breakpoints),
 		});
 	}
 	return imageSrcSet({
@@ -170,7 +172,14 @@ export function resolvedSrc(
 	const src = read(props.src);
 	const width = read(props.width);
 	if (width === undefined) return src;
-	return imageUrl(src, { width, format, quality: read(props.quality) });
+	return imageUrl(src, {
+		// Snapped like every other entry: the declared width is almost never a
+		// width the endpoint offers, and this URL is the one a browser without
+		// `srcset` support fetches.
+		width: offeredWidth(width, read(props.breakpoints)),
+		format,
+		quality: read(props.quality),
+	});
 }
 
 /** The class list for the layout, fit and position of an image. */

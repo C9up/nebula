@@ -10,6 +10,7 @@ import { signal } from "@c9up/aurora";
 import { afterEach, describe, expect, it } from "vitest";
 import { Image } from "../../src/atoms/Image.js";
 import {
+	allSizes,
 	DEFAULT_RESOLUTIONS,
 	defaultImageResolver,
 	densitySrcSet,
@@ -53,34 +54,60 @@ describe("imageWidths", () => {
 		]);
 	});
 
-	it("carries 1x and 2x for a constrained image even between rungs", () => {
-		// 700 and 1400 are on no ladder: without them a retina screen at the
-		// declared width gets 640 stretched to 700.
+	it("covers 1x and 2x by rounding up, never by emitting the literal width", () => {
+		// 700 and 1400 are on no ladder, and emitting them would be emitting
+		// two widths the endpoint's allow-list does not contain. The rungs
+		// just above are 750 and 1668 — covering the need, never short of it.
 		const widths = imageWidths({ width: 700, layout: "constrained" });
-		expect(widths).toContain(700);
-		expect(widths).toContain(1400);
+		expect(widths).toContain(750);
+		expect(widths).toContain(1668);
+		expect(widths).not.toContain(700);
+		expect(widths).not.toContain(1400);
 	});
 
-	it("stops a constrained image at twice its declared width", () => {
+	it("draws from exactly the list @c9up/prism serves", () => {
+		// Locked as a literal on BOTH sides rather than shared through a
+		// dependency, because nebula must not depend on a native module and
+		// prism must not depend on a component library. A width on one list
+		// and not the other is a srcset entry that 400s — silent, because the
+		// page still renders from its single src.
+		expect(allSizes(DEFAULT_RESOLUTIONS)).toEqual([
+			16, 32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 960, 1080, 1280, 1668,
+			1920, 2048, 2560, 3200, 3840, 4480, 5120, 6016,
+		]);
+	});
+
+	it("draws every width from the list the endpoint serves", () => {
+		// The contract between the two halves. A width outside it is a srcset
+		// entry that 400s, and a page that silently falls back to one src.
+		const offered = new Set(allSizes(DEFAULT_RESOLUTIONS));
+		for (const layout of ["constrained", "fixed", "full-width"] as const) {
+			for (const width of [48, 320, 400, 700, 1200, 1900, 5000]) {
+				for (const w of imageWidths({ width, layout })) {
+					expect(offered.has(w), `${layout} ${width} -> ${w}`).toBe(true);
+				}
+			}
+		}
+	});
+
+	it("stops a constrained image at the rung covering twice its width", () => {
 		const widths = imageWidths({ width: 400, layout: "constrained" });
-		expect(Math.max(...widths)).toBe(800);
+		expect(Math.max(...widths)).toBe(828);
 	});
 
-	it("stops a constrained image at the source width when it is known", () => {
-		const widths = imageWidths({
-			width: 400,
-			layout: "constrained",
-			originalWidth: 500,
-		});
-		expect(Math.max(...widths)).toBe(500);
+	it("drops the variants a known source cannot fill", () => {
+		expect(
+			imageWidths({ width: 700, layout: "constrained", originalWidth: 1000 }),
+		).toEqual([640, 750, 828, 960]);
 	});
 
-	it("offers the source width itself when it falls between 1x and 2x", () => {
-		// The ladder alone would stop at 400 here — 640 and 800 are both past
-		// a 500px source — and a dense screen would be handed 400 upscaled.
+	it("still offers one width when the source is smaller than every rung", () => {
+		// Returning nothing would leave the image with no srcset at all. One
+		// entry is right: the endpoint clamps to the source rather than
+		// enlarging it, so this URL serves the 500px the file actually has.
 		expect(
 			imageWidths({ width: 400, layout: "constrained", originalWidth: 500 }),
-		).toEqual([400, 500]);
+		).toEqual([640]);
 	});
 
 	it("returns each constrained width once, ascending", () => {
@@ -94,13 +121,11 @@ describe("imageWidths", () => {
 		expect(imageWidths({ width: 48, layout: "fixed" })).toEqual([48, 96]);
 	});
 
-	it("does not enlarge a fixed image past its source", () => {
-		expect(
-			imageWidths({ width: 200, layout: "fixed", originalWidth: 150 }),
-		).toEqual([150]);
+	it("does not offer a fixed image more widths than its source can fill", () => {
 		expect(
 			imageWidths({ width: 100, layout: "fixed", originalWidth: 150 }),
-		).toEqual([100, 150]);
+		).toEqual([128]);
+		expect(imageWidths({ width: 100, layout: "fixed" })).toEqual([128, 256]);
 	});
 
 	it("generates nothing for layout none, or without a width", () => {
@@ -147,7 +172,7 @@ describe("srcset", () => {
 		expect(imageSrcSet({ src: "/a.jpg", widths: [] })).toBeUndefined();
 	});
 
-	it("writes x descriptors for densities", () => {
+	it("writes x descriptors for densities, on offered widths", () => {
 		expect(
 			densitySrcSet({
 				src: "/a.jpg",
@@ -155,7 +180,7 @@ describe("srcset", () => {
 				densities: [1, 2],
 				resolve: plain,
 			}),
-		).toBe("/a.jpg|100 1x, /a.jpg|200 2x");
+		).toBe("/a.jpg|128 1x, /a.jpg|256 2x");
 	});
 
 	it("sorts densities and drops the ones past the source", () => {
@@ -167,20 +192,20 @@ describe("srcset", () => {
 				originalWidth: 250,
 				resolve: plain,
 			}),
-		).toBe("/a.jpg|100 1x, /a.jpg|200 2x");
+		).toBe("/a.jpg|128 1x");
 	});
 
-	it("emits one entry per distinct pixel width", () => {
-		// 1 and 1.2 both round to 100 at a width of 84: two identical URLs in a
-		// srcset make the browser download the same bytes twice.
+	it("emits one entry per distinct offered width", () => {
+		// Two densities that snap to the same rung are two identical URLs in a
+		// srcset, and the browser downloads the same bytes twice.
 		expect(
 			densitySrcSet({
 				src: "/a.jpg",
 				width: 100,
-				densities: [1, 1.001],
+				densities: [1, 1.2],
 				resolve: plain,
 			}),
-		).toBe("/a.jpg|100 1x");
+		).toBe("/a.jpg|128 1x");
 	});
 });
 
@@ -255,8 +280,8 @@ describe("Image", () => {
 	it("asks for webp unless told otherwise", () => {
 		setImageResolver(plain);
 		const element = img(Image({ src: "/a.jpg", alt: "A", width: 400 }));
-		expect(element.getAttribute("src")).toBe("/a.jpg|400|webp");
-		expect(element.getAttribute("srcset")).toContain("|webp 400w");
+		expect(element.getAttribute("src")).toBe("/a.jpg|640|webp");
+		expect(element.getAttribute("srcset")).toContain("|webp 640w");
 	});
 
 	it("turns priority into all three loading hints at once", () => {
@@ -353,11 +378,11 @@ describe("Image", () => {
 		const src = signal("/a.jpg");
 		const mounted = mount(Image({ src, alt: "A", width: 400 }));
 		const element = mounted.host.querySelector("img");
-		expect(element?.getAttribute("src")).toBe("/a.jpg|400|webp");
+		expect(element?.getAttribute("src")).toBe("/a.jpg|640|webp");
 
 		src("/b.jpg");
-		expect(element?.getAttribute("src")).toBe("/b.jpg|400|webp");
-		expect(element?.getAttribute("srcset")).toContain("/b.jpg|400|webp 400w");
+		expect(element?.getAttribute("src")).toBe("/b.jpg|640|webp");
+		expect(element?.getAttribute("srcset")).toContain("/b.jpg|640|webp 640w");
 	});
 
 	it("re-computes the ladder when a reactive width changes", () => {
@@ -403,7 +428,7 @@ describe("Picture", () => {
 		setImageResolver(plain);
 		const element = picture({ src: "/logo.png", alt: "A", width: 200 });
 		expect(element.querySelector("img")?.getAttribute("src")).toBe(
-			"/logo.png|200|png",
+			"/logo.png|256|png",
 		);
 	});
 
@@ -411,7 +436,7 @@ describe("Picture", () => {
 		setImageResolver(plain);
 		const element = picture({ src: "/a.webp", alt: "A", width: 200 });
 		expect(element.querySelector("img")?.getAttribute("src")).toBe(
-			"/a.webp|200|jpeg",
+			"/a.webp|256|jpeg",
 		);
 	});
 

@@ -19,6 +19,7 @@ export {
 } from "./cva.js";
 export { byId, resetIds, uid } from "./id.js";
 export {
+	allSizes,
 	DEFAULT_RESOLUTIONS,
 	defaultImageResolver,
 	densitySrcSet,

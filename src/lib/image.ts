@@ -73,13 +73,28 @@ export type ImageUrlResolver = (
 ) => string;
 
 /**
+ * Widths for elements that are not the width of a screen.
+ *
+ * Avatars, icons, thumbnails. Without them a 48px avatar's nearest offer is
+ * 640 — thirteen times the pixels it can show — because every other ladder
+ * starts at a phone's viewport.
+ */
+export const IMAGE_SIZES: readonly number[] = [
+	16, 32, 48, 64, 96, 128, 256, 384,
+];
+
+/**
  * The widths worth generating, from real device pixel counts.
  *
- * Both ladders are Astro's, and they are the same numbers Next.js settled on
- * independently — which is the reason to reuse them rather than invent a
- * ladder. They are device widths, not round numbers: 828 is the iPhone XR,
- * 1668 is an iPad. A tidier `[400, 800, 1200, 1600]` misses every one of them
- * and ships each device a slightly-too-large image.
+ * Astro's ladder, close to the one Next.js settled on independently — which is
+ * the reason to reuse it rather than invent one. They are device widths, not
+ * round numbers: 828 is the iPhone XR, 1668 is an iPad. A tidier
+ * `[400, 800, 1200, 1600]` misses every one of them and ships each device a
+ * slightly-too-large image.
+ *
+ * Density is what makes the ladder cheap to round up to. The nearest rung
+ * above 2400 here is 2560, six percent over; on a sparser ladder it would be
+ * 3840.
  */
 export const DEFAULT_RESOLUTIONS: readonly number[] = [
 	640, // older and lower-end phones
@@ -110,6 +125,48 @@ export const LIMITED_RESOLUTIONS: readonly number[] = [
 	640, 750, 828, 1080, 1280, 1668, 2048, 2560,
 ];
 
+/**
+ * Every width a component may ask for, ascending.
+ *
+ * This list and the endpoint's allow-list are the same list, and that is the
+ * contract between the two halves: a component that emits a width the endpoint
+ * does not serve produces a `srcset` where every entry is a 400, and the page
+ * silently falls back to the one `src`.
+ *
+ * It is also why a declared width is never emitted literally. `width: 1200`
+ * asking for 1200 and 2400 would be two widths no allow-list contains, and
+ * allow-listing whatever an author happens to type is not an allow-list.
+ */
+export function allSizes(breakpoints: readonly number[]): number[] {
+	return [...new Set([...IMAGE_SIZES, ...breakpoints])].sort((a, b) => a - b);
+}
+
+/**
+ * The smallest offered width that still covers `target`.
+ *
+ * Upwards, never downwards. Rounding down is how a 2x screen is handed an
+ * image with fewer pixels than it can show, and the result is soft in a way
+ * that is hard to attribute later. Falls back to the largest rung, which the
+ * endpoint clamps to the source anyway.
+ */
+function snapUp(target: number, sizes: readonly number[]): number {
+	return sizes.find((size) => size >= target) ?? sizes[sizes.length - 1] ?? 0;
+}
+
+/**
+ * The width to actually request for a declared one.
+ *
+ * The `src` attribute and a density entry are single URLs rather than ladders,
+ * and they are subject to the same contract: a literal declared width is a
+ * width no allow-list contains.
+ */
+export function offeredWidth(
+	width: number,
+	breakpoints: readonly number[] = DEFAULT_RESOLUTIONS,
+): number {
+	return snapUp(width, allSizes(breakpoints));
+}
+
 export interface WidthsOptions {
 	/** The declared display width. Required by every layout but `full-width`. */
 	width?: number;
@@ -129,9 +186,10 @@ export interface WidthsOptions {
 /**
  * The widths to offer, ascending.
  *
- * `constrained` always carries 1x and 2x even when they fall between rungs of
- * the ladder — a dense screen at the declared width is the common case, and
- * leaving it to the nearest breakpoint is how a retina image ends up soft.
+ * Every value comes off {@link allSizes} — see there for why a declared width
+ * is never emitted literally. 1x and 2x are always represented, rounded up, so
+ * the common case of a dense screen at the declared width is never served
+ * fewer pixels than it can show.
  */
 export function imageWidths(options: WidthsOptions): number[] {
 	const {
@@ -141,36 +199,44 @@ export function imageWidths(options: WidthsOptions): number[] {
 		originalWidth,
 	} = options;
 
-	const fitsSource = (candidate: number): boolean =>
-		originalWidth === undefined || candidate <= originalWidth;
+	const every = allSizes(breakpoints);
+
+	/**
+	 * Drop what the source cannot fill, but never return nothing.
+	 *
+	 * A source smaller than every rung still has to be offered at some width,
+	 * and the endpoint clamps to the source rather than enlarging it.
+	 */
+	const withinSource = (candidates: number[]): number[] => {
+		if (originalWidth === undefined) return candidates;
+		const kept = candidates.filter((candidate) => candidate <= originalWidth);
+		if (kept.length > 0) return kept;
+		const smallest = candidates[0];
+		return smallest === undefined ? [] : [smallest];
+	};
 
 	if (layout === "full-width") {
-		return [...breakpoints].filter(fitsSource);
+		return withinSource([...breakpoints]);
 	}
 	if (width === undefined || width <= 0) return [];
 
-	const double = width * 2;
-	const ceiling =
-		originalWidth === undefined ? double : Math.min(double, originalWidth);
+	const oneX = snapUp(width, every);
+	const twoX = snapUp(width * 2, every);
 
 	if (layout === "fixed") {
-		if (originalWidth !== undefined && width > originalWidth) {
-			return [originalWidth];
-		}
-		return width === ceiling ? [width] : [width, ceiling];
+		return withinSource([...new Set([oneX, twoX])].sort((a, b) => a - b));
 	}
 	if (layout === "constrained") {
-		// `ceiling` is in the list on purpose, and this is where we part from
-		// the ladder-and-filter every other implementation uses. A 500px
-		// source displayed at 400 filters to `[400]`: 800 is past the source,
-		// and the next rung down is 640, also past it. So a dense screen is
-		// handed 400px upscaled while the 500 it could have had sits on disk.
-		// Offering the ceiling costs one variant and only ever differs when
-		// the source falls between 1x and 2x.
-		const candidates = [width, double, ceiling, ...breakpoints].filter(
-			(candidate) => candidate <= ceiling,
+		// Below its declared width a constrained image is the width of the
+		// viewport, so the viewport rungs under the cap earn their place. The
+		// floor is the smallest device width: nothing narrower is a screen,
+		// and offering 32w to an image that is at least 640 wide is noise in
+		// every `srcset` on the page.
+		const floor = breakpoints[0] ?? 0;
+		const intermediate = every.filter((size) => size >= floor && size <= twoX);
+		return withinSource(
+			[...new Set([oneX, twoX, ...intermediate])].sort((a, b) => a - b),
 		);
-		return [...new Set(candidates)].sort((a, b) => a - b);
 	}
 	return [];
 }
@@ -231,6 +297,7 @@ export interface DensitySrcSetOptions {
 	format?: ImageFormat;
 	quality?: number;
 	originalWidth?: number;
+	breakpoints?: readonly number[];
 	resolve?: ImageUrlResolver;
 }
 
@@ -251,6 +318,7 @@ export function densitySrcSet(
 		format,
 		quality,
 		originalWidth,
+		breakpoints = DEFAULT_RESOLUTIONS,
 		resolve = imageUrl,
 	} = options;
 	if (width <= 0 || densities.length === 0) return undefined;
@@ -259,7 +327,7 @@ export function densitySrcSet(
 	const entries: string[] = [];
 	for (const density of [...densities].sort((a, b) => a - b)) {
 		if (density <= 0) continue;
-		const target = Math.round(width * density);
+		const target = offeredWidth(Math.round(width * density), breakpoints);
 		if (originalWidth !== undefined && target > originalWidth) continue;
 		if (seen.has(target)) continue;
 		seen.add(target);
