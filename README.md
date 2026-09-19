@@ -74,7 +74,7 @@ shadcn stands on Radix, `clsx`, `tailwind-merge`, `class-variance-authority`, `l
 | `@tanstack/react-table` | `organisms/DataTable.ts` — sort, filter, page, select |
 | `recharts` | `organisms/Chart.ts` — line, area and bar, as inline SVG |
 | `react-hook-form` | `form()` from `@c9up/aurora`, bound by `organisms/Form.ts` |
-| `tw-animate-css` | four keyframes in `theme.css` |
+| `tw-animate-css` | **not replaced** — required by the `tailwind` and `unocss` adapters, see below |
 
 Several of those are narrower than what they replace — see [parity with shadcn](#parity-with-shadcn) for the full list rather than a reassuring summary.
 
@@ -124,7 +124,32 @@ physical, because that is what the caller means.
 
 ## Choose your CSS engine
 
-nebula declares **no CSS dependency at all**, not even a peer one. You install the engine you want; `config/nebula.ts` names it; nebula generates the matching stubs and build command. Same arrangement AdonisJS uses for its asset bundler.
+nebula declares **no CSS engine dependency at all**. You install the engine you want; `config/nebula.ts` names it; nebula generates the matching stubs and build command. Same arrangement AdonisJS uses for its asset bundler.
+
+### The one thing you must install: `tw-animate-css`
+
+On the `tailwind` and `unocss` adapters, add it and import it next to the tokens:
+
+```css
+@import "tw-animate-css";
+@import "@c9up/nebula/theme.css";
+```
+
+Overlay enter and exit animations are `tw-animate-css`'s registered utilities —
+`animate-in` / `animate-out` and the `fade-*` / `zoom-*` / `slide-*` modifiers —
+the same ones shadcn uses. Without the import those classes are never emitted,
+so overlays appear and disappear with no animation. Closing still works: a
+surface that is not animating is removed at once, and one whose `animationend`
+never arrives is removed on a deadline.
+
+The `css` adapter needs nothing: `nebula.css` is compiled here and already
+carries them.
+
+Earlier versions inlined four bespoke keyframes in `theme.css` to avoid this
+dependency, referenced through Tailwind ARBITRARY values. That is the one
+arrangement that fails badly rather than cosmetically — Tailwind compiles an
+arbitrary value unconditionally, so `animation` was set while the keyframes
+behind it might exist nowhere. A registered utility is simply absent instead.
 
 ```ts
 // config/nebula.ts
