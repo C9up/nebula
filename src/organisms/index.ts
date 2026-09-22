@@ -120,7 +120,14 @@ export {
 	TextField,
 	type TextFieldProps,
 } from "./Form.js";
-export { HoverCard, type HoverCardProps } from "./HoverCard.js";
+export {
+	HoverCard,
+	HoverCardContent,
+	type HoverCardContentProps,
+	type HoverCardProps,
+	HoverCardTrigger,
+	type HoverCardTriggerProps,
+} from "./HoverCard.js";
 export { Menubar, type MenubarMenu, type MenubarProps } from "./Menubar.js";
 export {
 	MessageScroller,

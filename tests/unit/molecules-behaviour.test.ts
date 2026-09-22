@@ -29,7 +29,10 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "../../src/molecules/Tabs.js";
-import { ToggleGroup } from "../../src/molecules/ToggleGroup.js";
+import {
+	ToggleGroup,
+	ToggleGroupItem,
+} from "../../src/molecules/ToggleGroup.js";
 import { mount, press } from "./helpers.js";
 
 afterEach(() => {
@@ -286,10 +289,25 @@ describe("ToggleGroup", () => {
 		{ value: "center", label: "C" },
 	];
 
+	/** The parts, assembled. `() =>` so they see the group's context. */
+	function toggleGroup(options: {
+		type: "single" | "multiple";
+		onValueChange?: (value: readonly string[]) => void;
+	}) {
+		return ToggleGroup({
+			type: options.type,
+			onValueChange: options.onValueChange,
+			children: () =>
+				items.map((item) =>
+					ToggleGroupItem({ value: item.value, children: item.label }),
+				),
+		});
+	}
+
 	it("announces a single-select group as radios", () => {
 		// The pairing that matters: a single-select group announcing "pressed"
 		// tells a screen-reader user they can turn several on at once.
-		const view = mount(ToggleGroup({ items, type: "single" }));
+		const view = mount(toggleGroup({ type: "single" }));
 		const group = document.querySelector("[data-slot='toggle-group']");
 		expect(group?.getAttribute("role")).toBe("radiogroup");
 		const buttons = all("[data-slot='toggle-group-item']");
@@ -299,7 +317,7 @@ describe("ToggleGroup", () => {
 	});
 
 	it("announces a multi-select group as pressed toggles", () => {
-		const view = mount(ToggleGroup({ items, type: "multiple" }));
+		const view = mount(toggleGroup({ type: "multiple" }));
 		const buttons = all("[data-slot='toggle-group-item']");
 		expect(buttons[0]?.getAttribute("aria-pressed")).toBe("false");
 		expect(buttons[0]?.hasAttribute("role")).toBe(false);
@@ -308,7 +326,7 @@ describe("ToggleGroup", () => {
 
 	it("replaces the selection in single mode", () => {
 		const onValueChange = vi.fn<(value: readonly string[]) => void>();
-		const view = mount(ToggleGroup({ items, type: "single", onValueChange }));
+		const view = mount(toggleGroup({ type: "single", onValueChange }));
 		const buttons = all("[data-slot='toggle-group-item']");
 		buttons[0]?.click();
 		buttons[1]?.click();
@@ -318,7 +336,7 @@ describe("ToggleGroup", () => {
 
 	it("accumulates in multiple mode and toggles back off", () => {
 		const onValueChange = vi.fn<(value: readonly string[]) => void>();
-		const view = mount(ToggleGroup({ items, type: "multiple", onValueChange }));
+		const view = mount(toggleGroup({ type: "multiple", onValueChange }));
 		const buttons = all("[data-slot='toggle-group-item']");
 		buttons[0]?.click();
 		buttons[1]?.click();

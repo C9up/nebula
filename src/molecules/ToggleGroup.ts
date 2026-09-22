@@ -15,33 +15,48 @@
  * to weld the row into one shape.
  */
 
-import { component, html, signal } from "@c9up/aurora";
+import {
+	component,
+	createContext,
+	html,
+	inject,
+	provide,
+	signal,
+} from "@c9up/aurora";
 import { type ToggleVariants, toggleVariants } from "../atoms/Toggle.js";
-import type { Child } from "../lib/children.js";
+import type { Parts, Slot } from "../lib/children.js";
+import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { type Reactive, read, readOr } from "../lib/props.js";
 
-export interface ToggleGroupItem {
-	value: string;
-	label: Child;
-	/** Required when the label is an icon alone. */
-	ariaLabel?: string;
-	disabled?: boolean;
+interface ToggleGroupApi {
+	readonly type: "single" | "multiple";
+	readonly variant: ToggleVariants["variant"];
+	readonly size: ToggleVariants["size"];
+	readonly spacing: "default" | "0";
+	readonly disabled: () => boolean;
+	isOn(value: string): boolean;
+	toggle(value: string): void;
 }
 
+const ToggleGroupContext = createContext<ToggleGroupApi>("ToggleGroup");
+
 export interface ToggleGroupProps {
-	items: readonly ToggleGroupItem[];
 	type?: "single" | "multiple";
 	defaultValue?: string | readonly string[];
 	variant?: Reactive<ToggleVariants["variant"]>;
 	size?: Reactive<ToggleVariants["size"]>;
+	/** `"0"` joins the items into one bar; `"default"` spaces them. */
+	spacing?: "default" | "0";
 	disabled?: Reactive<boolean>;
-	class?: Reactive<string>;
 	onValueChange?: (value: readonly string[]) => void;
+	class?: Reactive<string>;
+	children?: Parts;
 }
 
 export const ToggleGroup = component<ToggleGroupProps>((props) => {
 	const type = props.type ?? "single";
+	const spacing = props.spacing ?? "0";
 	const selected = signal<readonly string[]>(
 		props.defaultValue === undefined
 			? []
@@ -64,46 +79,70 @@ export const ToggleGroup = component<ToggleGroupProps>((props) => {
 		props.onValueChange?.(next);
 	}
 
+	provide<ToggleGroupApi>(ToggleGroupContext, {
+		type,
+		variant: read(props.variant),
+		size: read(props.size),
+		spacing,
+		disabled: () => readOr(props.disabled, false),
+		isOn: (value) => selected().includes(value),
+		toggle,
+	});
+
 	return html`<div
 		data-slot="toggle-group"
 		role="${type === "single" ? "radiogroup" : "group"}"
+		data-variant="${() => readOr(props.variant, "default")}"
+		data-size="${() => readOr(props.size, "default")}"
+		data-spacing="${spacing}"
 		class="${() =>
 			cn(
-				"group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs",
+				"group/toggle-group flex w-fit items-center rounded-md data-[spacing=default]:gap-1 data-[spacing=default]:data-[variant=outline]:shadow-xs",
 				read(props.class),
 			)}"
-		data-variant="${() => readOr(props.variant, "default")}"
-	>
-		${props.items.map((item) => renderItem(item, props, type, selected, toggle))}
-	</div>`;
+	>${props.children?.()}</div>`;
 });
 
-function renderItem(
-	item: ToggleGroupItem,
-	props: ToggleGroupProps,
-	type: "single" | "multiple",
-	selected: () => readonly string[],
-	toggle: (value: string) => void,
-): Child {
-	const on = (): boolean => selected().includes(item.value);
+export interface ToggleGroupItemProps {
+	value: string;
+	children?: Slot;
+	/** Required when the label is an icon alone. */
+	ariaLabel?: string;
+	disabled?: boolean;
+	variant?: ToggleVariants["variant"];
+	size?: ToggleVariants["size"];
+	class?: Reactive<string>;
+}
+
+export const ToggleGroupItem = component<ToggleGroupItemProps>((props) => {
+	const group = inject(ToggleGroupContext);
+	const on = (): boolean => group.isOn(props.value);
+	const single = group.type === "single";
 
 	return html`<button
 		type="button"
 		data-slot="toggle-group-item"
 		data-state="${() => (on() ? "on" : "off")}"
-		data-value="${item.value}"
-		role="${type === "single" ? "radio" : undefined}"
-		aria-checked="${() => (type === "single" ? (on() ? "true" : "false") : undefined)}"
-		aria-pressed="${() => (type === "multiple" ? (on() ? "true" : "false") : undefined)}"
-		aria-label="${item.ariaLabel}"
-		?disabled="${() => item.disabled === true || readOr(props.disabled, false)}"
+		data-value="${props.value}"
+		data-variant="${group.variant ?? props.variant ?? "default"}"
+		data-size="${group.size ?? props.size ?? "default"}"
+		data-spacing="${group.spacing}"
+		role="${single ? "radio" : undefined}"
+		aria-checked="${() => (single ? (on() ? "true" : "false") : undefined)}"
+		aria-pressed="${() => (single ? undefined : on() ? "true" : "false")}"
+		aria-label="${props.ariaLabel}"
+		?disabled="${() => props.disabled === true || group.disabled()}"
 		class="${() =>
-			toggleVariants({
-				variant: read(props.variant),
-				size: read(props.size),
-				class:
-					"min-w-0 flex-1 shrink-0 rounded-none shadow-none first:rounded-l-md last:rounded-r-md focus:z-10 focus-visible:z-10 data-[variant=outline]:border-l-0 data-[variant=outline]:first:border-l aria-checked:bg-accent aria-checked:text-accent-foreground",
-			})}"
-		@click="${() => toggle(item.value)}"
-	>${item.label}</button>`;
-}
+			cn(
+				toggleVariants({
+					variant: group.variant ?? props.variant,
+					size: group.size ?? props.size,
+				}),
+				"w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10",
+				"data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-l-md data-[spacing=0]:last:rounded-r-md data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l",
+				"aria-checked:bg-accent aria-checked:text-accent-foreground",
+				read(props.class),
+			)}"
+		@click="${() => group.toggle(props.value)}"
+	>${slot(props.children)}</button>`;
+});

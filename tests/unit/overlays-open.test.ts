@@ -41,7 +41,11 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "../../src/organisms/DropdownMenu.js";
-import { HoverCard } from "../../src/organisms/HoverCard.js";
+import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "../../src/organisms/HoverCard.js";
 import {
 	Popover,
 	PopoverAnchor,
@@ -537,7 +541,13 @@ describe("Tooltip and HoverCard", () => {
 		// The gap between trigger and card is what a naive mouseleave closes.
 		vi.useFakeTimers();
 		const view = mount(
-			HoverCard({ trigger: "@ada", children: "Ada Lovelace", openDelay: 0 }),
+			HoverCard({
+				openDelay: 0,
+				children: () =>
+					html`${HoverCardTrigger({ children: "@ada" })}${HoverCardContent({
+						children: "Ada Lovelace",
+					})}`,
+			}),
 		);
 		hover(one("[data-slot='hover-card-trigger']"), "pointerenter");
 		vi.runOnlyPendingTimers();

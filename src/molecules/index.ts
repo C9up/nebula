@@ -128,8 +128,9 @@ export {
 export { Picture, type PictureProps } from "./Picture.js";
 export {
 	RadioGroup,
+	RadioGroupItem,
+	type RadioGroupItemProps,
 	type RadioGroupProps,
-	type RadioOption,
 } from "./RadioGroup.js";
 export { Resizable, type ResizableProps } from "./Resizable.js";
 export {
@@ -159,7 +160,8 @@ export {
 } from "./Tabs.js";
 export {
 	ToggleGroup,
-	type ToggleGroupItem,
+	ToggleGroupItem,
+	type ToggleGroupItemProps,
 	type ToggleGroupProps,
 } from "./ToggleGroup.js";
 export {

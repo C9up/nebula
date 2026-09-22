@@ -33,7 +33,7 @@ import type { Child } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read } from "../lib/props.js";
-import { RadioGroup } from "../molecules/RadioGroup.js";
+import { RadioGroup, RadioGroupItem } from "../molecules/RadioGroup.js";
 
 export interface QuestionOption {
 	value: string;
@@ -270,13 +270,16 @@ export const Questionnaire = component<QuestionnaireProps>((props) => {
 		if (isSingle(question)) {
 			return RadioGroup({
 				name: question.id,
-				options: question.options.map((option) => ({
-					value: option.value,
-					label: option.label,
-					description: option.description,
-				})),
 				value: () => asValue(answerOf(question)),
 				onValueChange: (value) => record(question, value),
+				children: () =>
+					question.options.map((option) =>
+						RadioGroupItem({
+							value: option.value,
+							children: option.label,
+							description: option.description,
+						}),
+					),
 			});
 		}
 

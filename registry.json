@@ -562,6 +562,7 @@
         "lib/motion.ts",
         "lib/props.ts",
         "organisms/HoverCard.ts",
+        "primitives/controllable.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",

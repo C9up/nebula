@@ -268,7 +268,17 @@ const cases: readonly Case[] = [
 	{
 		name: "radio-group",
 		slot: "radio-group",
-		build: () => molecules.RadioGroup({ name: "plan", options: OPTIONS }),
+		build: () =>
+			molecules.RadioGroup({
+				name: "plan",
+				children: () =>
+					OPTIONS.map((option) =>
+						molecules.RadioGroupItem({
+							value: option.value,
+							children: option.label,
+						}),
+					),
+			}),
 	},
 	{
 		name: "resizable",
@@ -295,7 +305,11 @@ const cases: readonly Case[] = [
 	{
 		name: "toggle-group",
 		slot: "toggle-group",
-		build: () => molecules.ToggleGroup({ items: [{ value: "a", label: "A" }] }),
+		build: () =>
+			molecules.ToggleGroup({
+				children: () =>
+					molecules.ToggleGroupItem({ value: "a", children: "A" }),
+			}),
 	},
 	{
 		name: "typography",
@@ -419,7 +433,12 @@ const cases: readonly Case[] = [
 		name: "hover-card",
 		slot: "hover-card-trigger",
 		build: () =>
-			organisms.HoverCard({ trigger: "@ada", children: "Ada Lovelace" }),
+			organisms.HoverCard({
+				children: () =>
+					html`${organisms.HoverCardTrigger({
+						children: "@ada",
+					})}${organisms.HoverCardContent({ children: "Ada Lovelace" })}`,
+			}),
 	},
 	{
 		name: "menubar",
