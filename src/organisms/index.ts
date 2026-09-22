@@ -66,8 +66,22 @@ export {
 } from "./Combobox.js";
 export {
 	Command,
-	type CommandItem,
+	type CommandCandidate,
+	CommandEmpty,
+	type CommandEmptyProps,
+	CommandGroup,
+	type CommandGroupProps,
+	CommandInput,
+	type CommandInputProps,
+	CommandItem,
+	type CommandItemProps,
+	CommandList,
+	type CommandListProps,
 	type CommandProps,
+	CommandSeparator,
+	type CommandSeparatorProps,
+	CommandShortcut,
+	type CommandShortcutProps,
 	defaultFilter,
 } from "./Command.js";
 export { CommandDialog, type CommandDialogProps } from "./CommandDialog.js";

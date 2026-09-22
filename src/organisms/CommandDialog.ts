@@ -29,7 +29,7 @@ import { fadeInOut, zoomInOut } from "../lib/motion.js";
 import { type Reactive, read } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import { modalSurface } from "../primitives/modalSurface.js";
-import { Command, type CommandItem, type CommandProps } from "./Command.js";
+import { Command, type CommandProps } from "./Command.js";
 import { dialogBackdropClasses } from "./Dialog.js";
 
 export interface CommandDialogProps extends Omit<CommandProps, "class"> {
@@ -85,8 +85,8 @@ export const CommandDialog = component<CommandDialogProps>((props) => {
 		state.set(false);
 	}
 
-	function runAndClose(item: CommandItem): void {
-		props.onSelect?.(item);
+	function runAndClose(value: string): void {
+		props.onSelect?.(value);
 		// Closing after the action, not before: a handler that opens another
 		// surface should not have this one tearing down focus underneath it.
 		close();
@@ -132,11 +132,11 @@ export const CommandDialog = component<CommandDialogProps>((props) => {
 							: html`<p id="${descriptionId}" class="sr-only">${props.description}</p>`
 					}
 					${Command({
-						items: props.items,
-						placeholder: props.placeholder,
-						emptyMessage: props.emptyMessage,
 						filter: props.filter,
 						onSelect: runAndClose,
+						// Passed straight through: `Command` calls it inside its own
+						// setup, which is where the parts find its context.
+						children: props.children,
 					})}
 				</div>
 			</div>`,

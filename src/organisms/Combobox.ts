@@ -15,7 +15,7 @@
  * jump to the top of the page after choosing.
  */
 
-import { component, html, signal } from "@c9up/aurora";
+import { component, html, signal, type TemplateResult } from "@c9up/aurora";
 import { cn } from "../lib/cn.js";
 import { ChevronsUpDownIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
@@ -24,7 +24,14 @@ import { type Reactive, read, readOr } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
 import { focusSilently } from "../primitives/focusable.js";
-import { Command, type CommandItem } from "./Command.js";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "./Command.js";
 import { selectTriggerClasses } from "./Select.js";
 
 export interface ComboboxOption {
@@ -69,19 +76,62 @@ export const Combobox = component<ComboboxProps>((props) => {
 		return props.options.find((option) => option.value === value)?.label;
 	}
 
-	const items = (): readonly CommandItem[] =>
-		props.options.map((option) => ({
-			value: option.value,
-			label: option.label,
-			keywords: option.keywords,
-			disabled: option.disabled,
-			group: option.group,
-		}));
-
-	function choose(item: CommandItem): void {
-		selection.set(item.value);
+	function choose(value: string): void {
+		selection.set(value);
 		open(false);
 		focusSilently(document.getElementById(triggerId));
+	}
+
+	/**
+	 * The palette inside the popover.
+	 *
+	 * Built fresh on each open, so the options prop is read at the moment the
+	 * surface appears rather than captured once — a combobox whose options load
+	 * asynchronously is the common case.
+	 *
+	 * Consecutive options sharing a `group` are gathered under one heading, in
+	 * the order they were given. A group that repeats after an interruption
+	 * gets a second heading, because reordering the caller's list to merge them
+	 * would change which option the arrows reach next.
+	 */
+	function renderPalette(): TemplateResult {
+		const groups: Array<{
+			heading: string | undefined;
+			options: ComboboxOption[];
+		}> = [];
+		for (const option of props.options) {
+			const last = groups[groups.length - 1];
+			if (last !== undefined && last.heading === option.group) {
+				last.options.push(option);
+			} else {
+				groups.push({ heading: option.group, options: [option] });
+			}
+		}
+		return Command({
+			onSelect: choose,
+			children: () =>
+				html`${CommandInput({
+					placeholder: props.searchPlaceholder ?? "Search…",
+				})}${CommandList({
+					children: () =>
+						html`${CommandEmpty({
+							children: props.emptyMessage ?? "No results found.",
+						})}${groups.map((group) =>
+							CommandGroup({
+								heading: group.heading,
+								children: () =>
+									group.options.map((option) =>
+										CommandItem({
+											value: option.value,
+											children: option.label,
+											keywords: option.keywords,
+											disabled: option.disabled,
+										}),
+									),
+							}),
+						)}`,
+				})}`,
+		});
 	}
 
 	floatingSurface({
@@ -106,12 +156,7 @@ export const Combobox = component<ComboboxProps>((props) => {
 					read(props.contentClass),
 				)}"
 			>
-				${Command({
-					items: items(),
-					placeholder: props.searchPlaceholder ?? "Search…",
-					emptyMessage: props.emptyMessage ?? "No results found.",
-					onSelect: choose,
-				})}
+				${renderPalette()}
 			</div>`,
 	});
 

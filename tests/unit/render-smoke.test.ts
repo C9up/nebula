@@ -406,13 +406,26 @@ const cases: readonly Case[] = [
 	{
 		name: "command",
 		slot: "command",
-		build: () => organisms.Command({ items: [{ value: "a", label: "Open" }] }),
+		build: () =>
+			organisms.Command({
+				children: () =>
+					html`${organisms.CommandInput({})}${organisms.CommandList({
+						children: () =>
+							organisms.CommandItem({ value: "a", children: "New file" }),
+					})}`,
+			}),
 	},
 	{
 		name: "command-dialog",
 		slot: "command-dialog-root",
 		build: () =>
-			organisms.CommandDialog({ items: [{ value: "a", label: "Open" }] }),
+			organisms.CommandDialog({
+				children: () =>
+					html`${organisms.CommandInput({})}${organisms.CommandList({
+						children: () =>
+							organisms.CommandItem({ value: "a", children: "New file" }),
+					})}`,
+			}),
 	},
 	{
 		name: "context-menu",

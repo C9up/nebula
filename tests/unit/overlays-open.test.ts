@@ -22,6 +22,11 @@ import {
 	AlertDialogTrigger,
 } from "../../src/organisms/AlertDialog.js";
 import { Combobox } from "../../src/organisms/Combobox.js";
+import {
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "../../src/organisms/Command.js";
 import { CommandDialog } from "../../src/organisms/CommandDialog.js";
 import { DatePicker } from "../../src/organisms/DatePicker.js";
 import { DateRangePicker } from "../../src/organisms/DateRangePicker.js";
@@ -662,8 +667,11 @@ describe("Combobox, CommandDialog and the date pickers", () => {
 	it("opens the command palette on its shortcut and toggles it shut", () => {
 		const view = mount(
 			CommandDialog({
-				items: [{ value: "a", label: "New file" }],
 				shortcut: "k",
+				children: () =>
+					html`${CommandInput({})}${CommandList({
+						children: () => CommandItem({ value: "a", children: "New file" }),
+					})}`,
 			}),
 		);
 		document.dispatchEvent(
@@ -679,7 +687,7 @@ describe("Combobox, CommandDialog and the date pickers", () => {
 	});
 
 	it("ignores the shortcut key without its modifier", () => {
-		const view = mount(CommandDialog({ items: [], shortcut: "k" }));
+		const view = mount(CommandDialog({ shortcut: "k" }));
 		document.dispatchEvent(new KeyboardEvent("keydown", { key: "k" }));
 		expect(portals()).toHaveLength(0);
 		view.dispose();

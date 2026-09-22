@@ -1,6 +1,16 @@
 import { html } from "@c9up/aurora";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Command } from "../../src/organisms/Command.js";
+import { Combobox } from "../../src/organisms/Combobox.js";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+	CommandSeparator,
+	CommandShortcut,
+} from "../../src/organisms/Command.js";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -167,6 +177,39 @@ describe("Command", () => {
 		{ value: "quit", label: "Quit" },
 	];
 
+	/** The parts, assembled. `() =>` so they see the palette's context. */
+	function palette(
+		options: { emptyMessage?: string; onSelect?: (value: string) => void } = {},
+	) {
+		return Command({
+			onSelect: options.onSelect,
+			children: () =>
+				html`${CommandInput({})}${CommandList({
+					children: () =>
+						html`${CommandEmpty({
+							children: options.emptyMessage ?? "No results found.",
+						})}${items.map((item) =>
+							CommandItem({
+								value: item.value,
+								children: item.label,
+								keywords: item.keywords,
+							}),
+						)}`,
+				})}`,
+		});
+	}
+
+	/**
+	 * The options still on screen.
+	 *
+	 * Filtering HIDES rather than removes: Aurora never re-runs a component's
+	 * setup, so a palette that rebuilt its list on every keystroke would lose
+	 * the DOM its highlight and scroll position live in.
+	 */
+	function visibleOptions(): HTMLElement[] {
+		return all("[role='option']:not([hidden])");
+	}
+
 	function search(text: string): void {
 		const input = document.querySelector<HTMLInputElement>(
 			"[data-slot='command-input']",
@@ -177,33 +220,33 @@ describe("Command", () => {
 	}
 
 	it("lists everything before a query", () => {
-		const view = mount(Command({ items }));
-		expect(all("[role='option']")).toHaveLength(3);
+		const view = mount(palette());
+		expect(visibleOptions()).toHaveLength(3);
 		view.dispose();
 	});
 
 	it("filters on a substring of the label", () => {
-		const view = mount(Command({ items }));
+		const view = mount(palette());
 		search("op");
-		expect(all("[role='option']")).toHaveLength(1);
-		expect(one("[role='option']")?.textContent).toContain("Open folder");
+		expect(visibleOptions()).toHaveLength(1);
+		expect(visibleOptions()[0]?.textContent).toContain("Open folder");
 		view.dispose();
 	});
 
 	it("matches a keyword the label does not contain", () => {
 		// Predictable beats clever: "s" reaching "Settings" is a keyword, not a
 		// fuzzy score nobody can anticipate.
-		const view = mount(Command({ items }));
+		const view = mount(palette());
 		search("directory");
-		expect(all("[role='option']")).toHaveLength(1);
-		expect(one("[role='option']")?.textContent).toContain("Open folder");
+		expect(visibleOptions()).toHaveLength(1);
+		expect(visibleOptions()[0]?.textContent).toContain("Open folder");
 		view.dispose();
 	});
 
 	it("shows the empty state when nothing matches", () => {
-		const view = mount(Command({ items, emptyMessage: "Nothing found." }));
+		const view = mount(palette({ emptyMessage: "Nothing found." }));
 		search("zzzz");
-		expect(all("[role='option']")).toHaveLength(0);
+		expect(visibleOptions()).toHaveLength(0);
 		expect(one("[data-slot='command-empty']")?.textContent).toContain(
 			"Nothing found.",
 		);
@@ -213,7 +256,7 @@ describe("Command", () => {
 	it("re-points the highlight at the first result after filtering", () => {
 		// Leaving it on an item the query removed means Enter runs something
 		// invisible.
-		const view = mount(Command({ items }));
+		const view = mount(palette());
 		search("qu");
 		const input = document.querySelector<HTMLInputElement>(
 			"[data-slot='command-input']",
@@ -227,7 +270,7 @@ describe("Command", () => {
 
 	it("runs the highlighted item on Enter", () => {
 		const onSelect = vi.fn();
-		const view = mount(Command({ items, onSelect }));
+		const view = mount(palette({ onSelect }));
 		const input = document.querySelector<HTMLInputElement>(
 			"[data-slot='command-input']",
 		);
@@ -238,7 +281,7 @@ describe("Command", () => {
 	});
 
 	it("keeps focus in the search field while arrowing", () => {
-		const view = mount(Command({ items }));
+		const view = mount(palette());
 		const input = document.querySelector<HTMLInputElement>(
 			"[data-slot='command-input']",
 		);
@@ -946,5 +989,103 @@ describe("Select parts", () => {
 		expect(() => SelectItem({ value: "a", children: "Apple" })).toThrowError(
 			/context "Select"/,
 		);
+	});
+});
+
+describe("Command parts", () => {
+	it("renders every upstream slot", () => {
+		const view = mount(
+			Command({
+				children: () =>
+					html`${CommandInput({})}${CommandList({
+						children: () =>
+							html`${CommandEmpty({
+								children: "Nothing.",
+							})}${CommandGroup({
+								heading: "Actions",
+								children: () =>
+									CommandItem({
+										value: "a",
+										children: html`New${CommandShortcut({ children: "⌘N" })}`,
+									}),
+							})}${CommandSeparator({})}`,
+					})}`,
+			}),
+		);
+		for (const name of [
+			"command",
+			"command-input-wrapper",
+			"command-input",
+			"command-list",
+			"command-empty",
+			"command-group",
+			"command-item",
+			"command-shortcut",
+			"command-separator",
+		]) {
+			expect(one(`[data-slot='${name}']`), name).not.toBeNull();
+		}
+		view.dispose();
+	});
+
+	it("hides a group once none of its own items match", () => {
+		const view = mount(
+			Command({
+				children: () =>
+					html`${CommandInput({})}${CommandList({
+						children: () =>
+							html`${CommandGroup({
+								heading: "Files",
+								children: () =>
+									CommandItem({ value: "new", children: "New file" }),
+							})}${CommandGroup({
+								heading: "Help",
+								children: () =>
+									CommandItem({ value: "docs", children: "Documentation" }),
+							})}`,
+					})}`,
+			}),
+		);
+		const groups = all("[data-slot='command-group']");
+		expect(groups.map((group) => group.hasAttribute("hidden"))).toEqual([
+			false,
+			false,
+		]);
+
+		const input = one("[data-slot='command-input']");
+		if (input instanceof HTMLInputElement) {
+			input.value = "doc";
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+		}
+		// An empty heading sitting over nothing is the thing to avoid.
+		expect(groups.map((group) => group.hasAttribute("hidden"))).toEqual([
+			true,
+			false,
+		]);
+		view.dispose();
+	});
+
+	it("survives being rebuilt inside a floating surface", () => {
+		// Regression: the palette seeded its highlight by WRITING a signal while
+		// its items registered — a write during the render that was building
+		// them. A surface rebuilds its content inside an effect, so the write
+		// re-entered that effect and the palette recursed until the stack gave
+		// out. The highlight is derived now.
+		const view = mount(
+			Combobox({
+				options: [
+					{ value: "a", label: "Alpha" },
+					{ value: "b", label: "Beta" },
+				],
+			}),
+		);
+		one("[data-slot='combobox-trigger']")?.click();
+		expect(one("[data-slot='command-list']")).not.toBeNull();
+		expect(all("[role='option']:not([hidden])")).toHaveLength(2);
+		view.dispose();
+	});
+
+	it("refuses a part used outside its Command", () => {
+		expect(() => CommandInput({})).toThrowError(/context "Command"/);
 	});
 });
