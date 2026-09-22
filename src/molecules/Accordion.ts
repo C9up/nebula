@@ -1,18 +1,33 @@
 /**
  * Accordion — a stack of collapsible sections.
  *
- * Data-driven rather than composed: an accordion is a list, and describing it
- * as one is both shorter to write and the only shape that lets the group
- * enforce `type: "single"` — which needs to know about every section at once,
- * something Radix can only do through context.
+ *   Accordion({ type: "single", children: () => html`
+ *     ${AccordionItem({ value: "a", children: () => html`
+ *       ${AccordionTrigger({ children: "Shipping" })}
+ *       ${AccordionContent({ children: "Two to four days." })}
+ *     ` })}
+ *   ` })
+ *
+ * `type: "single"` needs to know about every section at once, which is what
+ * the context carries: the group owns the open SET and each item asks whether
+ * it is in it. Radix does the same, for the same reason.
  *
  * The keyboard behaviour is the WAI-ARIA accordion pattern, delegated to
  * `rovingFocus` over the headers: arrows move between sections, Home and End
  * jump to the ends, and the headers are one tab stop rather than one each.
  */
 
-import { component, html, onMount, onUnmount, signal } from "@c9up/aurora";
-import type { Child, Slot } from "../lib/children.js";
+import {
+	component,
+	createContext,
+	html,
+	inject,
+	onMount,
+	onUnmount,
+	provide,
+	signal,
+} from "@c9up/aurora";
+import type { Parts, Slot } from "../lib/children.js";
 import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { ChevronDownIcon } from "../lib/icons.js";
@@ -20,18 +35,26 @@ import { uid } from "../lib/id.js";
 import { type Reactive, read } from "../lib/props.js";
 import { type RovingFocus, rovingFocus } from "../primitives/rovingFocus.js";
 
-export interface AccordionItem {
-	/** Stable key. Used for the open-state set and for the ARIA ids. */
-	value: string;
-	/** The header content. */
-	trigger: Child;
-	/** The panel content. */
-	content: Slot;
-	disabled?: boolean;
+interface AccordionApi {
+	isOpen(value: string): boolean;
+	toggle(value: string): void;
 }
 
+const AccordionContext = createContext<AccordionApi>("Accordion");
+
+interface AccordionItemApi {
+	readonly value: string;
+	readonly triggerId: string;
+	readonly panelId: string;
+	readonly disabled: boolean;
+	readonly open: () => boolean;
+	toggle(): void;
+}
+
+const AccordionItemContext = createContext<AccordionItemApi>("AccordionItem");
+
 export interface AccordionProps {
-	items: readonly AccordionItem[];
+	children?: Parts;
 	/** `"single"` closes the open section when another opens. Default `"single"`. */
 	type?: "single" | "multiple";
 	/** Open at first render. A string, or several for `type: "multiple"`. */
@@ -71,63 +94,100 @@ export const Accordion = component<AccordionProps>((props) => {
 	});
 	onUnmount(() => group?.destroy());
 
+	provide<AccordionApi>(AccordionContext, { isOpen, toggle });
+
 	return html`<div
 		data-slot="accordion"
 		id="${rootId}"
 		class="${() => cn("flex w-full flex-col", read(props.class))}"
-	>
-		${props.items.map((item) => renderItem(item, isOpen, toggle))}
-	</div>`;
+	>${props.children?.()}</div>`;
 });
 
-function renderItem(
-	item: AccordionItem,
-	isOpen: (value: string) => boolean,
-	toggle: (value: string) => void,
-): Child {
+export interface AccordionItemProps {
+	/** Stable key. Used for the open-state set and for the ARIA ids. */
+	value: string;
+	disabled?: boolean;
+	class?: Reactive<string>;
+	children?: Parts;
+}
+
+/**
+ * One section.
+ *
+ * Provides a second context of its own, so the trigger and the panel inside it
+ * share their ids without the caller repeating the value on each.
+ */
+export const AccordionItem = component<AccordionItemProps>((props) => {
+	const accordion = inject(AccordionContext);
 	const triggerId = uid("accordion-trigger");
 	const panelId = uid("accordion-panel");
-	const state = (): string => (isOpen(item.value) ? "open" : "closed");
+	const open = (): boolean => accordion.isOpen(props.value);
+
+	provide<AccordionItemApi>(AccordionItemContext, {
+		value: props.value,
+		triggerId,
+		panelId,
+		disabled: props.disabled === true,
+		open,
+		toggle: () => accordion.toggle(props.value),
+	});
 
 	return html`<div
 		data-slot="accordion-item"
-		data-state="${state}"
-		class="border-b last:border-b-0"
-	>
-		<h3 class="flex">
-			<button
-				type="button"
-				data-slot="accordion-trigger"
-				data-nebula-item
-				data-state="${state}"
-				data-disabled="${item.disabled === true ? "" : undefined}"
-				id="${triggerId}"
-				aria-expanded="${() => (isOpen(item.value) ? "true" : "false")}"
-				aria-controls="${panelId}"
-				?disabled="${item.disabled === true}"
-				class="focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium outline-none transition-all hover:underline focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180"
-				@click="${() => toggle(item.value)}"
-			>
-				${item.trigger}
-				${ChevronDownIcon({
-					class:
-						"text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200",
-				})}
-			</button>
-		</h3>
-		<div
-			data-slot="accordion-content"
-			id="${panelId}"
-			role="region"
-			aria-labelledby="${triggerId}"
-			?inert="${() => !isOpen(item.value)}"
-			class="grid text-sm transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
-			style="${() => `grid-template-rows: ${isOpen(item.value) ? "1fr" : "0fr"}`}"
-		>
-			<div class="overflow-hidden"><div class="pt-0 pb-4">${slot(item.content)}</div></div>
-		</div>
-	</div>`;
+		data-state="${() => (open() ? "open" : "closed")}"
+		class="${() => cn("border-b last:border-b-0", read(props.class))}"
+	>${props.children?.()}</div>`;
+});
+
+export interface AccordionTriggerProps {
+	children?: Slot;
+	class?: Reactive<string>;
 }
+
+export const AccordionTrigger = component<AccordionTriggerProps>((props) => {
+	const item = inject(AccordionItemContext);
+	return html`<h3 class="flex"><button
+			type="button"
+			data-slot="accordion-trigger"
+			data-nebula-item
+			data-state="${() => (item.open() ? "open" : "closed")}"
+			data-disabled="${item.disabled ? "" : undefined}"
+			id="${item.triggerId}"
+			aria-expanded="${() => (item.open() ? "true" : "false")}"
+			aria-controls="${item.panelId}"
+			?disabled="${item.disabled}"
+			class="${() =>
+				cn(
+					"focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium outline-none transition-all hover:underline focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
+					read(props.class),
+				)}"
+			@click="${() => item.toggle()}"
+		>${slot(props.children)}${ChevronDownIcon({
+			class:
+				"text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200",
+		})}</button></h3>`;
+});
+
+export interface AccordionContentProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+export const AccordionContent = component<AccordionContentProps>((props) => {
+	const item = inject(AccordionItemContext);
+	return html`<div
+		data-slot="accordion-content"
+		id="${item.panelId}"
+		role="region"
+		data-state="${() => (item.open() ? "open" : "closed")}"
+		aria-labelledby="${item.triggerId}"
+		?inert="${() => !item.open()}"
+		class="grid text-sm transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
+		style="${() => `grid-template-rows: ${item.open() ? "1fr" : "0fr"}`}"
+	><div class="overflow-hidden"><div
+			class="${() => cn("pt-0 pb-4", read(props.class))}"
+		>${slot(props.children)}</div></div></div>`;
+});
 
 function normaliseInitial(
 	value: string | readonly string[] | undefined,

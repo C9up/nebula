@@ -17,7 +17,7 @@
  */
 
 import { component, html } from "@c9up/aurora";
-import { Avatar } from "../atoms/Avatar.js";
+import { Avatar, AvatarFallback, AvatarImage } from "../atoms/Avatar.js";
 import type { Child } from "../lib/children.js";
 import { type Slot, slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
@@ -75,10 +75,12 @@ export const Message = component<MessageProps>((props) => {
 		${
 			hasAvatar
 				? Avatar({
-						src: props.avatarSrc,
-						alt: typeof props.author === "string" ? props.author : "",
-						fallback: props.avatarFallback,
 						class: "size-7 shrink-0",
+						children: () =>
+							html`${AvatarImage({
+								src: props.avatarSrc,
+								alt: typeof props.author === "string" ? props.author : "",
+							})}${AvatarFallback({ children: props.avatarFallback })}`,
 					})
 				: null
 		}

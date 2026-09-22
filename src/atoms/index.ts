@@ -13,7 +13,19 @@
  */
 
 export { AspectRatio, type AspectRatioProps } from "./AspectRatio.js";
-export { Avatar, type AvatarProps } from "./Avatar.js";
+export {
+	Avatar,
+	AvatarBadge,
+	type AvatarBadgeProps,
+	AvatarFallback,
+	type AvatarFallbackProps,
+	AvatarGroup,
+	AvatarGroupCount,
+	type AvatarGroupProps,
+	AvatarImage,
+	type AvatarImageProps,
+	type AvatarProps,
+} from "./Avatar.js";
 export {
 	Badge,
 	type BadgeProps,

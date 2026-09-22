@@ -17,8 +17,13 @@
 
 export {
 	Accordion,
-	type AccordionItem,
+	AccordionContent,
+	type AccordionContentProps,
+	AccordionItem,
+	type AccordionItemProps,
 	type AccordionProps,
+	AccordionTrigger,
+	type AccordionTriggerProps,
 } from "./Accordion.js";
 export {
 	Alert,
@@ -33,7 +38,17 @@ export {
 	type AttachmentProps,
 	formatBytes,
 } from "./Attachment.js";
-export { Breadcrumb, type BreadcrumbProps, type Crumb } from "./Breadcrumb.js";
+export {
+	Breadcrumb,
+	BreadcrumbEllipsis,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	type BreadcrumbLinkProps,
+	BreadcrumbList,
+	BreadcrumbPage,
+	type BreadcrumbProps,
+	BreadcrumbSeparator,
+} from "./Breadcrumb.js";
 export {
 	Bubble,
 	type BubbleProps,
@@ -57,7 +72,14 @@ export {
 	type CardProps,
 	CardTitle,
 } from "./Card.js";
-export { Collapsible, type CollapsibleProps } from "./Collapsible.js";
+export {
+	Collapsible,
+	CollapsibleContent,
+	type CollapsibleContentProps,
+	type CollapsibleProps,
+	CollapsibleTrigger,
+	type CollapsibleTriggerProps,
+} from "./Collapsible.js";
 export {
 	Empty,
 	EmptyContent,
@@ -123,7 +145,18 @@ export {
 	TableRow,
 	type TableRowProps,
 } from "./Table.js";
-export { type TabItem, Tabs, type TabsProps } from "./Tabs.js";
+export {
+	Tabs,
+	TabsContent,
+	type TabsContentProps,
+	TabsList,
+	type TabsListProps,
+	type TabsListVariants,
+	type TabsProps,
+	TabsTrigger,
+	type TabsTriggerProps,
+	tabsListVariants,
+} from "./Tabs.js";
 export {
 	ToggleGroup,
 	type ToggleGroupItem,

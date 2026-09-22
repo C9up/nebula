@@ -52,7 +52,10 @@ const cases: readonly Case[] = [
 	{
 		name: "avatar",
 		slot: "avatar",
-		build: () => atoms.Avatar({ fallback: "AB" }),
+		build: () =>
+			atoms.Avatar({
+				children: () => atoms.AvatarFallback({ children: "AB" }),
+			}),
 	},
 	{
 		name: "image",
@@ -141,7 +144,14 @@ const cases: readonly Case[] = [
 		slot: "accordion",
 		build: () =>
 			molecules.Accordion({
-				items: [{ value: "a", trigger: "Q", content: "A" }],
+				children: () =>
+					molecules.AccordionItem({
+						value: "a",
+						children: () =>
+							html`${molecules.AccordionTrigger({
+								children: "A",
+							})}${molecules.AccordionContent({ children: "Body" })}`,
+					}),
 			}),
 	},
 	{
@@ -159,7 +169,16 @@ const cases: readonly Case[] = [
 		slot: "breadcrumb",
 		build: () =>
 			molecules.Breadcrumb({
-				items: [{ label: "Home", href: "/" }, { label: "Now" }],
+				children: molecules.BreadcrumbList({
+					children: html`${molecules.BreadcrumbItem({
+						children: molecules.BreadcrumbLink({
+							href: "/",
+							children: "Home",
+						}),
+					})}${molecules.BreadcrumbSeparator({})}${molecules.BreadcrumbItem({
+						children: molecules.BreadcrumbPage({ children: "Now" }),
+					})}`,
+				}),
 			}),
 	},
 	{
@@ -184,7 +203,13 @@ const cases: readonly Case[] = [
 	{
 		name: "collapsible",
 		slot: "collapsible",
-		build: () => molecules.Collapsible({ trigger: "More", children: "Detail" }),
+		build: () =>
+			molecules.Collapsible({
+				children: () =>
+					html`${molecules.CollapsibleTrigger({
+						children: "More",
+					})}${molecules.CollapsibleContent({ children: "Detail" })}`,
+			}),
 	},
 	{
 		name: "empty",
@@ -260,7 +285,12 @@ const cases: readonly Case[] = [
 		name: "tabs",
 		slot: "tabs",
 		build: () =>
-			molecules.Tabs({ items: [{ value: "a", label: "A", content: "Panel" }] }),
+			molecules.Tabs({
+				children: () =>
+					html`${molecules.TabsList({
+						children: molecules.TabsTrigger({ value: "a", children: "A" }),
+					})}${molecules.TabsContent({ value: "a", children: "Panel" })}`,
+			}),
 	},
 	{
 		name: "toggle-group",

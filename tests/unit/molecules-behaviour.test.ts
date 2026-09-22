@@ -1,9 +1,34 @@
+import { html } from "@c9up/aurora";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Accordion } from "../../src/molecules/Accordion.js";
-import { Collapsible } from "../../src/molecules/Collapsible.js";
+import { Avatar, AvatarFallback, AvatarImage } from "../../src/atoms/Avatar.js";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "../../src/molecules/Accordion.js";
+import {
+	Breadcrumb,
+	BreadcrumbEllipsis,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "../../src/molecules/Breadcrumb.js";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "../../src/molecules/Collapsible.js";
 import { InputOTP } from "../../src/molecules/InputOTP.js";
 import { Resizable } from "../../src/molecules/Resizable.js";
-import { Tabs } from "../../src/molecules/Tabs.js";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "../../src/molecules/Tabs.js";
 import { ToggleGroup } from "../../src/molecules/ToggleGroup.js";
 import { mount, press } from "./helpers.js";
 
@@ -15,11 +40,22 @@ const all = (selector: string): HTMLElement[] => [
 	...document.querySelectorAll<HTMLElement>(selector),
 ];
 
+/** The parts, assembled. `() =>` so they see `Collapsible`'s context. */
+function collapsible(options: { disabled?: boolean } = {}) {
+	return Collapsible({
+		disabled: options.disabled,
+		children: () =>
+			html`${CollapsibleTrigger({ children: "More" })}${CollapsibleContent({
+				children: "Detail",
+			})}`,
+	});
+}
+
 describe("Collapsible", () => {
 	it("starts closed, with the panel inert and flattened", () => {
 		// Inert matters: the panel stays in the DOM so the grid transition can
 		// run, and without it a keyboard user tabs into content off screen.
-		const view = mount(Collapsible({ trigger: "More", children: "Detail" }));
+		const view = mount(collapsible());
 		const trigger = document.querySelector("[data-slot='collapsible-trigger']");
 		const panel = document.querySelector<HTMLElement>(
 			"[data-slot='collapsible-content']",
@@ -32,7 +68,7 @@ describe("Collapsible", () => {
 	});
 
 	it("opens on click and drops inert", () => {
-		const view = mount(Collapsible({ trigger: "More", children: "Detail" }));
+		const view = mount(collapsible());
 		document
 			.querySelector<HTMLElement>("[data-slot='collapsible-trigger']")
 			?.click();
@@ -48,7 +84,7 @@ describe("Collapsible", () => {
 	});
 
 	it("points the trigger at the panel it controls", () => {
-		const view = mount(Collapsible({ trigger: "More", children: "Detail" }));
+		const view = mount(collapsible());
 		const trigger = document.querySelector("[data-slot='collapsible-trigger']");
 		const panel = document.querySelector("[data-slot='collapsible-content']");
 		expect(trigger?.getAttribute("aria-controls")).toBe(panel?.id);
@@ -57,9 +93,7 @@ describe("Collapsible", () => {
 	});
 
 	it("refuses to open while disabled", () => {
-		const view = mount(
-			Collapsible({ trigger: "More", children: "x", disabled: true }),
-		);
+		const view = mount(collapsible({ disabled: true }));
 		document
 			.querySelector<HTMLElement>("[data-slot='collapsible-trigger']")
 			?.click();
@@ -78,8 +112,33 @@ describe("Accordion", () => {
 		{ value: "b", trigger: "B", content: "Body B" },
 	];
 
+	/** The parts, assembled. `() =>` so they see the group's context. */
+	function accordion(options: {
+		type?: "single" | "multiple";
+		collapsible?: boolean;
+		defaultValue?: string;
+		onValueChange?: (open: readonly string[]) => void;
+	}) {
+		return Accordion({
+			type: options.type,
+			collapsible: options.collapsible,
+			defaultValue: options.defaultValue,
+			onValueChange: options.onValueChange,
+			children: () =>
+				items.map((item) =>
+					AccordionItem({
+						value: item.value,
+						children: () =>
+							html`${AccordionTrigger({
+								children: item.trigger,
+							})}${AccordionContent({ children: item.content })}`,
+					}),
+				),
+		});
+	}
+
 	it("closes the open section when another opens, in single mode", () => {
-		const view = mount(Accordion({ items }));
+		const view = mount(accordion({}));
 		const triggers = all("[data-slot='accordion-trigger']");
 
 		triggers[0]?.click();
@@ -92,7 +151,7 @@ describe("Accordion", () => {
 	});
 
 	it("keeps sections independent in multiple mode", () => {
-		const view = mount(Accordion({ items, type: "multiple" }));
+		const view = mount(accordion({ type: "multiple" }));
 		const triggers = all("[data-slot='accordion-trigger']");
 		triggers[0]?.click();
 		triggers[1]?.click();
@@ -102,7 +161,7 @@ describe("Accordion", () => {
 	});
 
 	it("lets a single accordion close entirely by default", () => {
-		const view = mount(Accordion({ items }));
+		const view = mount(accordion({}));
 		const trigger = all("[data-slot='accordion-trigger']")[0];
 		trigger?.click();
 		trigger?.click();
@@ -111,9 +170,7 @@ describe("Accordion", () => {
 	});
 
 	it("holds the last section open when collapsible is off", () => {
-		const view = mount(
-			Accordion({ items, collapsible: false, defaultValue: "a" }),
-		);
+		const view = mount(accordion({ collapsible: false, defaultValue: "a" }));
 		const trigger = all("[data-slot='accordion-trigger']")[0];
 		trigger?.click();
 		expect(trigger?.getAttribute("aria-expanded")).toBe("true");
@@ -122,7 +179,7 @@ describe("Accordion", () => {
 
 	it("reports the open set on change", () => {
 		const onValueChange = vi.fn<(open: readonly string[]) => void>();
-		const view = mount(Accordion({ items, type: "multiple", onValueChange }));
+		const view = mount(accordion({ type: "multiple", onValueChange }));
 		all("[data-slot='accordion-trigger']")[0]?.click();
 		all("[data-slot='accordion-trigger']")[1]?.click();
 		expect(onValueChange).toHaveBeenLastCalledWith(["a", "b"]);
@@ -130,7 +187,7 @@ describe("Accordion", () => {
 	});
 
 	it("opens what defaultValue names", () => {
-		const view = mount(Accordion({ items, defaultValue: "b" }));
+		const view = mount(accordion({ defaultValue: "b" }));
 		const triggers = all("[data-slot='accordion-trigger']");
 		expect(triggers[1]?.getAttribute("aria-expanded")).toBe("true");
 		view.dispose();
@@ -143,8 +200,35 @@ describe("Tabs", () => {
 		{ value: "b", label: "B", content: "Panel B" },
 	];
 
+	/** The parts, assembled. `() =>` so they see `Tabs`' context. */
+	function tabsView(options: {
+		items: ReadonlyArray<{
+			value: string;
+			label: string;
+			content: string;
+			disabled?: boolean;
+		}>;
+		onValueChange?: (value: string) => void;
+	}) {
+		return Tabs({
+			onValueChange: options.onValueChange,
+			children: () =>
+				html`${TabsList({
+					children: options.items.map((item) =>
+						TabsTrigger({
+							value: item.value,
+							children: item.label,
+							disabled: item.disabled,
+						}),
+					),
+				})}${options.items.map((item) =>
+					TabsContent({ value: item.value, children: item.content }),
+				)}`,
+		});
+	}
+
 	it("selects the first tab and hides the other panel", () => {
-		const view = mount(Tabs({ items }));
+		const view = mount(tabsView({ items }));
 		const tabs = all("[role='tab']");
 		const panels = all("[role='tabpanel']");
 		expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
@@ -155,7 +239,7 @@ describe("Tabs", () => {
 
 	it("switches on click", () => {
 		const onValueChange = vi.fn<(value: string) => void>();
-		const view = mount(Tabs({ items, onValueChange }));
+		const view = mount(tabsView({ items, onValueChange }));
 		all("[role='tab']")[1]?.click();
 
 		expect(all("[role='tab']")[1]?.getAttribute("aria-selected")).toBe("true");
@@ -167,14 +251,14 @@ describe("Tabs", () => {
 	it("keeps hidden panels mounted, so their state survives", () => {
 		// Unmounting would lose a half-filled form or a scroll position on every
 		// trip to another tab.
-		const view = mount(Tabs({ items }));
+		const view = mount(tabsView({ items }));
 		all("[role='tab']")[1]?.click();
 		expect(all("[role='tabpanel']")).toHaveLength(2);
 		view.dispose();
 	});
 
 	it("pairs each tab with its panel both ways", () => {
-		const view = mount(Tabs({ items }));
+		const view = mount(tabsView({ items }));
 		const tabs = all("[role='tab']");
 		const panels = all("[role='tabpanel']");
 		expect(tabs[0]?.getAttribute("aria-controls")).toBe(panels[0]?.id);
@@ -184,7 +268,7 @@ describe("Tabs", () => {
 
 	it("skips a disabled tab when choosing the default", () => {
 		const view = mount(
-			Tabs({
+			tabsView({
 				items: [
 					{ value: "a", label: "A", content: "x", disabled: true },
 					...items.slice(1, 2),
@@ -401,3 +485,131 @@ describe("Resizable", () => {
 		view.dispose();
 	});
 });
+
+describe("Avatar parts", () => {
+	it("shows the fallback when there is no image at all", () => {
+		const view = mount(
+			Avatar({ children: () => AvatarFallback({ children: "AB" }) }),
+		);
+		expect(
+			document.querySelector("[data-slot='avatar-fallback']")?.textContent,
+		).toBe("AB");
+		view.dispose();
+	});
+
+	it("holds the fallback back while the image is still loading", () => {
+		// The flicker this component exists to avoid: initials in, then a photo
+		// over them a moment later.
+		const view = mount(
+			Avatar({
+				children: () =>
+					html`${AvatarImage({ src: "/me.png", alt: "Me" })}${AvatarFallback({
+						children: "AB",
+					})}`,
+			}),
+		);
+		expect(document.querySelector("[data-slot='avatar-image']")).not.toBeNull();
+		expect(document.querySelector("[data-slot='avatar-fallback']")).toBeNull();
+		view.dispose();
+	});
+
+	it("swaps to the fallback once the image has actually failed", () => {
+		const view = mount(
+			Avatar({
+				children: () =>
+					html`${AvatarImage({ src: "/gone.png" })}${AvatarFallback({
+						children: "AB",
+					})}`,
+			}),
+		);
+		document
+			.querySelector("[data-slot='avatar-image']")
+			?.dispatchEvent(new Event("error"));
+		expect(document.querySelector("[data-slot='avatar-image']")).toBeNull();
+		expect(
+			document.querySelector("[data-slot='avatar-fallback']")?.textContent,
+		).toBe("AB");
+		view.dispose();
+	});
+
+	it("refuses a part used outside its Avatar", () => {
+		expect(() => AvatarFallback({ children: "AB" })).toThrowError(
+			/context "Avatar"/,
+		);
+	});
+});
+
+describe("Breadcrumb parts", () => {
+	it("renders every upstream slot, and marks the current page", () => {
+		const view = mount(
+			Breadcrumb({
+				children: BreadcrumbList({
+					children: html`${BreadcrumbItem({
+						children: BreadcrumbLink({ href: "/", children: "Home" }),
+					})}${BreadcrumbSeparator({})}${BreadcrumbItem({
+						children: BreadcrumbEllipsis({}),
+					})}${BreadcrumbSeparator({})}${BreadcrumbItem({
+						children: BreadcrumbPage({ children: "Now" }),
+					})}`,
+				}),
+			}),
+		);
+		for (const name of [
+			"breadcrumb",
+			"breadcrumb-list",
+			"breadcrumb-item",
+			"breadcrumb-link",
+			"breadcrumb-separator",
+			"breadcrumb-ellipsis",
+			"breadcrumb-page",
+		]) {
+			expect(
+				document.querySelector(`[data-slot='${name}']`),
+				name,
+			).not.toBeNull();
+		}
+		expect(
+			document
+				.querySelector("[data-slot='breadcrumb-page']")
+				?.getAttribute("aria-current"),
+		).toBe("page");
+		// A chevron between every crumb is noise read aloud; the list already
+		// conveys the sequence.
+		expect(
+			document
+				.querySelector("[data-slot='breadcrumb-separator']")
+				?.getAttribute("aria-hidden"),
+		).toBe("true");
+		view.dispose();
+	});
+});
+
+describe("Accordion parts", () => {
+	it("pairs each trigger with its panel both ways", () => {
+		const view = mount(accordionFixture());
+		const trigger = document.querySelector("[data-slot='accordion-trigger']");
+		const panel = document.querySelector("[data-slot='accordion-content']");
+		expect(trigger?.getAttribute("aria-controls")).toBe(panel?.id);
+		expect(panel?.getAttribute("aria-labelledby")).toBe(trigger?.id);
+		view.dispose();
+	});
+
+	it("refuses a trigger outside an AccordionItem", () => {
+		expect(() =>
+			Accordion({ children: () => AccordionTrigger({ children: "A" }) }),
+		).toThrowError(/context "AccordionItem"/);
+	});
+});
+
+function accordionFixture() {
+	return Accordion({
+		children: () =>
+			AccordionItem({
+				value: "a",
+				children: () =>
+					html`${AccordionTrigger({ children: "A" })}${AccordionContent({
+						children: "Body",
+					})}`,
+			}),
+	});
+}

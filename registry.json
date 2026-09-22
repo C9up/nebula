@@ -1037,6 +1037,7 @@
       "files": [
         "lib/children.ts",
         "lib/cn.ts",
+        "lib/cva.ts",
         "lib/id.ts",
         "lib/props.ts",
         "molecules/Tabs.ts",

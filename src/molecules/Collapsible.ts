@@ -1,17 +1,13 @@
 /**
  * Collapsible — a trigger that shows and hides a panel.
  *
- * Two things differ from Radix, both deliberate.
+ *   Collapsible({ children: () => html`
+ *     ${CollapsibleTrigger({ children: "Show more" })}
+ *     ${CollapsibleContent({ children: "…" })}
+ *   ` })
  *
- * **The API.** Radix composes through React context: `<Collapsible>` publishes
- * state that `<CollapsibleTrigger>` and `<CollapsibleContent>` read from
- * anywhere below it. Aurora has no context, and the usual workarounds — a
- * factory returning bound parts, or threading a handle through props — trade a
- * real problem for a clumsier one. So the parts are props: `trigger` and
- * `children`. The rendered markup is identical to shadcn's; only the call
- * shape changes.
- *
- * **The animation.** Radix measures the content and publishes its height as
+ * One deviation from upstream remains, and it is the animation. Radix measures
+ * the content and publishes its height as
  * `--radix-collapsible-content-height` for the keyframes to interpolate,
  * because `height: auto` is not animatable. A CSS grid whose single row goes
  * from `0fr` to `1fr` animates the same transition with no measurement, no
@@ -23,25 +19,31 @@
  * that is not on screen.
  */
 
-import { component, html } from "@c9up/aurora";
-import { type Slot, slot } from "../lib/children.js";
+import { component, createContext, html, inject, provide } from "@c9up/aurora";
+import type { Parts, Slot } from "../lib/children.js";
+import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read, readOr } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 
+interface CollapsibleApi {
+	readonly triggerId: string;
+	readonly contentId: string;
+	readonly open: () => boolean;
+	readonly disabled: () => boolean;
+	toggle(): void;
+}
+
+const CollapsibleContext = createContext<CollapsibleApi>("Collapsible");
+
 export interface CollapsibleProps {
-	/** The clickable summary. Rendered inside a button. */
-	trigger?: Slot;
-	/** The panel revealed when open. */
-	children?: Slot;
 	open?: Reactive<boolean>;
 	defaultOpen?: boolean;
 	disabled?: Reactive<boolean>;
 	onOpenChange?: (open: boolean) => void;
 	class?: Reactive<string>;
-	triggerClass?: Reactive<string>;
-	contentClass?: Reactive<string>;
+	children?: Parts;
 }
 
 export const Collapsible = component<CollapsibleProps>((props) => {
@@ -54,36 +56,70 @@ export const Collapsible = component<CollapsibleProps>((props) => {
 	const contentId = uid("collapsible-content");
 	const triggerId = uid("collapsible-trigger");
 
-	const toggle = (): void => {
-		if (readOr(props.disabled, false)) return;
-		state.set(!state.current());
-	};
+	provide<CollapsibleApi>(CollapsibleContext, {
+		triggerId,
+		contentId,
+		open: () => state.current(),
+		disabled: () => readOr(props.disabled, false),
+		toggle() {
+			if (readOr(props.disabled, false)) return;
+			state.set(!state.current());
+		},
+	});
 
 	return html`<div
 		data-slot="collapsible"
 		data-state="${() => (state.current() ? "open" : "closed")}"
 		class="${() => cn("flex flex-col", read(props.class))}"
-	>
-		<button
+	>${props.children?.()}</div>`;
+});
+
+export interface CollapsibleTriggerProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+export const CollapsibleTrigger = component<CollapsibleTriggerProps>(
+	(props) => {
+		const collapsible = inject(CollapsibleContext);
+		return html`<button
 			type="button"
 			data-slot="collapsible-trigger"
-			id="${triggerId}"
-			aria-expanded="${() => (state.current() ? "true" : "false")}"
-			aria-controls="${contentId}"
-			?disabled="${() => readOr(props.disabled, false)}"
-			class="${() => cn("flex items-center justify-between gap-2 outline-none disabled:opacity-50", read(props.triggerClass))}"
-			@click="${toggle}"
-		>${slot(props.trigger)}</button>
-		<div
+			id="${collapsible.triggerId}"
+			data-state="${() => (collapsible.open() ? "open" : "closed")}"
+			aria-expanded="${() => (collapsible.open() ? "true" : "false")}"
+			aria-controls="${collapsible.contentId}"
+			?disabled="${() => collapsible.disabled()}"
+			class="${() =>
+				cn(
+					"flex items-center justify-between gap-2 outline-none disabled:opacity-50",
+					read(props.class),
+				)}"
+			@click="${() => collapsible.toggle()}"
+		>${slot(props.children)}</button>`;
+	},
+);
+
+export interface CollapsibleContentProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+export const CollapsibleContent = component<CollapsibleContentProps>(
+	(props) => {
+		const collapsible = inject(CollapsibleContext);
+		return html`<div
 			data-slot="collapsible-content"
-			id="${contentId}"
+			id="${collapsible.contentId}"
 			role="region"
-			aria-labelledby="${triggerId}"
-			?inert="${() => !state.current()}"
+			data-state="${() => (collapsible.open() ? "open" : "closed")}"
+			aria-labelledby="${collapsible.triggerId}"
+			?inert="${() => !collapsible.open()}"
 			class="grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
-			style="${() => `grid-template-rows: ${state.current() ? "1fr" : "0fr"}`}"
-		>
-			<div class="${() => cn("overflow-hidden", read(props.contentClass))}">${slot(props.children)}</div>
-		</div>
-	</div>`;
-});
+			style="${() =>
+				`grid-template-rows: ${collapsible.open() ? "1fr" : "0fr"}`}"
+		><div class="${() => cn("overflow-hidden", read(props.class))}">${slot(
+			props.children,
+		)}</div></div>`;
+	},
+);
