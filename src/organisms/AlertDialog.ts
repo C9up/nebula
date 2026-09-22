@@ -33,6 +33,7 @@ import {
 	createContext,
 	html,
 	inject,
+	onUnmount,
 	provide,
 	type TemplateResult,
 } from "@c9up/aurora";
@@ -45,6 +46,7 @@ import { fadeInOut, zoomInOut } from "../lib/motion.js";
 import { type Reactive, read } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import { modalSurface } from "../primitives/modalSurface.js";
+import { portal } from "../primitives/portal.js";
 import { dialogBackdropClasses } from "./Dialog.js";
 
 const panelClasses =
@@ -209,6 +211,28 @@ export const AlertDialogOverlay = component<AlertDialogSectionProps>(
 		class="${() => cn(dialogBackdropClasses, read(props.class))}"
 	></div>`,
 );
+
+export interface AlertDialogPortalProps {
+	children?: Slot;
+	container?: () => Element | null;
+}
+
+/**
+ * Mount children outside the component's own DOM position.
+ *
+ * `AlertDialogContent` does not need it — the dialog portals its whole overlay
+ * through `modalSurface`, which also owns the trap and the scroll lock. It is
+ * exported because upstream exports it, doing here what its name says rather
+ * than standing in as a passthrough.
+ */
+export const AlertDialogPortal = component<AlertDialogPortalProps>((props) => {
+	const mounted = portal(html`${slot(props.children)}`, {
+		container: props.container,
+	});
+	mounted.host.setAttribute("data-slot", "alert-dialog-portal");
+	onUnmount(() => mounted.close());
+	return html``;
+});
 
 export const AlertDialogHeader = component<AlertDialogSectionProps>(
 	(props) => html`<div

@@ -25,6 +25,8 @@ export {
 	AlertDialogHeader,
 	AlertDialogMedia,
 	AlertDialogOverlay,
+	AlertDialogPortal,
+	type AlertDialogPortalProps,
 	type AlertDialogProps,
 	type AlertDialogSectionProps,
 	AlertDialogTitle,
