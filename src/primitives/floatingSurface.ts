@@ -44,6 +44,17 @@ export interface FloatingSurfaceOptions {
 	offset?: number;
 	/** Size the surface to the anchor. Select and Combobox want this. */
 	matchWidth?: boolean;
+	/**
+	 * The arrow inside the surface, looked up once the content exists.
+	 *
+	 * Positioned along the CROSS axis only — centred on the anchor and pulled
+	 * off the corners — so a surface that `shift` slid sideways still points at
+	 * its trigger. Which edge it sits on is left to CSS, because that is where
+	 * the surface's own padding and radius are known.
+	 */
+	arrow?: (content: HTMLElement) => Element | null;
+	/** The arrow's width in pixels. Required for `arrow` to be positioned. */
+	arrowSize?: number;
 
 	/** Keep keyboard focus inside while open. */
 	trapFocus?: boolean;
@@ -126,6 +137,14 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 			placement: options.placement,
 			offset: options.offset,
 			matchWidth: options.matchWidth,
+			arrowSize: options.arrowSize,
+			arrow: () => {
+				// Narrowed rather than asserted: `querySelector` answers `Element`,
+				// and an arrow that turned out to be an SVG node has no `style` to
+				// position.
+				const found = options.arrow?.(element) ?? null;
+				return found instanceof HTMLElement ? found : null;
+			},
 		});
 
 		const layer = dismissable({

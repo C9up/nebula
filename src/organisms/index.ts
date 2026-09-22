@@ -131,4 +131,13 @@ export {
 	type ToastVariant,
 	toast,
 } from "./Toaster.js";
-export { Tooltip, type TooltipProps } from "./Tooltip.js";
+export {
+	Tooltip,
+	TooltipContent,
+	type TooltipContentProps,
+	type TooltipProps,
+	TooltipProvider,
+	type TooltipProviderProps,
+	TooltipTrigger,
+	type TooltipTriggerProps,
+} from "./Tooltip.js";

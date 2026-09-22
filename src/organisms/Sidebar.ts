@@ -36,7 +36,7 @@ import { PanelLeftIcon } from "../lib/icons.js";
 import { type Reactive, read } from "../lib/props.js";
 import { type StyledProps, styledDiv } from "../lib/styled.js";
 import { Sheet } from "./Sheet.js";
-import { Tooltip } from "./Tooltip.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip.js";
 
 const COOKIE_NAME = "nebula:sidebar";
 
@@ -297,7 +297,12 @@ export const SidebarMenuItem = component<SidebarMenuItemProps>((props) => {
 	// itself whether to open, which is the cheaper half to make conditional.
 	return html`${() =>
 		sidebarCollapsed()
-			? Tooltip({ trigger: entry, content: props.tooltip, placement: "right" })
+			? Tooltip({
+					children: () =>
+						html`${TooltipTrigger({
+							children: () => entry,
+						})}${TooltipContent({ children: props.tooltip, side: "right" })}`,
+				})
 			: entry}`;
 });
 

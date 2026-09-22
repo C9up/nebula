@@ -290,6 +290,30 @@ function bestSide(
 }
 
 /**
+ * `transform-origin` for a surface anchored on `side`.
+ *
+ * Along the main axis it is the edge facing the anchor: a surface placed above
+ * grows downward out of its own bottom edge. Along the cross axis it is the
+ * anchor's centre, clamped to the surface, which keeps the origin pointing at
+ * the control even after `shift` has slid a wide menu sideways — the same
+ * reason the arrow tracks the anchor rather than the surface.
+ */
+function transformOrigin(
+	position: Position,
+	anchor: Rect,
+	floating: Rect,
+): string {
+	if (position.side === "top" || position.side === "bottom") {
+		const centre = anchor.x + anchor.width / 2 - position.x;
+		const x = Math.round(clamp(centre, 0, floating.width));
+		return `${x}px ${position.side === "bottom" ? 0 : Math.round(floating.height)}px`;
+	}
+	const centre = anchor.y + anchor.height / 2 - position.y;
+	const y = Math.round(clamp(centre, 0, floating.height));
+	return `${position.side === "right" ? 0 : Math.round(floating.width)}px ${y}px`;
+}
+
+/**
  * Centre the arrow on the anchor, then pull it back off the corners.
  *
  * The arrow tracks the *anchor*, not the surface: once shift has slid the
@@ -387,6 +411,15 @@ export function autoPosition(
 		floating.style.setProperty(
 			"--nebula-anchor-width",
 			`${Math.round(anchorRect.width)}px`,
+		);
+		// The point the surface grows FROM, so `zoom-in-95` expands out of the
+		// control that opened it rather than out of its own middle. Radix
+		// publishes the same thing as `--radix-popper-transform-origin` and
+		// shadcn's surfaces read it through `origin-(…)`; ours are all anchored,
+		// so it is written here once instead of per component.
+		floating.style.setProperty(
+			"--nebula-transform-origin",
+			transformOrigin(position, anchorRect, floatingRect),
 		);
 		floating.setAttribute("data-side", position.side);
 		floating.setAttribute("data-align", position.align);

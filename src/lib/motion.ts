@@ -33,6 +33,18 @@ import type { Side } from "../primitives/floating.js";
 export const zoomInOut =
 	"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 motion-reduce:animate-none";
 
+/**
+ * The entrance offset every anchored surface shares.
+ *
+ * shadcn puts these four on popover, dropdown, select, tooltip, hover card,
+ * menubar and context-menu content alike, so the surface slides in from the
+ * edge it is anchored against and the motion points back at whatever opened
+ * it. `data-side` is written by `autoPosition` after any flip, so a menu that
+ * flipped above its trigger slides the other way without a second class.
+ */
+export const slideInFromSide =
+	"data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2";
+
 /** Backdrops and tooltips — no movement, just opacity. */
 export const fadeInOut =
 	"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 motion-reduce:animate-none";

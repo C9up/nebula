@@ -7,7 +7,7 @@
  * close routes work, and nothing is left in the body afterwards.
  */
 
-import { signal } from "@c9up/aurora";
+import { html, signal } from "@c9up/aurora";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AlertDialog } from "../../src/organisms/AlertDialog.js";
 import { Combobox } from "../../src/organisms/Combobox.js";
@@ -20,7 +20,12 @@ import { DropdownMenu } from "../../src/organisms/DropdownMenu.js";
 import { HoverCard } from "../../src/organisms/HoverCard.js";
 import { Popover } from "../../src/organisms/Popover.js";
 import { Sheet } from "../../src/organisms/Sheet.js";
-import { Tooltip } from "../../src/organisms/Tooltip.js";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "../../src/organisms/Tooltip.js";
 import { mount, portals, press } from "./helpers.js";
 
 afterEach(() => {
@@ -39,7 +44,7 @@ const clickTrigger = (slot: string): void =>
 const pressEscape = (): void => {
 	document.dispatchEvent(press("Escape"));
 };
-const hover = (element: HTMLElement | null, type: string): void => {
+const hover = (element: HTMLElement | null | undefined, type: string): void => {
 	element?.dispatchEvent(new MouseEvent(type, { bubbles: true }));
 };
 
@@ -330,12 +335,28 @@ describe("Popover and DropdownMenu", () => {
 	});
 });
 
+/**
+ * The four parts, assembled.
+ *
+ * `() =>` throughout: Aurora builds eagerly, so a part handed over already
+ * built would have run before `Tooltip` provided its context.
+ */
+function tooltip(trigger: string, content: string, delayDuration?: number) {
+	return Tooltip({
+		delayDuration,
+		children: () =>
+			html`${TooltipTrigger({ children: trigger })}${TooltipContent({
+				children: content,
+			})}`,
+	});
+}
+
 describe("Tooltip and HoverCard", () => {
 	it("describes its trigger rather than naming it", () => {
 		// A tooltip supplements a control's name; a button labelled only by its
 		// tooltip is unlabelled to anything that does not hover.
 		vi.useFakeTimers();
-		const view = mount(Tooltip({ trigger: "?", content: "Delete this" }));
+		const view = mount(tooltip("?", "Delete this"));
 		hover(one("[data-slot='tooltip-trigger']"), "focusin");
 		vi.runOnlyPendingTimers();
 
@@ -349,7 +370,7 @@ describe("Tooltip and HoverCard", () => {
 
 	it("opens instantly on focus, since a keyboard user already committed", () => {
 		vi.useFakeTimers();
-		const view = mount(Tooltip({ trigger: "?", content: "Help" }));
+		const view = mount(tooltip("?", "Help"));
 		hover(one("[data-slot='tooltip-trigger']"), "focusin");
 		vi.advanceTimersByTime(0);
 		expect(one("[data-slot='tooltip-content']")).not.toBeNull();
@@ -358,9 +379,7 @@ describe("Tooltip and HoverCard", () => {
 
 	it("waits before opening on hover", () => {
 		vi.useFakeTimers();
-		const view = mount(
-			Tooltip({ trigger: "?", content: "Help", openDelay: 500 }),
-		);
+		const view = mount(tooltip("?", "Help", 500));
 		hover(one("[data-slot='tooltip-trigger']"), "pointerenter");
 		vi.advanceTimersByTime(100);
 		expect(one("[data-slot='tooltip-content']")).toBeNull();
@@ -486,5 +505,117 @@ describe("Combobox, CommandDialog and the date pickers", () => {
 		inMonth()[9]?.click();
 		expect(portals()).toHaveLength(0);
 		view.dispose();
+	});
+});
+
+describe("Tooltip parts", () => {
+	it("carries a data-slot on every part, as upstream does", () => {
+		// The slots are the styling and testing contract: an app targets
+		// `[data-slot='tooltip-content']`, not a class that changes with a theme.
+		vi.useFakeTimers();
+		const view = mount(tooltip("?", "Help"));
+		hover(one("[data-slot='tooltip-trigger']"), "focusin");
+		vi.runOnlyPendingTimers();
+
+		expect(one("[data-slot='tooltip-trigger']")).not.toBeNull();
+		expect(one("[data-slot='tooltip-content']")).not.toBeNull();
+		expect(one("[data-slot='tooltip-arrow']")).not.toBeNull();
+		view.dispose();
+	});
+
+	it("marks the trigger open, so a style can follow the state", () => {
+		vi.useFakeTimers();
+		const view = mount(tooltip("?", "Help"));
+		const trigger = one("[data-slot='tooltip-trigger']");
+		expect(trigger?.getAttribute("data-state")).toBe("closed");
+		hover(trigger, "focusin");
+		vi.runOnlyPendingTimers();
+		expect(trigger?.getAttribute("data-state")).toBe("open");
+		view.dispose();
+	});
+
+	it("lets the caller own the open state", () => {
+		vi.useFakeTimers();
+		const open = signal(false);
+		const view = mount(
+			Tooltip({
+				open,
+				children: () =>
+					html`${TooltipTrigger({ children: "?" })}${TooltipContent({
+						children: "Help",
+					})}`,
+			}),
+		);
+		expect(one("[data-slot='tooltip-content']")).toBeNull();
+		open(true);
+		expect(one("[data-slot='tooltip-content']")).not.toBeNull();
+		view.dispose();
+	});
+
+	it("opens a neighbour instantly inside the provider's skip window", () => {
+		// Once one tooltip has shown, the user is browsing the toolbar; serving
+		// the delay again makes the interface feel stuck.
+		vi.useFakeTimers();
+		const view = mount(
+			TooltipProvider({
+				delayDuration: 500,
+				children: () => html`${tooltip("a", "First")}${tooltip("b", "Second")}`,
+			}),
+		);
+		const [first, second] = all("[data-slot='tooltip-trigger']");
+
+		hover(first, "pointerenter");
+		vi.advanceTimersByTime(500);
+		expect(one("[data-slot='tooltip-content']")).not.toBeNull();
+
+		hover(first, "pointerleave");
+		vi.runOnlyPendingTimers();
+		hover(second, "pointerenter");
+		// No delay advanced: the second one is already up.
+		expect(one("[data-slot='tooltip-content']")).not.toBeNull();
+		view.dispose();
+	});
+
+	it("serves the delay again once the skip window has passed", () => {
+		vi.useFakeTimers();
+		const view = mount(
+			TooltipProvider({
+				delayDuration: 500,
+				skipDelayDuration: 300,
+				children: () => html`${tooltip("a", "First")}${tooltip("b", "Second")}`,
+			}),
+		);
+		const [first, second] = all("[data-slot='tooltip-trigger']");
+
+		hover(first, "pointerenter");
+		vi.advanceTimersByTime(500);
+		hover(first, "pointerleave");
+		vi.runOnlyPendingTimers();
+		vi.advanceTimersByTime(400);
+
+		hover(second, "pointerenter");
+		expect(one("[data-slot='tooltip-content']")).toBeNull();
+		vi.advanceTimersByTime(500);
+		expect(one("[data-slot='tooltip-content']")).not.toBeNull();
+		view.dispose();
+	});
+
+	it("refuses a part used outside its Tooltip", () => {
+		// The failure a compound component must not have is silent: a trigger
+		// rendered with no state behind it looks fine and never opens.
+		expect(() => TooltipTrigger({ children: "?" })).toThrowError(
+			/context "Tooltip"/,
+		);
+	});
+
+	it("refuses children that were built before the Tooltip existed", () => {
+		// The eager-evaluation trap, pinned: `children: Part()` runs the part
+		// first, so it finds no context. The fix is the `() =>`.
+		expect(() =>
+			Tooltip({ children: () => TooltipTrigger({ children: "?" }) }),
+		).not.toThrow();
+		expect(() => TooltipContent({ children: "Help" })).toThrowError(
+			/context "Tooltip"/,
+		);
 	});
 });

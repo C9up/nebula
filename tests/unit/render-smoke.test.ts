@@ -13,7 +13,7 @@
  * fails.
  */
 
-import { form, type TemplateResult } from "@c9up/aurora";
+import { form, html, type TemplateResult } from "@c9up/aurora";
 import { afterEach, describe, expect, it } from "vitest";
 import * as atoms from "../../src/atoms/index.js";
 import { fieldIds } from "../../src/molecules/Field.js";
@@ -429,7 +429,13 @@ const cases: readonly Case[] = [
 	{
 		name: "tooltip",
 		slot: "tooltip-trigger",
-		build: () => organisms.Tooltip({ trigger: "?", content: "Help" }),
+		build: () =>
+			organisms.Tooltip({
+				children: () =>
+					html`${organisms.TooltipTrigger({
+						children: "?",
+					})}${organisms.TooltipContent({ children: "Help" })}`,
+			}),
 	},
 
 	// ─── templates ─────────────────────────────────────────────────────

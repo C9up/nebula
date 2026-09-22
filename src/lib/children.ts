@@ -30,6 +30,26 @@ export type Child =
 export type Slot = Reactive<Child>;
 
 /**
+ * The children of a component that PROVIDES context, as a function.
+ *
+ * A compound component — `Tooltip`, `Select`, `DropdownMenu` — shares its
+ * state with its parts through Aurora's context, and context reaches only what
+ * the provider creates inside its own setup. Aurora evaluates eagerly, so
+ * children handed over already built ran before the provider existed:
+ *
+ *     Tooltip({ children: TooltipTrigger({ … }) })       // ✗ built too early
+ *     Tooltip({ children: () => TooltipTrigger({ … }) }) // ✓ the setup calls it
+ *
+ * This is the aurora spelling of what JSX gets from deferring an element tree.
+ * `Parts` names it so the type makes the requirement, rather than a blank
+ * surface at runtime.
+ *
+ * Called ONCE, during setup — the structure of a compound component is fixed,
+ * and its moving pieces are signals inside the parts.
+ */
+export type Parts = () => Child;
+
+/**
  * Bind content into a template so it stays live.
  *
  * Returns the accessor form unchanged and wraps a constant in one. Templates
