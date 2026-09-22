@@ -53,7 +53,24 @@ export {
 } from "./DateRangePicker.js";
 export {
 	Dialog,
+	DialogClose,
+	type DialogCloseProps,
+	DialogContent,
+	type DialogContentProps,
+	DialogDescription,
+	DialogFooter,
+	type DialogFooterProps,
+	DialogHeader,
+	DialogOverlay,
+	type DialogOverlayProps,
+	DialogPortal,
+	type DialogPortalProps,
 	type DialogProps,
+	type DialogSectionProps,
+	DialogTitle,
+	type DialogTitleProps,
+	DialogTrigger,
+	type DialogTriggerProps,
 	dialogBackdropClasses,
 	dialogPanelClasses,
 	useDialog,
@@ -86,7 +103,17 @@ export {
 } from "./NavigationMenu.js";
 export {
 	Popover,
+	PopoverAnchor,
+	type PopoverAnchorProps,
+	PopoverContent,
+	type PopoverContentProps,
+	PopoverDescription,
+	PopoverHeader,
 	type PopoverProps,
+	type PopoverSectionProps,
+	PopoverTitle,
+	PopoverTrigger,
+	type PopoverTriggerProps,
 	popoverContentClasses,
 } from "./Popover.js";
 export {
@@ -107,7 +134,24 @@ export {
 	type SelectProps,
 	selectTriggerClasses,
 } from "./Select.js";
-export { Sheet, type SheetProps } from "./Sheet.js";
+export {
+	Sheet,
+	SheetClose,
+	type SheetCloseProps,
+	SheetContent,
+	type SheetContentProps,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetOverlay,
+	type SheetOverlayProps,
+	type SheetProps,
+	type SheetSectionProps,
+	SheetTitle,
+	type SheetTitleProps,
+	SheetTrigger,
+	type SheetTriggerProps,
+} from "./Sheet.js";
 export {
 	Sidebar,
 	SidebarGroup,

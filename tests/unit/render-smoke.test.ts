@@ -347,8 +347,16 @@ const cases: readonly Case[] = [
 	},
 	{
 		name: "dialog",
-		slot: "dialog",
-		build: () => organisms.Dialog({ title: "Edit" }),
+		slot: "dialog-trigger",
+		build: () =>
+			organisms.Dialog({
+				children: () =>
+					html`${organisms.DialogTrigger({
+						children: "Open",
+					})}${organisms.DialogContent({
+						children: () => organisms.DialogTitle({ children: "Edit" }),
+					})}`,
+			}),
 	},
 	{
 		name: "drawer",
@@ -398,7 +406,13 @@ const cases: readonly Case[] = [
 	{
 		name: "popover",
 		slot: "popover-trigger",
-		build: () => organisms.Popover({ trigger: "Open", children: "Panel" }),
+		build: () =>
+			organisms.Popover({
+				children: () =>
+					html`${organisms.PopoverTrigger({
+						children: "Open",
+					})}${organisms.PopoverContent({ children: "Panel" })}`,
+			}),
 	},
 	{
 		name: "questionnaire",
@@ -416,8 +430,16 @@ const cases: readonly Case[] = [
 	},
 	{
 		name: "sheet",
-		slot: "sheet",
-		build: () => organisms.Sheet({ title: "Filters" }),
+		slot: "sheet-trigger",
+		build: () =>
+			organisms.Sheet({
+				children: () =>
+					html`${organisms.SheetTrigger({
+						children: "Filters",
+					})}${organisms.SheetContent({
+						children: () => organisms.SheetTitle({ children: "Filters" }),
+					})}`,
+			}),
 	},
 	{
 		name: "sidebar",

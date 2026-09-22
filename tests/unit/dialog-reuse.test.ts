@@ -6,9 +6,15 @@
  * and kept the first form. This is that shape, through the trigger the
  * component is normally driven by.
  */
-import { signal } from "@c9up/aurora";
+import { html, signal } from "@c9up/aurora";
 import { afterEach, describe, expect, it } from "vitest";
-import { Dialog } from "../../src/organisms/Dialog.js";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "../../src/organisms/Dialog.js";
 import { mount, portals } from "./helpers.js";
 
 afterEach(() => {
@@ -24,9 +30,15 @@ describe("nebula > a Dialog reused for two contents", () => {
 
 		mount(
 			Dialog({
-				trigger: "Open",
-				title: () => (mode() === "create" ? "New" : "Edit"),
-				children: () => `form-${mode()}`,
+				children: () =>
+					html`${DialogTrigger({ children: "Open" })}${DialogContent({
+						children: () =>
+							html`${DialogHeader({
+								children: DialogTitle({
+									children: () => (mode() === "create" ? "New" : "Edit"),
+								}),
+							})}${() => `form-${mode()}`}`,
+					})}`,
 			}),
 		);
 		document
@@ -54,9 +66,13 @@ describe("nebula > a Dialog reused for two contents", () => {
 
 		mount(
 			Dialog({
-				trigger: "Open",
-				title: `title-${mode()}`,
-				children: `form-${mode()}`,
+				children: () =>
+					html`${DialogTrigger({ children: "Open" })}${DialogContent({
+						children: () =>
+							html`${DialogHeader({
+								children: DialogTitle({ children: `title-${mode()}` }),
+							})}${`form-${mode()}`}`,
+					})}`,
 			}),
 		);
 		document

@@ -449,7 +449,9 @@
         "primitives/presence.ts",
         "primitives/scrollLock.ts"
       ],
-      "dependencies": []
+      "dependencies": [
+        "button"
+      ]
     },
     {
       "name": "drawer",

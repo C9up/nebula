@@ -9,17 +9,44 @@
 
 import { html, signal } from "@c9up/aurora";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Reactive } from "../../src/lib/props.js";
 import { AlertDialog } from "../../src/organisms/AlertDialog.js";
 import { Combobox } from "../../src/organisms/Combobox.js";
 import { CommandDialog } from "../../src/organisms/CommandDialog.js";
 import { DatePicker } from "../../src/organisms/DatePicker.js";
 import { DateRangePicker } from "../../src/organisms/DateRangePicker.js";
-import { Dialog } from "../../src/organisms/Dialog.js";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "../../src/organisms/Dialog.js";
 import { Drawer } from "../../src/organisms/Drawer.js";
 import { DropdownMenu } from "../../src/organisms/DropdownMenu.js";
 import { HoverCard } from "../../src/organisms/HoverCard.js";
-import { Popover } from "../../src/organisms/Popover.js";
-import { Sheet } from "../../src/organisms/Sheet.js";
+import {
+	Popover,
+	PopoverAnchor,
+	PopoverContent,
+	PopoverDescription,
+	PopoverHeader,
+	PopoverTitle,
+	PopoverTrigger,
+} from "../../src/organisms/Popover.js";
+import {
+	Sheet,
+	SheetClose,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "../../src/organisms/Sheet.js";
 import {
 	Tooltip,
 	TooltipContent,
@@ -48,10 +75,59 @@ const hover = (element: HTMLElement | null | undefined, type: string): void => {
 	element?.dispatchEvent(new MouseEvent(type, { bubbles: true }));
 };
 
+interface DialogParts {
+	trigger?: string;
+	title?: string;
+	titleSrOnly?: boolean;
+	description?: string;
+	footer?: string;
+	showCloseButton?: boolean;
+	open?: Reactive<boolean>;
+	onOpenChange?: (open: boolean) => void;
+}
+
+/** The parts, assembled. `() =>` so they are built inside `Dialog`'s setup. */
+function dialog(parts: DialogParts) {
+	return Dialog({
+		open: parts.open,
+		onOpenChange: parts.onOpenChange,
+		children: () =>
+			html`${
+				parts.trigger === undefined
+					? null
+					: DialogTrigger({ children: parts.trigger })
+			}${DialogContent({
+				showCloseButton: parts.showCloseButton,
+				children: () =>
+					html`${DialogHeader({
+						// A VALUE, not a thunk: `DialogHeader` takes a `Slot`, which the
+						// renderer calls later, and a part that reads context has to be
+						// built while the context is still on the stack.
+						children: html`${
+							parts.title === undefined
+								? null
+								: DialogTitle({
+										children: parts.title,
+										srOnly: parts.titleSrOnly,
+									})
+						}${
+							parts.description === undefined
+								? null
+								: DialogDescription({ children: parts.description })
+						}`,
+					})}${
+						parts.footer === undefined
+							? null
+							: DialogFooter({ children: parts.footer })
+					}`,
+			})}`,
+	});
+}
+
 describe("Dialog", () => {
 	it("opens from its trigger and names itself with its title", () => {
 		const view = mount(
-			Dialog({
+			dialog({
 				trigger: "Edit",
 				title: "Edit profile",
 				description: "Change it.",
@@ -70,7 +146,7 @@ describe("Dialog", () => {
 	});
 
 	it("closes from its corner button", () => {
-		const view = mount(Dialog({ trigger: "Edit", title: "Edit" }));
+		const view = mount(dialog({ trigger: "Edit", title: "Edit" }));
 		clickTrigger("dialog-trigger");
 		one("[data-slot='dialog-close']")?.click();
 		expect(portals()).toHaveLength(0);
@@ -79,7 +155,7 @@ describe("Dialog", () => {
 
 	it("can hide the close button and still answer Escape", () => {
 		const view = mount(
-			Dialog({ trigger: "Edit", title: "Edit", hideCloseButton: true }),
+			dialog({ trigger: "Edit", title: "Edit", showCloseButton: false }),
 		);
 		clickTrigger("dialog-trigger");
 		expect(one("[data-slot='dialog-close']")).toBeNull();
@@ -90,7 +166,7 @@ describe("Dialog", () => {
 
 	it("keeps a hidden title available to screen readers", () => {
 		const view = mount(
-			Dialog({ trigger: "Edit", title: "Edit", srOnlyTitle: true }),
+			dialog({ trigger: "Edit", title: "Edit", titleSrOnly: true }),
 		);
 		clickTrigger("dialog-trigger");
 		const title = one("[data-slot='dialog-title']");
@@ -101,7 +177,7 @@ describe("Dialog", () => {
 
 	it("opens from a signal when it has no trigger of its own", () => {
 		const open = signal(false);
-		const view = mount(Dialog({ title: "Remote", open, onOpenChange: open }));
+		const view = mount(dialog({ title: "Remote", open, onOpenChange: open }));
 		expect(portals()).toHaveLength(0);
 		open(true);
 		expect(one("[data-slot='dialog-content']")).not.toBeNull();
@@ -110,7 +186,7 @@ describe("Dialog", () => {
 
 	it("renders a footer when given one", () => {
 		const view = mount(
-			Dialog({ trigger: "Edit", title: "Edit", footer: "Save" }),
+			dialog({ trigger: "Edit", title: "Edit", footer: "Save" }),
 		);
 		clickTrigger("dialog-trigger");
 		expect(one("[data-slot='dialog-footer']")?.textContent).toContain("Save");
@@ -209,10 +285,48 @@ describe("AlertDialog", () => {
 	});
 });
 
+/** The parts, assembled. `() =>` so they are built inside `Sheet`'s setup. */
+function sheet(options: {
+	trigger?: string;
+	title?: string;
+	description?: string;
+	footer?: string;
+	side?: "top" | "right" | "bottom" | "left";
+	showCloseButton?: boolean;
+}) {
+	return Sheet({
+		children: () =>
+			html`${
+				options.trigger === undefined
+					? null
+					: SheetTrigger({ children: options.trigger })
+			}${SheetContent({
+				side: options.side,
+				showCloseButton: options.showCloseButton,
+				children: () =>
+					html`${SheetHeader({
+						children: html`${
+							options.title === undefined
+								? null
+								: SheetTitle({ children: options.title })
+						}${
+							options.description === undefined
+								? null
+								: SheetDescription({ children: options.description })
+						}`,
+					})}${
+						options.footer === undefined
+							? null
+							: SheetFooter({ children: options.footer })
+					}`,
+			})}`,
+	});
+}
+
 describe("Sheet and Drawer", () => {
 	it("opens a sheet from the side it was told", () => {
 		const view = mount(
-			Sheet({ trigger: "Filters", title: "Filters", side: "left" }),
+			sheet({ trigger: "Filters", title: "Filters", side: "left" }),
 		);
 		clickTrigger("sheet-trigger");
 		const panel = one("[data-slot='sheet-content']");
@@ -222,7 +336,7 @@ describe("Sheet and Drawer", () => {
 	});
 
 	it("closes a sheet from its own button", () => {
-		const view = mount(Sheet({ trigger: "Filters", title: "Filters" }));
+		const view = mount(sheet({ trigger: "Filters", title: "Filters" }));
 		clickTrigger("sheet-trigger");
 		one("[data-slot='sheet-close']")?.click();
 		expect(portals()).toHaveLength(0);
@@ -258,9 +372,20 @@ describe("Sheet and Drawer", () => {
 	});
 });
 
+/** The parts, assembled. `() =>` so they are built inside `Popover`'s setup. */
+function popover(trigger: string, body: string, modal?: boolean) {
+	return Popover({
+		children: () =>
+			html`${PopoverTrigger({ children: trigger })}${PopoverContent({
+				children: body,
+				modal,
+			})}`,
+	});
+}
+
 describe("Popover and DropdownMenu", () => {
 	it("opens a popover and marks the trigger expanded", () => {
-		const view = mount(Popover({ trigger: "Open", children: "Panel" }));
+		const view = mount(popover("Open", "Panel"));
 		clickTrigger("popover-trigger");
 		expect(
 			one("[data-slot='popover-trigger']")?.getAttribute("aria-expanded"),
@@ -272,7 +397,7 @@ describe("Popover and DropdownMenu", () => {
 	});
 
 	it("toggles the popover shut from the same trigger", () => {
-		const view = mount(Popover({ trigger: "Open", children: "Panel" }));
+		const view = mount(popover("Open", "Panel"));
 		clickTrigger("popover-trigger");
 		clickTrigger("popover-trigger");
 		expect(portals()).toHaveLength(0);
@@ -280,9 +405,7 @@ describe("Popover and DropdownMenu", () => {
 	});
 
 	it("traps focus in a modal popover only", () => {
-		const view = mount(
-			Popover({ trigger: "Open", modal: true, children: "Panel" }),
-		);
+		const view = mount(popover("Open", "Panel", true));
 		clickTrigger("popover-trigger");
 		expect(
 			one("[data-slot='popover-content']")?.contains(document.activeElement),
@@ -616,6 +739,235 @@ describe("Tooltip parts", () => {
 		).not.toThrow();
 		expect(() => TooltipContent({ children: "Help" })).toThrowError(
 			/context "Tooltip"/,
+		);
+	});
+});
+
+describe("Popover parts", () => {
+	it("renders the presentational parts with their slots", () => {
+		const view = mount(
+			Popover({
+				children: () =>
+					html`${PopoverTrigger({ children: "Open" })}${PopoverContent({
+						children: () =>
+							html`${PopoverHeader({
+								children: () =>
+									html`${PopoverTitle({
+										children: "Dimensions",
+									})}${PopoverDescription({ children: "Set the box size." })}`,
+							})}`,
+					})}`,
+			}),
+		);
+		clickTrigger("popover-trigger");
+		expect(one("[data-slot='popover-header']")).not.toBeNull();
+		expect(one("[data-slot='popover-title']")?.textContent).toBe("Dimensions");
+		expect(one("[data-slot='popover-description']")?.textContent).toBe(
+			"Set the box size.",
+		);
+		view.dispose();
+	});
+
+	it("positions against an explicit anchor rather than the trigger", () => {
+		// A cell menu whose button sits in the corner but whose panel lines up
+		// with the whole cell.
+		const view = mount(
+			Popover({
+				children: () =>
+					html`${PopoverAnchor({ children: "cell" })}${PopoverTrigger({
+						children: "Open",
+					})}${PopoverContent({ children: "Panel" })}`,
+			}),
+		);
+		const anchor = one("[data-slot='popover-anchor']");
+		expect(anchor).not.toBeNull();
+
+		const positioned: Element[] = [];
+		const original = document.getElementById.bind(document);
+		vi.spyOn(document, "getElementById").mockImplementation((id) => {
+			const found = original(id);
+			if (found !== null) positioned.push(found);
+			return found;
+		});
+		clickTrigger("popover-trigger");
+		expect(positioned).toContain(anchor);
+		vi.restoreAllMocks();
+		view.dispose();
+	});
+
+	it("refuses a part used outside its Popover", () => {
+		expect(() => PopoverTrigger({ children: "Open" })).toThrowError(
+			/context "Popover"/,
+		);
+	});
+});
+
+describe("Dialog parts", () => {
+	it("renders every upstream slot", () => {
+		const view = mount(
+			dialog({
+				trigger: "Edit",
+				title: "Edit profile",
+				description: "Change it.",
+				footer: "Save",
+			}),
+		);
+		clickTrigger("dialog-trigger");
+		for (const name of [
+			"dialog-portal",
+			"dialog-overlay",
+			"dialog-content",
+			"dialog-header",
+			"dialog-title",
+			"dialog-description",
+			"dialog-footer",
+			"dialog-close",
+		]) {
+			expect(one(`[data-slot='${name}']`), name).not.toBeNull();
+		}
+		view.dispose();
+	});
+
+	it("describes itself with the description, when there is one", () => {
+		const view = mount(
+			dialog({ trigger: "Edit", title: "Edit", description: "Change it." }),
+		);
+		clickTrigger("dialog-trigger");
+		const panel = one("[data-slot='dialog-content']");
+		const describedBy = panel?.getAttribute("aria-describedby");
+		expect(document.getElementById(describedBy ?? "")?.textContent).toBe(
+			"Change it.",
+		);
+		view.dispose();
+	});
+
+	it("points aria-describedby at nothing when there is no description", () => {
+		// An id pointing at an element that does not exist is worse than no
+		// attribute: a screen reader announces neither, and nothing says why.
+		const view = mount(dialog({ trigger: "Edit", title: "Edit" }));
+		clickTrigger("dialog-trigger");
+		expect(
+			one("[data-slot='dialog-content']")?.hasAttribute("aria-describedby"),
+		).toBe(false);
+		view.dispose();
+	});
+
+	it("warns about a dialog with no title, as upstream does", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const view = mount(dialog({ trigger: "Edit" }));
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("DialogTitle"));
+		warn.mockRestore();
+		view.dispose();
+	});
+
+	it("closes from a DialogClose anywhere in the content", () => {
+		const view = mount(
+			Dialog({
+				children: () =>
+					html`${DialogTrigger({ children: "Edit" })}${DialogContent({
+						showCloseButton: false,
+						children: () =>
+							html`${DialogTitle({ children: "Edit" })}${DialogClose({
+								children: "Cancel",
+							})}`,
+					})}`,
+			}),
+		);
+		clickTrigger("dialog-trigger");
+		expect(portals()).toHaveLength(1);
+		one("[data-slot='dialog-close']")?.click();
+		expect(portals()).toHaveLength(0);
+		view.dispose();
+	});
+
+	it("refuses a part used outside its Dialog", () => {
+		expect(() => DialogTrigger({ children: "Edit" })).toThrowError(
+			/context "Dialog"/,
+		);
+	});
+
+	it("refuses a context part hidden inside a lazy Slot", () => {
+		// The corollary of the `Parts` rule, and the one that bites. A `Slot` is
+		// stored during setup and CALLED by the renderer afterwards; `deferred`
+		// below is exactly what `DialogHeader({ children: () => … })` holds, so
+		// invoking it here is what the renderer would do, minus an error
+		// escaping a render effect where no assertion can see it.
+		let deferred: (() => unknown) | undefined;
+		const view = mount(
+			Dialog({
+				children: () => {
+					deferred = () => DialogTitle({ children: "x" });
+					return html`${DialogTrigger({ children: "Edit" })}${DialogContent({
+						children: () => DialogTitle({ children: "x" }),
+					})}`;
+				},
+			}),
+		);
+		expect(() => deferred?.()).toThrowError(/context "Dialog"/);
+		view.dispose();
+	});
+});
+
+describe("Sheet parts", () => {
+	it("renders every upstream slot", () => {
+		const view = mount(
+			sheet({
+				trigger: "Filters",
+				title: "Filters",
+				description: "Narrow the list.",
+				footer: "Done",
+			}),
+		);
+		clickTrigger("sheet-trigger");
+		for (const name of [
+			"sheet-portal",
+			"sheet-overlay",
+			"sheet-content",
+			"sheet-header",
+			"sheet-title",
+			"sheet-description",
+			"sheet-footer",
+			"sheet-close",
+		]) {
+			expect(one(`[data-slot='${name}']`), name).not.toBeNull();
+		}
+		view.dispose();
+	});
+
+	it("closes from a SheetClose in the footer", () => {
+		const view = mount(
+			Sheet({
+				children: () =>
+					html`${SheetTrigger({ children: "Filters" })}${SheetContent({
+						showCloseButton: false,
+						children: () =>
+							html`${SheetTitle({ children: "Filters" })}${SheetFooter({
+								children: SheetClose({ children: "Done" }),
+							})}`,
+					})}`,
+			}),
+		);
+		clickTrigger("sheet-trigger");
+		expect(portals()).toHaveLength(1);
+		one("[data-slot='sheet-close']")?.click();
+		expect(portals()).toHaveLength(0);
+		view.dispose();
+	});
+
+	it("hides the corner button and still answers Escape", () => {
+		const view = mount(
+			sheet({ trigger: "Filters", title: "Filters", showCloseButton: false }),
+		);
+		clickTrigger("sheet-trigger");
+		expect(one("[data-slot='sheet-close']")).toBeNull();
+		pressEscape();
+		expect(portals()).toHaveLength(0);
+		view.dispose();
+	});
+
+	it("refuses a part used outside its Sheet", () => {
+		expect(() => SheetTrigger({ children: "Filters" })).toThrowError(
+			/context "Sheet"/,
 		);
 	});
 });

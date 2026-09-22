@@ -46,6 +46,17 @@ export type Slot = Reactive<Child>;
  *
  * Called ONCE, during setup — the structure of a compound component is fixed,
  * and its moving pieces are signals inside the parts.
+ *
+ * The same rule read from the other end: a part that READS context must be
+ * built eagerly too, so it must not be hidden inside a `Slot`. `Slot` exists
+ * for content that CHANGES, and the renderer calls it later, by which time
+ * there is no context left to read:
+ *
+ *     DialogHeader({ children: html`${DialogTitle(…)}` })       // ✓ a value
+ *     DialogHeader({ children: () => html`${DialogTitle(…)}` }) // ✗ too late
+ *
+ * So: write `() =>` for a component that PROVIDES (its type says `Parts`), and
+ * a plain value everywhere else unless the content really does change.
  */
 export type Parts = () => Child;
 

@@ -35,7 +35,7 @@ import { cn } from "../lib/cn.js";
 import { PanelLeftIcon } from "../lib/icons.js";
 import { type Reactive, read } from "../lib/props.js";
 import { type StyledProps, styledDiv } from "../lib/styled.js";
-import { Sheet } from "./Sheet.js";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./Sheet.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip.js";
 
 const COOKIE_NAME = "nebula:sidebar";
@@ -148,13 +148,24 @@ export const Sidebar = component<SidebarProps>((props) => {
 		${() =>
 			mobile()
 				? Sheet({
-						title: props.label ?? "Navigation",
-						srOnlyTitle: true,
-						side,
 						open: () => open(),
 						onOpenChange: (next) => open(next),
-						children: body(),
-						contentClass: "bg-sidebar text-sidebar-foreground w-[18rem] p-0",
+						children: () =>
+							SheetContent({
+								side,
+								class: "bg-sidebar text-sidebar-foreground w-[18rem] p-0",
+								children: () =>
+									html`${SheetHeader({
+										class: "p-0",
+										// A VALUE: `SheetHeader` takes a `Slot`, and a part
+										// that reads context must be built while the context
+										// is still on the stack.
+										children: SheetTitle({
+											children: props.label ?? "Navigation",
+											srOnly: true,
+										}),
+									})}${body()}`,
+							}),
 					})
 				: html`<nav
 						data-slot="sidebar"
