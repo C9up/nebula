@@ -10,7 +10,17 @@
 import { html, signal } from "@c9up/aurora";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Reactive } from "../../src/lib/props.js";
-import { AlertDialog } from "../../src/organisms/AlertDialog.js";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "../../src/organisms/AlertDialog.js";
 import { Combobox } from "../../src/organisms/Combobox.js";
 import { CommandDialog } from "../../src/organisms/CommandDialog.js";
 import { DatePicker } from "../../src/organisms/DatePicker.js";
@@ -25,7 +35,14 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "../../src/organisms/Dialog.js";
-import { Drawer } from "../../src/organisms/Drawer.js";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerFooter,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerTrigger,
+} from "../../src/organisms/Drawer.js";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -213,8 +230,45 @@ describe("Dialog", () => {
 });
 
 describe("AlertDialog", () => {
-	function open(props: Parameters<typeof AlertDialog>[0]) {
-		const view = mount(AlertDialog(props));
+	interface AlertParts {
+		trigger: string;
+		title: string;
+		description?: string;
+		actionLabel?: string;
+		cancelLabel?: string;
+		onConfirm?: () => void;
+		onCancel?: () => void;
+	}
+
+	/** The parts, assembled. `() =>` so they see the dialog's context. */
+	function open(parts: AlertParts) {
+		const view = mount(
+			AlertDialog({
+				onConfirm: parts.onConfirm,
+				onCancel: parts.onCancel,
+				children: () =>
+					html`${AlertDialogTrigger({
+						children: parts.trigger,
+					})}${AlertDialogContent({
+						children: () =>
+							html`${AlertDialogHeader({
+								children: html`${AlertDialogTitle({
+									children: parts.title,
+								})}${
+									parts.description === undefined
+										? null
+										: AlertDialogDescription({ children: parts.description })
+								}`,
+							})}${AlertDialogFooter({
+								children: html`${AlertDialogCancel({
+									children: parts.cancelLabel ?? "Cancel",
+								})}${AlertDialogAction({
+									children: parts.actionLabel ?? "Continue",
+								})}`,
+							})}`,
+					})}`,
+			}),
+		);
 		clickTrigger("alert-dialog-trigger");
 		return view;
 	}
@@ -364,7 +418,7 @@ describe("Sheet and Drawer", () => {
 	it("gives the drawer a grab handle that is decorative only", () => {
 		// Everything the drag does, Escape and the backdrop already do — a
 		// gesture must never be the only way out of a modal surface.
-		const view = mount(Drawer({ trigger: "More", title: "More" }));
+		const view = mount(drawer({}));
 		clickTrigger("drawer-trigger");
 		expect(
 			one("[data-slot='drawer-handle']")?.getAttribute("aria-hidden"),
@@ -375,20 +429,30 @@ describe("Sheet and Drawer", () => {
 	});
 
 	it("renders drawer content and footer", () => {
-		const view = mount(
-			Drawer({
-				trigger: "More",
-				title: "More",
-				children: "Body",
-				footer: "Done",
-			}),
-		);
+		const view = mount(drawer({ body: "Body", footer: "Done" }));
 		clickTrigger("drawer-trigger");
 		expect(one("[data-slot='drawer-content']")?.textContent).toContain("Body");
 		expect(one("[data-slot='drawer-content']")?.textContent).toContain("Done");
 		view.dispose();
 	});
 });
+
+/** The parts, assembled. `() =>` so they see `Drawer`'s context. */
+function drawer(options: { body?: string; footer?: string }) {
+	return Drawer({
+		children: () =>
+			html`${DrawerTrigger({ children: "More" })}${DrawerContent({
+				children: () =>
+					html`${DrawerHeader({
+						children: DrawerTitle({ children: "More" }),
+					})}${options.body ?? null}${
+						options.footer === undefined
+							? null
+							: DrawerFooter({ children: options.footer })
+					}`,
+			})}`,
+	});
+}
 
 /** The parts, assembled. `() =>` so they are built inside `Popover`'s setup. */
 function popover(trigger: string, body: string, modal?: boolean) {

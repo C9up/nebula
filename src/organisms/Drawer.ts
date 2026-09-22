@@ -21,9 +21,16 @@
  * out of a modal surface.
  */
 
-import { component, html } from "@c9up/aurora";
-import type { Child } from "../lib/children.js";
-import { type Slot, slot } from "../lib/children.js";
+import {
+	component,
+	createContext,
+	html,
+	inject,
+	provide,
+	type TemplateResult,
+} from "@c9up/aurora";
+import type { Child, Parts, Slot } from "../lib/children.js";
+import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { uid } from "../lib/id.js";
 import { fadeInOut, slideFrom } from "../lib/motion.js";
@@ -32,24 +39,38 @@ import { controllable } from "../primitives/controllable.js";
 import { modalSurface } from "../primitives/modalSurface.js";
 import { dialogBackdropClasses } from "./Dialog.js";
 
-/** Drag this far down and release to dismiss, in px. */
 const DISMISS_DISTANCE = 120;
-/** Or release faster than this, in px per millisecond. */
 const DISMISS_VELOCITY = 0.5;
 
+const panelClasses =
+	"bg-background fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[80vh] touch-none flex-col gap-4 rounded-t-lg border-t shadow-lg outline-none";
+
+interface RegisteredContent {
+	readonly body: Child;
+	readonly showHandle: boolean;
+	readonly disableDrag: boolean;
+	readonly class?: Reactive<string>;
+}
+
+interface DrawerApi {
+	readonly triggerId: string;
+	readonly panelId: string;
+	readonly titleId: string;
+	readonly descriptionId: string;
+	readonly open: () => boolean;
+	setOpen(next: boolean): void;
+	declareTitle(): void;
+	declareDescription(): void;
+	register(content: RegisteredContent): void;
+}
+
+const DrawerContext = createContext<DrawerApi>("Drawer");
+
 export interface DrawerProps {
-	trigger?: Slot;
-	title: Child;
-	description?: Child;
-	children?: Slot;
-	footer?: Slot;
 	open?: Reactive<boolean>;
 	defaultOpen?: boolean;
 	onOpenChange?: (open: boolean) => void;
-	/** Turn off drag-to-dismiss — for a drawer holding a scrollable list. */
-	disableDrag?: boolean;
-	triggerClass?: Reactive<string>;
-	contentClass?: Reactive<string>;
+	children?: Parts;
 }
 
 export const Drawer = component<DrawerProps>((props) => {
@@ -57,6 +78,9 @@ export const Drawer = component<DrawerProps>((props) => {
 	const panelId = uid("drawer-panel");
 	const titleId = uid("drawer-title");
 	const descriptionId = uid("drawer-description");
+	let hasTitle = false;
+	let hasDescription = false;
+	let content: RegisteredContent | undefined;
 
 	const state = controllable<boolean>({
 		value: props.open,
@@ -64,8 +88,15 @@ export const Drawer = component<DrawerProps>((props) => {
 		onChange: props.onOpenChange,
 	});
 
+	/**
+	 * Drag to dismiss.
+	 *
+	 * Distance OR velocity: a slow long drag and a quick flick both mean the
+	 * same thing, and requiring distance alone makes a flick feel ignored.
+	 * Everything it does, Escape and the backdrop already do — a gesture must
+	 * never be the only way out of a modal surface.
+	 */
 	function onPointerDown(event: PointerEvent): void {
-		if (props.disableDrag === true) return;
 		const panel = document.getElementById(panelId);
 		if (panel === null) return;
 
@@ -88,13 +119,10 @@ export const Drawer = component<DrawerProps>((props) => {
 
 			// Restore the transition before deciding, so both outcomes animate.
 			panel.style.transition = "";
+			panel.style.transform = "";
 			const velocity = offset / Math.max(1, performance.now() - startedAt);
-
 			if (offset > DISMISS_DISTANCE || velocity > DISMISS_VELOCITY) {
-				panel.style.transform = "";
 				state.set(false);
-			} else {
-				panel.style.transform = "";
 			}
 		};
 
@@ -103,65 +131,185 @@ export const Drawer = component<DrawerProps>((props) => {
 		panel.addEventListener("pointercancel", onUp);
 	}
 
-	modalSurface({
+	provide<DrawerApi>(DrawerContext, {
+		triggerId,
+		panelId,
+		titleId,
+		descriptionId,
 		open: () => state.current(),
-		onClose: () => state.set(false),
-		panel: (root) => root.querySelector(`#${CSS.escape(panelId)}`),
-		returnFocus: () => document.getElementById(triggerId),
-		content: () =>
-			html`<div data-slot="drawer-overlay" class="${cn("fixed inset-0 z-50", fadeInOut)}">
-				<div class="${dialogBackdropClasses}"></div>
-				<div
-					data-slot="drawer-content"
-					id="${panelId}"
-					role="dialog"
-					aria-modal="true"
-					aria-labelledby="${titleId}"
-					aria-describedby="${props.description === undefined ? undefined : descriptionId}"
-					tabindex="-1"
-					class="${cn(
-						"bg-background fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[80vh] touch-none flex-col gap-4 rounded-t-lg border-t p-6 shadow-lg outline-none",
-						slideFrom("bottom"),
-						read(props.contentClass),
-					)}"
-					@pointerdown="${onPointerDown}"
-				>
-					<div
-						data-slot="drawer-handle"
-						aria-hidden="true"
-						class="bg-muted mx-auto h-1.5 w-12 shrink-0 rounded-full"
-					></div>
-					<div class="flex flex-col gap-1.5 text-center sm:text-left">
-						<h2 id="${titleId}" class="text-foreground font-semibold">${props.title}</h2>
-						${
-							props.description === undefined
-								? null
-								: html`<p id="${descriptionId}" class="text-muted-foreground text-sm">
-									${props.description}
-								</p>`
-						}
-					</div>
-					<div class="flex-1 overflow-y-auto">${slot(props.children)}</div>
-					${
-						props.footer === undefined
-							? null
-							: html`<div class="mt-auto flex flex-col gap-2">${slot(props.footer)}</div>`
-					}
-				</div>
-			</div>`,
+		setOpen: (next) => state.set(next),
+		declareTitle() {
+			hasTitle = true;
+		},
+		declareDescription() {
+			hasDescription = true;
+		},
+		register(registered) {
+			content = registered;
+		},
 	});
 
-	if (props.trigger === undefined) {
-		return html`<span data-slot="drawer" hidden></span>`;
+	const parts = props.children?.();
+
+	if (content !== undefined) {
+		const registered = content;
+		if (!hasTitle) {
+			console.warn(
+				"nebula: a Drawer has no DrawerTitle. It will be announced only as \u201cdialog\u201d.",
+			);
+		}
+		modalSurface({
+			open: () => state.current(),
+			onClose: () => state.set(false),
+			panel: (root) => root.querySelector(`#${CSS.escape(panelId)}`),
+			returnFocus: () => document.getElementById(triggerId),
+			content: () =>
+				renderSurface(registered, {
+					panelId,
+					titleId: hasTitle ? titleId : undefined,
+					descriptionId: hasDescription ? descriptionId : undefined,
+					onPointerDown: registered.disableDrag ? undefined : onPointerDown,
+				}),
+		});
 	}
 
+	return html`${parts}`;
+});
+
+export interface DrawerTriggerProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+export const DrawerTrigger = component<DrawerTriggerProps>((props) => {
+	const drawer = inject(DrawerContext);
 	return html`<button
 		type="button"
 		data-slot="drawer-trigger"
-		id="${triggerId}"
+		id="${drawer.triggerId}"
 		aria-haspopup="dialog"
-		aria-expanded="${() => (state.current() ? "true" : "false")}"
-		class="${() => cn(read(props.triggerClass))}"
-		@click="${() => state.set(true)}"
-	>${slot(props.trigger)}</button>`;
+		aria-expanded="${() => (drawer.open() ? "true" : "false")}"
+		data-state="${() => (drawer.open() ? "open" : "closed")}"
+		class="${() => cn(read(props.class))}"
+		@click="${() => drawer.setOpen(true)}"
+	>${slot(props.children)}</button>`;
 });
+
+export interface DrawerCloseProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+export const DrawerClose = component<DrawerCloseProps>((props) => {
+	const drawer = inject(DrawerContext);
+	return html`<button
+		type="button"
+		data-slot="drawer-close"
+		class="${() => cn(read(props.class))}"
+		@click="${() => drawer.setOpen(false)}"
+	>${slot(props.children)}</button>`;
+});
+
+export interface DrawerOverlayProps {
+	class?: Reactive<string>;
+}
+
+export const DrawerOverlay = component<DrawerOverlayProps>(
+	(props) => html`<div
+		data-slot="drawer-overlay"
+		class="${() => cn(dialogBackdropClasses, read(props.class))}"
+	></div>`,
+);
+
+export interface DrawerContentProps {
+	children?: Parts;
+	/** The grab bar. Decorative — see `onPointerDown`. */
+	showHandle?: boolean;
+	/** Turn off drag-to-dismiss — for a drawer holding a scrollable list. */
+	disableDrag?: boolean;
+	class?: Reactive<string>;
+}
+
+export const DrawerContent = component<DrawerContentProps>((props) => {
+	const drawer = inject(DrawerContext);
+	drawer.register({
+		body: props.children?.(),
+		showHandle: props.showHandle !== false,
+		disableDrag: props.disableDrag === true,
+		class: props.class,
+	});
+	return html``;
+});
+
+export interface DrawerSectionProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+export const DrawerHeader = component<DrawerSectionProps>(
+	(props) => html`<div
+		data-slot="drawer-header"
+		class="${() => cn("flex flex-col gap-1.5 p-4", read(props.class))}"
+	>${slot(props.children)}</div>`,
+);
+
+export const DrawerFooter = component<DrawerSectionProps>(
+	(props) => html`<div
+		data-slot="drawer-footer"
+		class="${() => cn("mt-auto flex flex-col gap-2 p-4", read(props.class))}"
+	>${slot(props.children)}</div>`,
+);
+
+export const DrawerTitle = component<DrawerSectionProps>((props) => {
+	const drawer = inject(DrawerContext);
+	drawer.declareTitle();
+	return html`<h2
+		id="${drawer.titleId}"
+		data-slot="drawer-title"
+		class="${() => cn("text-foreground font-semibold", read(props.class))}"
+	>${slot(props.children)}</h2>`;
+});
+
+export const DrawerDescription = component<DrawerSectionProps>((props) => {
+	const drawer = inject(DrawerContext);
+	drawer.declareDescription();
+	return html`<p
+		id="${drawer.descriptionId}"
+		data-slot="drawer-description"
+		class="${() => cn("text-muted-foreground text-sm", read(props.class))}"
+	>${slot(props.children)}</p>`;
+});
+
+interface SurfaceIds {
+	readonly panelId: string;
+	readonly titleId: string | undefined;
+	readonly descriptionId: string | undefined;
+	readonly onPointerDown: ((event: PointerEvent) => void) | undefined;
+}
+
+function renderSurface(
+	registered: RegisteredContent,
+	ids: SurfaceIds,
+): TemplateResult {
+	const handle = registered.showHandle
+		? html`<div
+				data-slot="drawer-handle"
+				aria-hidden="true"
+				class="bg-muted mx-auto mt-4 h-1.5 w-12 shrink-0 rounded-full"
+			></div>`
+		: null;
+	return html`<div data-slot="drawer-portal" class="${cn("fixed inset-0 z-50", fadeInOut)}">
+		<div data-slot="drawer-overlay" class="${dialogBackdropClasses}"></div>
+		<div
+			data-slot="drawer-content"
+			id="${ids.panelId}"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="${ids.titleId}"
+			aria-describedby="${ids.descriptionId}"
+			tabindex="-1"
+			class="${cn(panelClasses, slideFrom("bottom"), read(registered.class))}"
+			@pointerdown="${ids.onPointerDown}"
+		>${handle}${registered.body}</div>
+	</div>`;
+}

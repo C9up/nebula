@@ -320,11 +320,15 @@ const cases: readonly Case[] = [
 	// ─── organisms ─────────────────────────────────────────────────────
 	{
 		name: "alert-dialog",
-		slot: "alert-dialog",
+		slot: "alert-dialog-trigger",
 		build: () =>
 			organisms.AlertDialog({
-				title: "Sure?",
-				description: "This deletes it.",
+				children: () =>
+					html`${organisms.AlertDialogTrigger({
+						children: "Delete",
+					})}${organisms.AlertDialogContent({
+						children: () => organisms.AlertDialogTitle({ children: "Sure?" }),
+					})}`,
 			}),
 	},
 	{ name: "calendar", slot: "calendar", build: () => organisms.Calendar({}) },
@@ -408,8 +412,16 @@ const cases: readonly Case[] = [
 	},
 	{
 		name: "drawer",
-		slot: "drawer",
-		build: () => organisms.Drawer({ title: "Filters" }),
+		slot: "drawer-trigger",
+		build: () =>
+			organisms.Drawer({
+				children: () =>
+					html`${organisms.DrawerTrigger({
+						children: "More",
+					})}${organisms.DrawerContent({
+						children: () => organisms.DrawerTitle({ children: "Filters" }),
+					})}`,
+			}),
 	},
 	{
 		name: "dropdown-menu",

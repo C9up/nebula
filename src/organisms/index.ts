@@ -13,7 +13,24 @@
  * restoration, hiding the page from assistive technology) exist once.
  */
 
-export { AlertDialog, type AlertDialogProps } from "./AlertDialog.js";
+export {
+	AlertDialog,
+	AlertDialogAction,
+	type AlertDialogButtonProps,
+	AlertDialogCancel,
+	AlertDialogContent,
+	type AlertDialogContentProps,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogMedia,
+	AlertDialogOverlay,
+	type AlertDialogProps,
+	type AlertDialogSectionProps,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+	type AlertDialogTriggerProps,
+} from "./AlertDialog.js";
 export {
 	addDays,
 	addMonths,
@@ -106,7 +123,23 @@ export {
 	dialogPanelClasses,
 	useDialog,
 } from "./Dialog.js";
-export { Drawer, type DrawerProps } from "./Drawer.js";
+export {
+	Drawer,
+	DrawerClose,
+	type DrawerCloseProps,
+	DrawerContent,
+	type DrawerContentProps,
+	DrawerDescription,
+	DrawerFooter,
+	DrawerHeader,
+	DrawerOverlay,
+	type DrawerOverlayProps,
+	type DrawerProps,
+	type DrawerSectionProps,
+	DrawerTitle,
+	DrawerTrigger,
+	type DrawerTriggerProps,
+} from "./Drawer.js";
 export {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
