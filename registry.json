@@ -966,6 +966,7 @@
       "files": [
         "lib/children.ts",
         "lib/cn.ts",
+        "lib/cva.ts",
         "lib/icons.ts",
         "lib/props.ts",
         "lib/styled.ts",
@@ -973,7 +974,10 @@
       ],
       "dependencies": [
         "button",
+        "input",
+        "separator",
         "sheet",
+        "skeleton",
         "tooltip"
       ]
     },

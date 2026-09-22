@@ -25,7 +25,14 @@ import {
 	MenubarMenu,
 	MenubarTrigger,
 } from "../../src/organisms/Menubar.js";
-import { NavigationMenu } from "../../src/organisms/NavigationMenu.js";
+import {
+	NavigationMenu,
+	NavigationMenuContent,
+	NavigationMenuItem,
+	NavigationMenuLink,
+	NavigationMenuList,
+	NavigationMenuTrigger,
+} from "../../src/organisms/NavigationMenu.js";
 import { Questionnaire } from "../../src/organisms/Questionnaire.js";
 import {
 	Select,
@@ -806,10 +813,40 @@ describe("NavigationMenu", () => {
 		},
 	];
 
+	/** The parts, assembled. `() =>` so they see the bar's context. */
+	function navigation() {
+		return NavigationMenu({
+			children: () =>
+				NavigationMenuList({
+					children: items.map((item) =>
+						NavigationMenuItem({
+							children: () =>
+								item.href !== undefined
+									? NavigationMenuLink({
+											href: item.href,
+											children: item.label,
+										})
+									: html`${NavigationMenuTrigger({
+											children: item.label,
+										})}${NavigationMenuContent({
+											children: () =>
+												(item.links ?? []).map((link) =>
+													NavigationMenuLink({
+														href: link.href,
+														children: link.label,
+													}),
+												),
+										})}`,
+						}),
+					),
+				}),
+		});
+	}
+
 	it("is a nav of links, never a menu", () => {
 		// A menu is a list of commands; this is a list of links, and announcing
 		// it as an application menu offers the wrong shortcuts.
-		const view = mount(NavigationMenu({ items }));
+		const view = mount(navigation());
 		expect(one("[data-slot='navigation-menu']")?.tagName).toBe("NAV");
 		expect(one("[role='menu']")).toBeNull();
 		expect(
@@ -819,7 +856,7 @@ describe("NavigationMenu", () => {
 	});
 
 	it("opens a panel from its trigger and lists the links", () => {
-		const view = mount(NavigationMenu({ items }));
+		const view = mount(navigation());
 		const trigger = one("[data-slot='navigation-menu-trigger']");
 		trigger?.click();
 		expect(trigger?.getAttribute("aria-expanded")).toBe("true");
@@ -830,7 +867,7 @@ describe("NavigationMenu", () => {
 	});
 
 	it("opens on ArrowDown from the keyboard", () => {
-		const view = mount(NavigationMenu({ items }));
+		const view = mount(navigation());
 		const trigger = one("[data-slot='navigation-menu-trigger']");
 		trigger?.dispatchEvent(press("ArrowDown"));
 		expect(trigger?.getAttribute("aria-expanded")).toBe("true");
@@ -842,7 +879,7 @@ describe("NavigationMenu", () => {
 		// return: `dismissable` handles Escape from a captured document listener,
 		// so the restoration lives in `floatingSurface`, guarded on containment
 		// precisely so it does not steal focus that was never in the surface.
-		const view = mount(NavigationMenu({ items }));
+		const view = mount(navigation());
 		const trigger = one("[data-slot='navigation-menu-trigger']");
 		trigger?.click();
 
@@ -859,7 +896,7 @@ describe("NavigationMenu", () => {
 	it("leaves focus alone when the pointer dismissed it", () => {
 		const outside = document.createElement("button");
 		document.body.appendChild(outside);
-		const view = mount(NavigationMenu({ items }));
+		const view = mount(navigation());
 		one("[data-slot='navigation-menu-trigger']")?.click();
 
 		outside.focus();
@@ -873,7 +910,17 @@ describe("NavigationMenu", () => {
 	it("renders arbitrary panel content when given some", () => {
 		const view = mount(
 			NavigationMenu({
-				items: [{ label: "More", content: "Anything at all" }],
+				children: () =>
+					NavigationMenuList({
+						children: NavigationMenuItem({
+							children: () =>
+								html`${NavigationMenuTrigger({
+									children: "More",
+								})}${NavigationMenuContent({
+									children: () => "Anything at all",
+								})}`,
+						}),
+					}),
 			}),
 		);
 		one("[data-slot='navigation-menu-trigger']")?.click();

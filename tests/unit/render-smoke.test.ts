@@ -544,7 +544,18 @@ const cases: readonly Case[] = [
 		name: "navigation-menu",
 		slot: "navigation-menu",
 		build: () =>
-			organisms.NavigationMenu({ items: [{ label: "Docs", href: "/docs" }] }),
+			organisms.NavigationMenu({
+				children: () =>
+					organisms.NavigationMenuList({
+						children: organisms.NavigationMenuItem({
+							children: () =>
+								organisms.NavigationMenuLink({
+									href: "/docs",
+									children: "Docs",
+								}),
+						}),
+					}),
+			}),
 	},
 	{
 		name: "popover",
@@ -600,9 +611,26 @@ const cases: readonly Case[] = [
 	},
 	{
 		name: "sidebar",
-		slot: "sidebar-root",
+		slot: "sidebar-wrapper",
 		build: () =>
-			organisms.Sidebar({ children: organisms.SidebarMenu({ children: "" }) }),
+			organisms.SidebarProvider({
+				children: () =>
+					html`${organisms.Sidebar({
+						children: () =>
+							organisms.SidebarContent({
+								children: organisms.SidebarGroup({
+									children: organisms.SidebarMenu({
+										children: organisms.SidebarMenuItem({
+											children: organisms.SidebarMenuButton({
+												href: "/",
+												children: "Home",
+											}),
+										}),
+									}),
+								}),
+							}),
+					})}${organisms.SidebarInset({ children: "page" })}`,
+			}),
 	},
 	{ name: "toaster", slot: "toaster", build: () => organisms.Toaster({}) },
 	{

@@ -8,7 +8,7 @@
 
 import { render, signal } from "@c9up/aurora";
 import { describe, expect, it } from "vitest";
-import { SidebarMenuItem } from "../../src/organisms/Sidebar.js";
+import { SidebarMenuButton } from "../../src/organisms/Sidebar.js";
 
 function mount(build: () => unknown) {
 	const host = document.createElement("div");
@@ -17,12 +17,12 @@ function mount(build: () => unknown) {
 	return host;
 }
 
-describe("nebula > SidebarMenuItem accepts a class", () => {
+describe("nebula > SidebarMenuButton accepts a class", () => {
 	it("merges the caller's classes onto the defaults", () => {
 		const host = mount(() =>
-			SidebarMenuItem({ label: "Pockets", class: "opacity-50" }),
+			SidebarMenuButton({ children: "Pockets", class: "opacity-50" }),
 		);
-		const entry = host.querySelector("[data-slot=sidebar-menu-item]");
+		const entry = host.querySelector("[data-slot=sidebar-menu-button]");
 
 		expect(entry?.className).toContain("opacity-50");
 		// And keeps its own.
@@ -32,27 +32,35 @@ describe("nebula > SidebarMenuItem accepts a class", () => {
 
 	it("merges onto the link form too", () => {
 		const host = mount(() =>
-			SidebarMenuItem({
-				label: "Pockets",
+			SidebarMenuButton({
+				children: "Pockets",
 				href: "/p",
 				class: "pointer-events-none",
 			}),
 		);
-		const entry = host.querySelector("a[data-slot=sidebar-menu-item]");
+		const entry = host.querySelector("a[data-slot=sidebar-menu-button]");
 
 		expect(entry?.className).toContain("pointer-events-none");
 		host.remove();
 	});
 
 	it("follows a reactive class", () => {
+		// On the TOKENS, not on a substring: upstream's own string carries
+		// `disabled:opacity-50`, so `toContain` would pass before the signal ever
+		// moved.
+		const tokens = (element: Element | null): string[] => [
+			...(element?.classList ?? []),
+		];
 		const dim = signal("");
-		const host = mount(() => SidebarMenuItem({ label: "Pockets", class: dim }));
-		const entry = host.querySelector("[data-slot=sidebar-menu-item]");
-		expect(entry?.className).not.toContain("opacity-50");
+		const host = mount(() =>
+			SidebarMenuButton({ children: "Pockets", class: dim }),
+		);
+		const entry = host.querySelector("[data-slot=sidebar-menu-button]");
+		expect(tokens(entry)).not.toContain("opacity-50");
 
 		dim("opacity-50");
 
-		expect(entry?.className).toContain("opacity-50");
+		expect(tokens(entry)).toContain("opacity-50");
 		host.remove();
 	});
 
@@ -60,9 +68,9 @@ describe("nebula > SidebarMenuItem accepts a class", () => {
 		// `cn` is tailwind-merge: a caller passing `h-12` must not end up with
 		// both `h-8` and `h-12` and a specificity coin-toss.
 		const host = mount(() =>
-			SidebarMenuItem({ label: "Pockets", class: "h-12" }),
+			SidebarMenuButton({ children: "Pockets", class: "h-12" }),
 		);
-		const entry = host.querySelector("[data-slot=sidebar-menu-item]");
+		const entry = host.querySelector("[data-slot=sidebar-menu-button]");
 
 		expect(entry?.className).toContain("h-12");
 		expect(entry?.className).not.toContain("h-8");
