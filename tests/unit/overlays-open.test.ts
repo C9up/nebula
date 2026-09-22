@@ -26,7 +26,21 @@ import {
 	DialogTrigger,
 } from "../../src/organisms/Dialog.js";
 import { Drawer } from "../../src/organisms/Drawer.js";
-import { DropdownMenu } from "../../src/organisms/DropdownMenu.js";
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuSeparator,
+	DropdownMenuShortcut,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
+	DropdownMenuTrigger,
+} from "../../src/organisms/DropdownMenu.js";
 import { HoverCard } from "../../src/organisms/HoverCard.js";
 import {
 	Popover,
@@ -383,6 +397,25 @@ function popover(trigger: string, body: string, modal?: boolean) {
 	});
 }
 
+/** The parts, assembled. `() =>` so they are built inside the menu's setup. */
+function dropdown(
+	trigger: string,
+	items: ReadonlyArray<{ label: string; onSelect?: () => void }>,
+) {
+	return DropdownMenu({
+		children: () =>
+			html`${DropdownMenuTrigger({ children: trigger })}${DropdownMenuContent({
+				children: () =>
+					items.map((item) =>
+						DropdownMenuItem({
+							children: item.label,
+							onSelect: item.onSelect,
+						}),
+					),
+			})}`,
+	});
+}
+
 describe("Popover and DropdownMenu", () => {
 	it("opens a popover and marks the trigger expanded", () => {
 		const view = mount(popover("Open", "Panel"));
@@ -414,12 +447,7 @@ describe("Popover and DropdownMenu", () => {
 	});
 
 	it("opens a dropdown menu with its entries", () => {
-		const view = mount(
-			DropdownMenu({
-				trigger: "Menu",
-				entries: [{ label: "Cut" }, { label: "Copy" }],
-			}),
-		);
+		const view = mount(dropdown("Menu", [{ label: "Cut" }, { label: "Copy" }]));
 		clickTrigger("dropdown-menu-trigger");
 		expect(all("[role='menuitem']")).toHaveLength(2);
 		view.dispose();
@@ -428,16 +456,12 @@ describe("Popover and DropdownMenu", () => {
 	it("enters the menu when opened from the keyboard, not from a click", () => {
 		// A keyboard user has no other way in; pre-highlighting for a mouse user
 		// suggests an item is about to be chosen.
-		const clicked = mount(
-			DropdownMenu({ trigger: "Menu", entries: [{ label: "Cut" }] }),
-		);
+		const clicked = mount(dropdown("Menu", [{ label: "Cut" }]));
 		clickTrigger("dropdown-menu-trigger");
 		expect(document.activeElement?.getAttribute("role")).not.toBe("menuitem");
 		clicked.dispose();
 
-		const typed = mount(
-			DropdownMenu({ trigger: "Menu", entries: [{ label: "Cut" }] }),
-		);
+		const typed = mount(dropdown("Menu", [{ label: "Cut" }]));
 		one("[data-slot='dropdown-menu-trigger']")?.dispatchEvent(
 			press("ArrowDown"),
 		);
@@ -447,9 +471,7 @@ describe("Popover and DropdownMenu", () => {
 
 	it("runs an entry and closes the menu", () => {
 		const onSelect = vi.fn();
-		const view = mount(
-			DropdownMenu({ trigger: "Menu", entries: [{ label: "Cut", onSelect }] }),
-		);
+		const view = mount(dropdown("Menu", [{ label: "Cut", onSelect }]));
 		clickTrigger("dropdown-menu-trigger");
 		one("[role='menuitem']")?.click();
 		expect(onSelect).toHaveBeenCalledTimes(1);
@@ -968,6 +990,160 @@ describe("Sheet parts", () => {
 	it("refuses a part used outside its Sheet", () => {
 		expect(() => SheetTrigger({ children: "Filters" })).toThrowError(
 			/context "Sheet"/,
+		);
+	});
+});
+
+describe("DropdownMenu parts", () => {
+	it("renders every upstream slot", () => {
+		const view = mount(
+			DropdownMenu({
+				children: () =>
+					html`${DropdownMenuTrigger({
+						children: "Menu",
+					})}${DropdownMenuContent({
+						children: () =>
+							html`${DropdownMenuLabel({
+								children: "Account",
+							})}${DropdownMenuItem({
+								children: html`Profile${DropdownMenuShortcut({
+									children: "⌘P",
+								})}`,
+							})}${DropdownMenuSeparator({})}${DropdownMenuCheckboxItem({
+								children: "Show bar",
+								checked: true,
+							})}`,
+					})}`,
+			}),
+		);
+		clickTrigger("dropdown-menu-trigger");
+		for (const name of [
+			"dropdown-menu-content",
+			"dropdown-menu-label",
+			"dropdown-menu-item",
+			"dropdown-menu-shortcut",
+			"dropdown-menu-separator",
+			"dropdown-menu-checkbox-item",
+		]) {
+			expect(one(`[data-slot='${name}']`), name).not.toBeNull();
+		}
+		view.dispose();
+	});
+
+	it("marks a checkbox row checked, so a reader announces its state", () => {
+		const onCheckedChange = vi.fn();
+		const view = mount(
+			DropdownMenu({
+				children: () =>
+					html`${DropdownMenuTrigger({
+						children: "Menu",
+					})}${DropdownMenuContent({
+						children: () =>
+							DropdownMenuCheckboxItem({
+								children: "Show bar",
+								checked: true,
+								onCheckedChange,
+							}),
+					})}`,
+			}),
+		);
+		clickTrigger("dropdown-menu-trigger");
+		const row = one("[role='menuitemcheckbox']");
+		expect(row?.getAttribute("aria-checked")).toBe("true");
+		row?.click();
+		// Toggled AWAY from its current value, not blindly to true.
+		expect(onCheckedChange).toHaveBeenCalledWith(false);
+		view.dispose();
+	});
+
+	it("checks exactly the selected radio row", () => {
+		const onValueChange = vi.fn();
+		const view = mount(
+			DropdownMenu({
+				children: () =>
+					html`${DropdownMenuTrigger({
+						children: "Menu",
+					})}${DropdownMenuContent({
+						children: () =>
+							DropdownMenuRadioGroup({
+								value: "list",
+								onValueChange,
+								children: () =>
+									html`${DropdownMenuRadioItem({
+										value: "list",
+										children: "List",
+									})}${DropdownMenuRadioItem({
+										value: "grid",
+										children: "Grid",
+									})}`,
+							}),
+					})}`,
+			}),
+		);
+		clickTrigger("dropdown-menu-trigger");
+		const rows = all("[role='menuitemradio']");
+		expect(rows.map((row) => row.getAttribute("aria-checked"))).toEqual([
+			"true",
+			"false",
+		]);
+		rows[1]?.click();
+		expect(onValueChange).toHaveBeenCalledWith("grid");
+		view.dispose();
+	});
+
+	it("opens a composed submenu from its trigger row", () => {
+		const view = mount(
+			DropdownMenu({
+				children: () =>
+					html`${DropdownMenuTrigger({
+						children: "Menu",
+					})}${DropdownMenuContent({
+						children: () =>
+							DropdownMenuSub({
+								children: () =>
+									html`${DropdownMenuSubTrigger({
+										children: "More",
+									})}${DropdownMenuSubContent({
+										children: () => DropdownMenuItem({ children: "Deeper" }),
+									})}`,
+							}),
+					})}`,
+			}),
+		);
+		clickTrigger("dropdown-menu-trigger");
+		const row = one("[data-slot='dropdown-menu-sub-trigger']");
+		expect(row?.getAttribute("aria-expanded")).toBe("false");
+		// A submenu opens when the pointer rests on its row, not on a click —
+		// clicking a row that only leads somewhere would be a dead gesture.
+		hover(row, "pointerover");
+		expect(one("[data-slot='dropdown-menu-sub-content']")).not.toBeNull();
+		expect(row?.getAttribute("aria-expanded")).toBe("true");
+		view.dispose();
+	});
+
+	it("leaves a disabled row unselectable", () => {
+		const onSelect = vi.fn();
+		const view = mount(
+			DropdownMenu({
+				children: () =>
+					html`${DropdownMenuTrigger({
+						children: "Menu",
+					})}${DropdownMenuContent({
+						children: () =>
+							DropdownMenuItem({ children: "Cut", disabled: true, onSelect }),
+					})}`,
+			}),
+		);
+		clickTrigger("dropdown-menu-trigger");
+		one("[role='menuitem']")?.click();
+		expect(onSelect).not.toHaveBeenCalled();
+		expect(portals()).toHaveLength(1);
+		view.dispose();
+	});
+
+	it("refuses a part used outside its DropdownMenu", () => {
+		expect(() => DropdownMenuItem({ children: "Cut" })).toThrowError(
+			/context "DropdownMenu"/,
 		);
 	});
 });

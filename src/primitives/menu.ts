@@ -91,16 +91,51 @@ export type MenuEntry =
 
 // ─── classes ─────────────────────────────────────────────────────────
 
+/**
+ * Upstream's class strings, shared by the three menus built on this module.
+ *
+ * shadcn repeats them in `dropdown-menu.tsx`, `context-menu.tsx` and
+ * `menubar.tsx` because each file is copied on its own. Here all three already
+ * depend on this module, and the registry copies it with them, so repeating
+ * the strings would only be three places to update when one of them changes.
+ *
+ * `--nebula-available-height` and `--nebula-transform-origin` stand in for
+ * Radix's per-component custom properties; `autoPosition` writes both.
+ */
 export const menuPanelClasses =
-	"bg-popover text-popover-foreground z-50 min-w-[8rem] max-h-(--nebula-available-height) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md outline-none";
+	"bg-popover text-popover-foreground z-50 max-h-(--nebula-available-height) min-w-[8rem] origin-(--nebula-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md outline-none";
 
-const itemClasses =
-	"relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+/** A submenu panel: no height cap, a deeper shadow. */
+export const menuSubPanelClasses =
+	"bg-popover text-popover-foreground z-50 min-w-[8rem] origin-(--nebula-transform-origin) overflow-hidden rounded-md border p-1 shadow-lg outline-none";
+
+export const menuItemClasses =
+	"relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground data-[variant=destructive]:*:[svg]:text-destructive!";
+
+/** Checkbox and radio rows: the same, indented to leave room for the mark. */
+export const menuCheckItemClasses =
+	"relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+
+export const menuIndicatorClasses =
+	"pointer-events-none absolute left-2 flex size-3.5 items-center justify-center";
+
+export const menuLabelClasses =
+	"px-2 py-1.5 text-sm font-medium data-[inset]:pl-8";
+
+export const menuSeparatorClasses = "bg-border -mx-1 my-1 h-px";
+
+export const menuShortcutClasses =
+	"text-muted-foreground ml-auto text-xs tracking-widest";
+
+export const menuSubTriggerClasses =
+	"flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[inset]:pl-8 data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground";
+
+const itemClasses = menuItemClasses;
 
 const destructiveClasses =
 	"text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive";
 
-const indentedItemClasses = `${itemClasses} py-1.5 pr-2 pl-8`;
+const indentedItemClasses = menuCheckItemClasses;
 
 // ─── rendering ───────────────────────────────────────────────────────
 
@@ -138,7 +173,7 @@ function renderEntry(entry: MenuEntry, closeAll: () => void): Child {
 	}
 	if (isCheckbox(entry)) return renderCheckbox(entry, closeAll);
 	if (isRadioGroup(entry)) return renderRadioGroup(entry, closeAll);
-	if (isSubmenu(entry)) return renderSubmenuTrigger(entry);
+	if (isSubmenu(entry)) return renderSubmenuTrigger(entry, closeAll);
 	return renderAction(entry, closeAll);
 }
 
@@ -220,9 +255,24 @@ function renderRadioGroup(entry: MenuRadioGroup, closeAll: () => void): Child {
  * those into the DOM is not possible. `wireMenu` reads them back when the row
  * is opened.
  */
-const submenuEntries = new WeakMap<Element, readonly MenuEntry[]>();
+const submenuPanels = new WeakMap<Element, SubmenuPanel>();
 
-function renderSubmenuTrigger(entry: MenuSubmenu): Child {
+/**
+ * How a submenu's panel is produced when the row is opened.
+ *
+ * A factory rather than the panel itself, because a submenu is built fresh on
+ * each open: a panel kept from a previous open would carry the DOM state
+ * `wireMenu` left on it, and reusing a node that has already been torn down is
+ * how a menu ends up showing the previous row's entries.
+ *
+ * The entries-based API supplies one that calls `menuPanel`; the composed
+ * parts supply one that returns the markup they were given. `wireMenu` cannot
+ * tell the two apart, which is the point — the keyboard model works on the
+ * rendered DOM, never on the description that produced it.
+ */
+export type SubmenuPanel = (options: { id: string }) => TemplateResult;
+
+function renderSubmenuTrigger(entry: MenuSubmenu, closeAll: () => void): Child {
 	const id = uid("menu-sub-trigger");
 	const row = html`<div
 		role="menuitem"
@@ -239,7 +289,10 @@ function renderSubmenuTrigger(entry: MenuSubmenu): Child {
 		${ChevronRightIcon({ class: "ml-auto size-4" })}
 	</div>`;
 
-	pendingSubmenus.set(id, entry.entries);
+	const entries = entry.entries;
+	pendingSubmenus.set(id, ({ id: panelId }) =>
+		menuPanel({ id: panelId, entries, onCloseAll: closeAll }),
+	);
 	return row;
 }
 
@@ -251,7 +304,7 @@ function renderSubmenuTrigger(entry: MenuSubmenu): Child {
  * each set from here onto the real element and clears the id, so nothing is
  * retained after the menu closes.
  */
-const pendingSubmenus = new Map<string, readonly MenuEntry[]>();
+const pendingSubmenus = new Map<string, SubmenuPanel>();
 
 function activate(
 	disabled: boolean | undefined,
@@ -323,14 +376,12 @@ export function wireMenu(
 	});
 
 	function openSubmenu(trigger: HTMLElement): void {
-		const entries = submenuEntries.get(trigger);
-		if (entries === undefined || entries.length === 0) return;
+		const build = submenuPanels.get(trigger);
+		if (build === undefined) return;
 		closeSubmenusFrom(0);
 
 		const panelId = uid("menu-sub");
-		const mount = portal(
-			menuPanel({ id: panelId, entries, onCloseAll: options.onCloseAll }),
-		);
+		const mount = portal(build({ id: panelId }));
 		const element = mount.host.firstElementChild;
 		if (!(element instanceof HTMLElement)) {
 			mount.close();
@@ -452,16 +503,26 @@ export function wireMenu(
 	};
 }
 
-/** Move each submenu's entries from the build-time map onto its element. */
+/** Move each submenu's panel factory from the build-time map onto its element. */
 function claimSubmenuEntries(panel: HTMLElement): void {
 	for (const node of panel.querySelectorAll("[data-submenu]")) {
 		const id = node.getAttribute("data-submenu");
 		if (id === null) continue;
-		const entries = pendingSubmenus.get(id);
-		if (entries === undefined) continue;
-		submenuEntries.set(node, entries);
+		const build = pendingSubmenus.get(id);
+		if (build === undefined) continue;
+		submenuPanels.set(node, build);
 		pendingSubmenus.delete(id);
 	}
+}
+
+/**
+ * Register a composed submenu panel against a trigger id.
+ *
+ * The parts in `DropdownMenu` and friends build their own markup, so they hand
+ * the factory over directly instead of going through `MenuEntry`.
+ */
+export function registerSubmenu(id: string, build: SubmenuPanel): void {
+	pendingSubmenus.set(id, build);
 }
 
 // ─── entry guards ────────────────────────────────────────────────────

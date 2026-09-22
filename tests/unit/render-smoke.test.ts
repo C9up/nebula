@@ -367,7 +367,14 @@ const cases: readonly Case[] = [
 		name: "dropdown-menu",
 		slot: "dropdown-menu-trigger",
 		build: () =>
-			organisms.DropdownMenu({ trigger: "Menu", entries: [{ label: "Cut" }] }),
+			organisms.DropdownMenu({
+				children: () =>
+					html`${organisms.DropdownMenuTrigger({
+						children: "Menu",
+					})}${organisms.DropdownMenuContent({
+						children: () => organisms.DropdownMenuItem({ children: "Cut" }),
+					})}`,
+			}),
 	},
 	{
 		name: "form",
