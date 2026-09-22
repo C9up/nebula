@@ -161,8 +161,25 @@ export {
 } from "./Questionnaire.js";
 export {
 	Select,
-	type SelectOption,
+	SelectContent,
+	type SelectContentProps,
+	SelectGroup,
+	type SelectGroupProps,
+	SelectItem,
+	type SelectItemProps,
+	SelectLabel,
+	type SelectLabelProps,
 	type SelectProps,
+	type SelectScrollButtonProps,
+	SelectScrollDownButton,
+	SelectScrollUpButton,
+	SelectSeparator,
+	type SelectSeparatorProps,
+	SelectTrigger,
+	type SelectTriggerProps,
+	SelectValue,
+	type SelectValueProps,
+	selectContentClasses,
 	selectTriggerClasses,
 } from "./Select.js";
 export {

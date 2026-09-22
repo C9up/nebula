@@ -1,3 +1,4 @@
+import { html } from "@c9up/aurora";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Command } from "../../src/organisms/Command.js";
 import { ContextMenu } from "../../src/organisms/ContextMenu.js";
@@ -5,7 +6,18 @@ import { DataTable } from "../../src/organisms/DataTable.js";
 import { Menubar } from "../../src/organisms/Menubar.js";
 import { NavigationMenu } from "../../src/organisms/NavigationMenu.js";
 import { Questionnaire } from "../../src/organisms/Questionnaire.js";
-import { Select } from "../../src/organisms/Select.js";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectLabel,
+	SelectScrollDownButton,
+	SelectScrollUpButton,
+	SelectSeparator,
+	SelectTrigger,
+	SelectValue,
+} from "../../src/organisms/Select.js";
 import { Toaster, toast } from "../../src/organisms/Toaster.js";
 import { mount, press } from "./helpers.js";
 
@@ -27,9 +39,32 @@ const FRUIT = [
 	{ value: "cherry", label: "Cherry" },
 ];
 
+/** The parts, assembled. `() =>` so they are built inside `Select`'s setup. */
+function select(options: {
+	placeholder?: string;
+	name?: string;
+	defaultValue?: string;
+	onValueChange?: (value: string) => void;
+}) {
+	return Select({
+		name: options.name,
+		defaultValue: options.defaultValue,
+		onValueChange: options.onValueChange,
+		children: () =>
+			html`${SelectTrigger({
+				children: SelectValue({ placeholder: options.placeholder }),
+			})}${SelectContent({
+				children: () =>
+					FRUIT.map((fruit) =>
+						SelectItem({ value: fruit.value, children: fruit.label }),
+					),
+			})}`,
+	});
+}
+
 describe("Select", () => {
 	it("presents the trigger as a combobox, collapsed", () => {
-		const view = mount(Select({ options: FRUIT, placeholder: "Pick one" }));
+		const view = mount(select({ placeholder: "Pick one" }));
 		const trigger = one("[data-slot='select-trigger']");
 		expect(trigger?.getAttribute("role")).toBe("combobox");
 		expect(trigger?.getAttribute("aria-expanded")).toBe("false");
@@ -38,7 +73,7 @@ describe("Select", () => {
 	});
 
 	it("opens a listbox with one option per entry", () => {
-		const view = mount(Select({ options: FRUIT }));
+		const view = mount(select({}));
 		one("[data-slot='select-trigger']")?.click();
 		expect(one("[role='listbox']")).not.toBeNull();
 		expect(all("[role='option']")).toHaveLength(3);
@@ -48,7 +83,7 @@ describe("Select", () => {
 	it("keeps focus on the trigger and names the active option instead", () => {
 		// The listbox pattern: focus stays put and `aria-activedescendant` moves,
 		// so the reader hears each option without the focus ring jumping.
-		const view = mount(Select({ options: FRUIT }));
+		const view = mount(select({}));
 		const trigger = one("[data-slot='select-trigger']");
 		trigger?.click();
 		trigger?.focus();
@@ -63,9 +98,7 @@ describe("Select", () => {
 
 	it("chooses with Enter and posts the value in a hidden field", () => {
 		const onValueChange = vi.fn<(value: string) => void>();
-		const view = mount(
-			Select({ options: FRUIT, name: "fruit", onValueChange }),
-		);
+		const view = mount(select({ name: "fruit", onValueChange }));
 		const trigger = one("[data-slot='select-trigger']");
 		trigger?.click();
 		trigger?.dispatchEvent(press("ArrowDown"));
@@ -80,7 +113,7 @@ describe("Select", () => {
 	});
 
 	it("chooses on click and closes", () => {
-		const view = mount(Select({ options: FRUIT }));
+		const view = mount(select({}));
 		one("[data-slot='select-trigger']")?.click();
 		all("[role='option']")[1]?.click();
 
@@ -92,7 +125,7 @@ describe("Select", () => {
 	});
 
 	it("seeks by typing, without moving focus", () => {
-		const view = mount(Select({ options: FRUIT }));
+		const view = mount(select({}));
 		const trigger = one("[data-slot='select-trigger']");
 		trigger?.click();
 		trigger?.dispatchEvent(press("c"));
@@ -105,7 +138,7 @@ describe("Select", () => {
 	});
 
 	it("marks the chosen option selected for assistive technology", () => {
-		const view = mount(Select({ options: FRUIT, defaultValue: "banana" }));
+		const view = mount(select({ defaultValue: "banana" }));
 		one("[data-slot='select-trigger']")?.click();
 		const selected = all("[role='option']").filter(
 			(option) => option.getAttribute("aria-selected") === "true",
@@ -750,5 +783,113 @@ describe("NavigationMenu", () => {
 			"Anything at all",
 		);
 		view.dispose();
+	});
+});
+
+describe("Select parts", () => {
+	it("renders every upstream slot", () => {
+		const view = mount(
+			Select({
+				children: () =>
+					html`${SelectTrigger({
+						children: SelectValue({ placeholder: "Pick" }),
+					})}${SelectContent({
+						children: () =>
+							html`${SelectScrollUpButton({})}${SelectGroup({
+								children: html`${SelectLabel({
+									children: "Fruit",
+								})}${SelectItem({ value: "apple", children: "Apple" })}`,
+							})}${SelectSeparator({})}${SelectScrollDownButton({})}`,
+					})}`,
+			}),
+		);
+		one("[data-slot='select-trigger']")?.click();
+		for (const name of [
+			"select",
+			"select-trigger",
+			"select-value",
+			"select-content",
+			"select-group",
+			"select-label",
+			"select-item",
+			"select-item-indicator",
+			"select-separator",
+			"select-scroll-up-button",
+			"select-scroll-down-button",
+		]) {
+			expect(one(`[data-slot='${name}']`), name).not.toBeNull();
+		}
+		view.dispose();
+	});
+
+	it("gives two selects sharing a value distinct option ids", () => {
+		// Ids must be unique on a page: a shared one would point every trigger's
+		// `aria-activedescendant` at the first select's option.
+		const view = mount(html`${select({})}${select({})}`);
+		for (const trigger of all("[data-slot='select-trigger']")) trigger.click();
+		const ids = all("[role='option']").map((option) => option.id);
+		expect(new Set(ids).size).toBe(ids.length);
+		view.dispose();
+	});
+
+	it("matches type-ahead on textValue when the children are markup", () => {
+		const view = mount(
+			Select({
+				children: () =>
+					html`${SelectTrigger({ children: SelectValue({}) })}${SelectContent({
+						children: () =>
+							html`${SelectItem({
+								value: "a",
+								textValue: "Apple",
+								children: html`<b>Apple</b>`,
+							})}${SelectItem({
+								value: "c",
+								textValue: "Cherry",
+								children: html`<b>Cherry</b>`,
+							})}`,
+					})}`,
+			}),
+		);
+		const trigger = one("[data-slot='select-trigger']");
+		trigger?.click();
+		trigger?.dispatchEvent(press("c"));
+		const active = trigger?.getAttribute("aria-activedescendant");
+		expect(document.getElementById(active ?? "")?.textContent).toContain(
+			"Cherry",
+		);
+		view.dispose();
+	});
+
+	it("skips a disabled option when the arrows move", () => {
+		const view = mount(
+			Select({
+				children: () =>
+					html`${SelectTrigger({ children: SelectValue({}) })}${SelectContent({
+						children: () =>
+							html`${SelectItem({
+								value: "a",
+								children: "Apple",
+							})}${SelectItem({
+								value: "b",
+								children: "Banana",
+								disabled: true,
+							})}${SelectItem({ value: "c", children: "Cherry" })}`,
+					})}`,
+			}),
+		);
+		const trigger = one("[data-slot='select-trigger']");
+		trigger?.click();
+		trigger?.dispatchEvent(press("ArrowDown"));
+		const active = trigger?.getAttribute("aria-activedescendant");
+		expect(document.getElementById(active ?? "")?.textContent).toContain(
+			"Cherry",
+		);
+		view.dispose();
+	});
+
+	it("refuses a part used outside its Select", () => {
+		expect(() => SelectItem({ value: "a", children: "Apple" })).toThrowError(
+			/context "Select"/,
+		);
 	});
 });

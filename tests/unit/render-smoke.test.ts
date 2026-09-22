@@ -433,7 +433,21 @@ const cases: readonly Case[] = [
 	{
 		name: "select",
 		slot: "select",
-		build: () => organisms.Select({ options: OPTIONS }),
+		build: () =>
+			organisms.Select({
+				children: () =>
+					html`${organisms.SelectTrigger({
+						children: organisms.SelectValue({ placeholder: "Pick" }),
+					})}${organisms.SelectContent({
+						children: () =>
+							OPTIONS.map((option) =>
+								organisms.SelectItem({
+									value: option.value,
+									children: option.label,
+								}),
+							),
+					})}`,
+			}),
 	},
 	{
 		name: "sheet",
