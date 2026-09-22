@@ -91,17 +91,34 @@ export {
 } from "./Empty.js";
 export {
 	Field,
+	FieldContent,
+	FieldDescription,
+	FieldError,
+	type FieldErrorProps,
 	FieldGroup,
 	type FieldIds,
+	FieldLabel,
+	FieldLegend,
+	type FieldLegendProps,
 	type FieldProps,
+	type FieldSectionProps,
 	FieldSeparator,
+	type FieldSeparatorProps,
+	FieldSet,
+	FieldTitle,
 	fieldIds,
 } from "./Field.js";
 export {
 	InputGroup,
 	InputGroupAddon,
+	type InputGroupAddonProps,
+	InputGroupButton,
+	type InputGroupButtonProps,
 	InputGroupInput,
 	type InputGroupProps,
+	InputGroupText,
+	InputGroupTextarea,
+	type InputGroupTextProps,
 	inputGroupControlClasses,
 } from "./InputGroup.js";
 export { InputOTP, type InputOTPProps } from "./InputOTP.js";

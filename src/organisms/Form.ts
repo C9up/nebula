@@ -39,7 +39,13 @@ import type { Child, Slot } from "../lib/children.js";
 import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { type Reactive, read } from "../lib/props.js";
-import { Field, fieldIds } from "../molecules/Field.js";
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldLabel,
+	fieldIds,
+} from "../molecules/Field.js";
 
 /**
  * One field, with a setter that already knows which key it writes to.
@@ -138,25 +144,29 @@ export const TextField = component<TextFieldProps>((props) => {
 
 	return Field({
 		ids,
-		label: props.label,
-		description: props.description,
-		error: visibleError,
 		required: props.required,
 		disabled: props.disabled,
-		children: Input({
-			id: ids.control,
-			name,
-			type: props.type ?? "text",
-			placeholder: props.placeholder,
-			autocomplete: props.autocomplete,
-			required: props.required,
-			disabled: props.disabled,
-			invalid: () => visibleError() !== undefined,
-			describedBy: ids.describedBy,
-			value: () => field.value(),
-			onInput: set,
-			onBlur: () => field.markTouched(),
-		}),
+		children: () =>
+			html`${
+				props.label === undefined ? null : FieldLabel({ children: props.label })
+			}${Input({
+				id: ids.control,
+				name,
+				type: props.type ?? "text",
+				placeholder: props.placeholder,
+				autocomplete: props.autocomplete,
+				required: props.required,
+				disabled: props.disabled,
+				invalid: () => visibleError() !== undefined,
+				describedBy: ids.describedBy,
+				value: () => field.value(),
+				onInput: set,
+				onBlur: () => field.markTouched(),
+			})}${
+				props.description === undefined
+					? null
+					: FieldDescription({ children: props.description })
+			}${FieldError({ children: visibleError })}`,
 	});
 });
 
@@ -173,24 +183,28 @@ export const TextAreaField = component<TextAreaFieldProps>((props) => {
 
 	return Field({
 		ids,
-		label: props.label,
-		description: props.description,
-		error: visibleError,
 		required: props.required,
 		disabled: props.disabled,
-		children: Textarea({
-			id: ids.control,
-			name,
-			rows: props.rows,
-			placeholder: props.placeholder,
-			required: props.required,
-			disabled: props.disabled,
-			invalid: () => visibleError() !== undefined,
-			describedBy: ids.describedBy,
-			value: () => field.value(),
-			onInput: set,
-			onBlur: () => field.markTouched(),
-		}),
+		children: () =>
+			html`${
+				props.label === undefined ? null : FieldLabel({ children: props.label })
+			}${Textarea({
+				id: ids.control,
+				name,
+				rows: props.rows,
+				placeholder: props.placeholder,
+				required: props.required,
+				disabled: props.disabled,
+				invalid: () => visibleError() !== undefined,
+				describedBy: ids.describedBy,
+				value: () => field.value(),
+				onInput: set,
+				onBlur: () => field.markTouched(),
+			})}${
+				props.description === undefined
+					? null
+					: FieldDescription({ children: props.description })
+			}${FieldError({ children: visibleError })}`,
 	});
 });
 

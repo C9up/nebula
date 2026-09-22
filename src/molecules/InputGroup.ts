@@ -11,64 +11,48 @@
  */
 
 import { component, html } from "@c9up/aurora";
+import { Button, type ButtonVariants } from "../atoms/Button.js";
 import { Input, type InputProps } from "../atoms/Input.js";
+import { Textarea, type TextareaProps } from "../atoms/Textarea.js";
 import { type Slot, slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { type Reactive, read } from "../lib/props.js";
-import { styledDiv } from "../lib/styled.js";
+
+export const inputGroupControlClasses =
+	"flex-1 rounded-none border-0 bg-transparent px-0 shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 disabled:opacity-100 dark:bg-transparent";
 
 export interface InputGroupProps {
 	children?: Slot;
-	/** Before the input — an icon or a static prefix. */
-	leading?: Slot;
-	/** After the input — a unit, a button, a spinner. */
-	trailing?: Slot;
 	invalid?: Reactive<boolean>;
 	disabled?: Reactive<boolean>;
 	class?: Reactive<string>;
 }
 
 /**
- * Strip the inner input of its own chrome.
+ * InputGroup — a control with things attached to it.
  *
- * Put these ON the input. The group cannot do it from the outside: a descendant
- * variant like `[&_input]:border-0` has to exist as a literal for Tailwind to
- * generate a rule for it, and building one by joining this string at runtime
- * produces class names no stylesheet ever defines — the input keeps its border
- * and draws a second one inside the group's, with nothing raised to say so.
- *
- * {@link InputGroupInput} applies them for you. This export is for a caller
- * passing a plain `<input>` instead.
+ * The border, the ring and the invalid state live on the GROUP, not on the
+ * control: an input with its own border inside a bordered group draws two
+ * rectangles, and a focus ring around the input alone leaves the addons
+ * outside it. So the control gives all of that up — that is the whole of
+ * `inputGroupControlClasses` — and `focus-within` moves the ring to the group.
  */
-export const inputGroupControlClasses =
-	"flex-1 border-0 bg-transparent px-0 shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 disabled:opacity-100";
-
-export const InputGroup = component<InputGroupProps>((props) => {
-	return html`<div
+export const InputGroup = component<InputGroupProps>(
+	(props) => html`<div
 		data-slot="input-group"
 		data-disabled="${() => (read(props.disabled) === true ? "" : undefined)}"
 		aria-invalid="${() => (read(props.invalid) === true ? "true" : undefined)}"
 		class="${() =>
 			cn(
-				"border-input dark:bg-input/30 flex h-9 w-full min-w-0 items-center gap-2 rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow]",
+				"group/input-group border-input dark:bg-input/30 relative flex h-9 w-full min-w-0 items-center gap-2 rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none",
 				"focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
 				"aria-invalid:border-destructive aria-invalid:ring-destructive/20",
 				"data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
 				read(props.class),
 			)}"
-	>
-		${slot(props.leading)}${slot(props.children)}${slot(props.trailing)}
-	</div>`;
-});
+	>${slot(props.children)}</div>`,
+);
 
-/**
- * The input that belongs inside an {@link InputGroup}.
- *
- * Same component as {@link Input}, with the group's stripping applied first so
- * a caller's own `class` still wins. This is where the classes have to live:
- * the group carries the border and the ring, and the input has to bring none
- * of its own.
- */
 export const InputGroupInput = component<InputProps>((props) =>
 	Input({
 		...props,
@@ -76,7 +60,76 @@ export const InputGroupInput = component<InputProps>((props) =>
 	}),
 );
 
-export const InputGroupAddon = styledDiv(
-	"input-group-addon",
-	"text-muted-foreground flex shrink-0 items-center gap-2 [&_svg:not([class*='size-'])]:size-4",
+export const InputGroupTextarea = component<TextareaProps>((props) =>
+	Textarea({
+		...props,
+		class: () =>
+			cn(inputGroupControlClasses, "resize-none py-3", read(props.class)),
+	}),
+);
+
+export interface InputGroupAddonProps {
+	children?: Slot;
+	/** Which end it sits at. `block-*` stacks it above or below the control. */
+	align?: "inline-start" | "inline-end" | "block-start" | "block-end";
+	class?: Reactive<string>;
+}
+
+/** An icon, a unit, a button — anything beside the control. */
+export const InputGroupAddon = component<InputGroupAddonProps>(
+	(props) => html`<div
+		data-slot="input-group-addon"
+		data-align="${props.align ?? "inline-start"}"
+		class="${() =>
+			cn(
+				"text-muted-foreground flex shrink-0 items-center gap-2 text-sm [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+				read(props.class),
+			)}"
+	>${slot(props.children)}</div>`,
+);
+
+export interface InputGroupButtonProps {
+	children?: Slot;
+	type?: "button" | "submit" | "reset";
+	variant?: ButtonVariants["variant"];
+	size?: ButtonVariants["size"];
+	disabled?: Reactive<boolean>;
+	onClick?: (event: MouseEvent) => void;
+	class?: Reactive<string>;
+}
+
+/**
+ * A button inside the group.
+ *
+ * `ghost` and the smallest size by default: a filled button the height of the
+ * field turns the group into two controls side by side, which is exactly what
+ * the group exists to avoid looking like.
+ */
+export const InputGroupButton = component<InputGroupButtonProps>((props) =>
+	Button({
+		type: props.type ?? "button",
+		variant: props.variant ?? "ghost",
+		size: props.size ?? "sm",
+		disabled: props.disabled,
+		onClick: props.onClick,
+		class: () => cn("shadow-none", read(props.class)),
+		children: props.children,
+	}),
+);
+
+export interface InputGroupTextProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+/** Static text in the group — a currency symbol, a domain suffix. */
+export const InputGroupText = component<InputGroupTextProps>(
+	(props) => html`<span
+		data-slot="input-group-text"
+		class="${() =>
+			cn(
+				"text-muted-foreground flex items-center gap-2 text-sm [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+				read(props.class),
+			)}"
+	>${slot(props.children)}</span>`,
 );

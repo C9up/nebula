@@ -16,7 +16,6 @@
 import { form, html, type TemplateResult } from "@c9up/aurora";
 import { afterEach, describe, expect, it } from "vitest";
 import * as atoms from "../../src/atoms/index.js";
-import { fieldIds } from "../../src/molecules/Field.js";
 import * as molecules from "../../src/molecules/index.js";
 import * as organisms from "../../src/organisms/index.js";
 import * as templates from "../../src/templates/index.js";
@@ -220,11 +219,15 @@ const cases: readonly Case[] = [
 		name: "field",
 		slot: "field",
 		build: () => {
-			const ids = fieldIds();
+			const ids = molecules.fieldIds();
 			return molecules.Field({
 				ids,
-				label: "Email",
-				children: atoms.Input({ id: ids.control }),
+				children: () =>
+					html`${molecules.FieldLabel({
+						children: "Email",
+					})}${atoms.Input({ id: ids.control })}${molecules.FieldDescription({
+						children: "We never share it.",
+					})}${molecules.FieldError({ children: undefined })}`,
 			});
 		},
 	},
@@ -232,7 +235,14 @@ const cases: readonly Case[] = [
 		name: "input-group",
 		slot: "input-group",
 		build: () =>
-			molecules.InputGroup({ leading: "@", children: atoms.Input({}) }),
+			molecules.InputGroup({
+				children: html`${molecules.InputGroupAddon({
+					children: "@",
+				})}${molecules.InputGroupInput({})}${molecules.InputGroupAddon({
+					align: "inline-end",
+					children: molecules.InputGroupText({ children: ".com" }),
+				})}`,
+			}),
 	},
 	{
 		name: "input-otp",

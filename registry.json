@@ -531,9 +531,7 @@
         "lib/styled.ts",
         "molecules/Field.ts"
       ],
-      "dependencies": [
-        "label"
-      ]
+      "dependencies": []
     },
     {
       "name": "form",
@@ -606,11 +604,12 @@
         "lib/children.ts",
         "lib/cn.ts",
         "lib/props.ts",
-        "lib/styled.ts",
         "molecules/InputGroup.ts"
       ],
       "dependencies": [
-        "input"
+        "button",
+        "input",
+        "textarea"
       ]
     },
     {
