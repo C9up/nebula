@@ -17,21 +17,44 @@
  * the edge carries none of that.
  */
 
-import { component, html, onMount, onUnmount, signal } from "@c9up/aurora";
+import {
+	component,
+	createContext,
+	html,
+	inject,
+	onMount,
+	onUnmount,
+	provide,
+	signal,
+} from "@c9up/aurora";
 import { buttonVariants } from "../atoms/Button.js";
-import type { Child } from "../lib/children.js";
+import type { Parts, Slot } from "../lib/children.js";
+import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { ArrowLeftIcon, ArrowRightIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read } from "../lib/props.js";
 
+interface CarouselApi {
+	readonly trackId: string;
+	readonly horizontal: boolean;
+	readonly atStart: () => boolean;
+	readonly atEnd: () => boolean;
+	/** Claim the next slide's position, for its "n of m" label. */
+	claimSlide(): number;
+	readonly slideCount: () => number;
+	scrollByPage(direction: 1 | -1): void;
+	syncEdges(): void;
+}
+
+const CarouselContext = createContext<CarouselApi>("Carousel");
+
 export interface CarouselProps {
-	slides: readonly Child[];
 	/** Announced before the slides. */
 	label?: string;
 	orientation?: "horizontal" | "vertical";
 	class?: Reactive<string>;
-	slideClass?: Reactive<string>;
+	children?: Parts;
 }
 
 export const Carousel = component<CarouselProps>((props) => {
@@ -39,18 +62,18 @@ export const Carousel = component<CarouselProps>((props) => {
 	const horizontal = props.orientation !== "vertical";
 	const atStart = signal(true);
 	const atEnd = signal(false);
+	let slides = 0;
 
 	function track(): HTMLElement | null {
 		return document.getElementById(trackId);
 	}
 
 	/**
-	 * Recompute whether either end is reached.
+	 * Which arrows are usable, read from the scroll position.
 	 *
-	 * The one-pixel tolerance is load-bearing: with fractional device pixel
-	 * ratios, `scrollLeft` at the far end lands a fraction short of
-	 * `scrollWidth - clientWidth`, and an exact comparison leaves the "next"
-	 * button enabled on a carousel that cannot scroll any further.
+	 * Derived rather than tracked: the track is a scroll container, so a drag,
+	 * a wheel, a trackpad swipe and the buttons all move it, and only the
+	 * element knows where it ended up.
 	 */
 	function syncEdges(): void {
 		const element = track();
@@ -98,7 +121,19 @@ export const Carousel = component<CarouselProps>((props) => {
 		window.removeEventListener("resize", syncEdges);
 	});
 
-	const count = props.slides.length;
+	provide<CarouselApi>(CarouselContext, {
+		trackId,
+		horizontal,
+		atStart: () => atStart(),
+		atEnd: () => atEnd(),
+		claimSlide() {
+			slides += 1;
+			return slides;
+		},
+		slideCount: () => slides,
+		scrollByPage,
+		syncEdges,
+	});
 
 	return html`<div
 		data-slot="carousel"
@@ -107,55 +142,97 @@ export const Carousel = component<CarouselProps>((props) => {
 		aria-label="${props.label ?? "Carousel"}"
 		class="${() => cn("relative", read(props.class))}"
 		@keydown="${onKeyDown}"
-	>
-		<div
-			data-slot="carousel-track"
-			id="${trackId}"
-			tabindex="0"
-			class="${cn(
-				"flex snap-mandatory gap-4 overflow-auto scroll-smooth outline-none motion-reduce:scroll-auto",
-				horizontal
-					? "snap-x flex-row [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-					: "snap-y max-h-96 flex-col [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+	>${props.children?.()}</div>`;
+});
+
+export interface CarouselContentProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+/** The scroll container. */
+export const CarouselContent = component<CarouselContentProps>((props) => {
+	const carousel = inject(CarouselContext);
+	return html`<div
+		data-slot="carousel-content"
+		id="${carousel.trackId}"
+		tabindex="0"
+		class="${() =>
+			cn(
+				"flex snap-mandatory gap-4 overflow-auto scroll-smooth outline-none motion-reduce:scroll-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+				carousel.horizontal ? "snap-x flex-row" : "snap-y max-h-96 flex-col",
+				read(props.class),
 			)}"
-		>
-			${props.slides.map(
-				(child, index) => html`<div
-					data-slot="carousel-slide"
-					role="group"
-					aria-roledescription="slide"
-					aria-label="${`${index + 1} of ${count}`}"
-					class="${() => cn("min-w-0 shrink-0 grow-0 basis-full snap-start", read(props.slideClass))}"
-				>${child}</div>`,
-			)}
-		</div>
-		<button
-			type="button"
-			data-slot="carousel-previous"
-			aria-label="Previous slide"
-			?disabled="${() => atStart()}"
-			class="${cn(
+	>${slot(props.children)}</div>`;
+});
+
+export interface CarouselItemProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+/**
+ * One slide.
+ *
+ * Claims its position as it is built, which is what `"3 of 7"` needs — and the
+ * count is only final once every slide has been built, so the label reads it
+ * lazily rather than capturing it.
+ */
+export const CarouselItem = component<CarouselItemProps>((props) => {
+	const carousel = inject(CarouselContext);
+	const position = carousel.claimSlide();
+	return html`<div
+		data-slot="carousel-item"
+		role="group"
+		aria-roledescription="slide"
+		aria-label="${() => `${position} of ${carousel.slideCount()}`}"
+		class="${() =>
+			cn("min-w-0 shrink-0 grow-0 basis-full snap-start", read(props.class))}"
+	>${slot(props.children)}</div>`;
+});
+
+export interface CarouselButtonProps {
+	class?: Reactive<string>;
+}
+
+const arrowClasses = "absolute size-8 rounded-full";
+
+export const CarouselPrevious = component<CarouselButtonProps>((props) => {
+	const carousel = inject(CarouselContext);
+	return html`<button
+		type="button"
+		data-slot="carousel-previous"
+		aria-label="Previous slide"
+		?disabled="${() => carousel.atStart()}"
+		class="${() =>
+			cn(
 				buttonVariants({ variant: "outline", size: "icon" }),
-				"absolute size-8 rounded-full",
-				horizontal
+				arrowClasses,
+				carousel.horizontal
 					? "top-1/2 -left-12 -translate-y-1/2"
 					: "-top-12 left-1/2 -translate-x-1/2 rotate-90",
+				read(props.class),
 			)}"
-			@click="${() => scrollByPage(-1)}"
-		>${ArrowLeftIcon({ class: "size-4" })}</button>
-		<button
-			type="button"
-			data-slot="carousel-next"
-			aria-label="Next slide"
-			?disabled="${() => atEnd()}"
-			class="${cn(
+		@click="${() => carousel.scrollByPage(-1)}"
+	>${ArrowLeftIcon({ class: "size-4" })}</button>`;
+});
+
+export const CarouselNext = component<CarouselButtonProps>((props) => {
+	const carousel = inject(CarouselContext);
+	return html`<button
+		type="button"
+		data-slot="carousel-next"
+		aria-label="Next slide"
+		?disabled="${() => carousel.atEnd()}"
+		class="${() =>
+			cn(
 				buttonVariants({ variant: "outline", size: "icon" }),
-				"absolute size-8 rounded-full",
-				horizontal
+				arrowClasses,
+				carousel.horizontal
 					? "top-1/2 -right-12 -translate-y-1/2"
 					: "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
+				read(props.class),
 			)}"
-			@click="${() => scrollByPage(1)}"
-		>${ArrowRightIcon({ class: "size-4" })}</button>
-	</div>`;
+		@click="${() => carousel.scrollByPage(1)}"
+	>${ArrowRightIcon({ class: "size-4" })}</button>`;
 });

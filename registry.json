@@ -617,7 +617,9 @@
       "title": "InputOTP",
       "layer": "molecules",
       "files": [
+        "lib/children.ts",
         "lib/cn.ts",
+        "lib/icons.ts",
         "lib/id.ts",
         "lib/props.ts",
         "molecules/InputOTP.ts"

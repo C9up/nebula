@@ -14,7 +14,7 @@
 
 import { component, html } from "@c9up/aurora";
 import { buttonVariants } from "../atoms/Button.js";
-import type { Child } from "../lib/children.js";
+import { type Slot, slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import {
 	ChevronLeftIcon,
@@ -23,18 +23,6 @@ import {
 } from "../lib/icons.js";
 import { type Reactive, read } from "../lib/props.js";
 
-export interface PaginationProps {
-	page: Reactive<number>;
-	pageCount: Reactive<number>;
-	/** How many numbered links to show, ellipses included. Default `7`. */
-	window?: number;
-	/** Build an href per page. Omit for a button-driven pagination. */
-	href?: (page: number) => string;
-	onPageChange?: (page: number) => void;
-	class?: Reactive<string>;
-}
-
-/** `null` marks a gap that renders as an ellipsis. */
 export type PageSlot = number | null;
 
 /**
@@ -86,112 +74,119 @@ function range(from: number, to: number): number[] {
 	return out;
 }
 
-export const Pagination = component<PaginationProps>((props) => {
-	const page = (): number => read(props.page) ?? 1;
-	const pageCount = (): number => Math.max(1, read(props.pageCount) ?? 1);
+export interface PaginationProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
 
-	const go = (target: number) => (event: MouseEvent) => {
-		if (props.onPageChange === undefined) return;
-		// Only intercept when the caller wants callback-driven paging. With an
-		// `href` and no handler the link must navigate normally.
-		event.preventDefault();
-		props.onPageChange(Math.min(Math.max(target, 1), pageCount()));
-	};
-
-	return html`<nav
+export const Pagination = component<PaginationProps>(
+	(props) => html`<nav
 		data-slot="pagination"
 		role="navigation"
 		aria-label="pagination"
 		class="${() => cn("mx-auto flex w-full justify-center", read(props.class))}"
-	>
-		<ul data-slot="pagination-content" class="flex flex-row items-center gap-1">
-			<li>
-				${link({
-					label: html`${ChevronLeftIcon({ class: "size-4" })}<span class="hidden sm:block">Previous</span>`,
-					ariaLabel: "Go to previous page",
-					href: props.href?.(page() - 1),
-					disabled: () => page() <= 1,
-					onClick: go(page() - 1),
-					size: "default",
-					extra: "gap-1 px-2.5 sm:pl-2.5",
-				})}
-			</li>
-			${() =>
-				pageWindow(page(), pageCount(), props.window ?? 7).map(
-					(entry, index) =>
-						entry === null
-							? html`<li aria-hidden="true">
-								<span class="flex size-9 items-center justify-center">
-									${MoreHorizontalIcon({ class: "size-4" })}
-									<span class="sr-only">More pages</span>
-								</span>
-							</li>`
-							: html`<li>
-								${link({
-									label: String(entry),
-									ariaLabel: `Go to page ${entry}`,
-									href: props.href?.(entry),
-									current: entry === page(),
-									onClick: go(entry),
-									size: "icon",
-									key: index,
-								})}
-							</li>`,
-				)}
-			<li>
-				${link({
-					label: html`<span class="hidden sm:block">Next</span>${ChevronRightIcon({ class: "size-4" })}`,
-					ariaLabel: "Go to next page",
-					href: props.href?.(page() + 1),
-					disabled: () => page() >= pageCount(),
-					onClick: go(page() + 1),
-					size: "default",
-					extra: "gap-1 px-2.5 sm:pr-2.5",
-				})}
-			</li>
-		</ul>
-	</nav>`;
-});
+	>${slot(props.children)}</nav>`,
+);
 
-interface LinkSpec {
-	label: Child;
-	ariaLabel: string;
+export const PaginationContent = component<PaginationProps>(
+	(props) => html`<ul
+		data-slot="pagination-content"
+		class="${() => cn("flex flex-row items-center gap-1", read(props.class))}"
+	>${slot(props.children)}</ul>`,
+);
+
+export const PaginationItem = component<PaginationProps>(
+	(props) => html`<li
+		data-slot="pagination-item"
+	>${slot(props.children)}</li>`,
+);
+
+export interface PaginationLinkProps {
+	children?: Slot;
 	href?: string;
-	current?: boolean;
-	disabled?: () => boolean;
-	onClick: (event: MouseEvent) => void;
-	size: "default" | "icon";
-	extra?: string;
-	key?: number;
+	/** The page the user is on. Carries `aria-current="page"`. */
+	isActive?: Reactive<boolean>;
+	size?: "default" | "icon";
+	disabled?: Reactive<boolean>;
+	onSelect?: (event: MouseEvent) => void;
+	"aria-label"?: string;
+	class?: Reactive<string>;
 }
 
 /**
  * One page link.
  *
- * Always an `<a>`, even without an `href`: pagination is navigation, and the
- * role is what a screen reader uses to offer "list of links" here. The
- * disabled ends carry `aria-disabled` plus `pointer-events-none` rather than
- * being removed, so the control keeps its width at both ends of the range.
+ * An `<a>` whether or not it has an `href`, because that is what upstream
+ * renders and what a pagination IS: a list of destinations. `onSelect`
+ * intercepts only when it is given — with an `href` and no handler the link
+ * must navigate normally, which is what makes a server-rendered pagination
+ * work with JavaScript off.
  */
-function link(spec: LinkSpec): Child {
-	const disabled = (): boolean => spec.disabled?.() === true;
-
+export const PaginationLink = component<PaginationLinkProps>((props) => {
+	const active = (): boolean => read(props.isActive) === true;
+	function onClick(event: MouseEvent): void {
+		if (read(props.disabled) === true) {
+			event.preventDefault();
+			return;
+		}
+		if (props.onSelect === undefined) return;
+		event.preventDefault();
+		props.onSelect(event);
+	}
 	return html`<a
 		data-slot="pagination-link"
-		href="${spec.href}"
-		aria-label="${spec.ariaLabel}"
-		aria-current="${spec.current === true ? "page" : undefined}"
-		aria-disabled="${() => (disabled() ? "true" : undefined)}"
-		tabindex="${() => (disabled() ? -1 : 0)}"
+		href="${props.href}"
+		aria-current="${() => (active() ? "page" : undefined)}"
+		aria-label="${props["aria-label"]}"
+		aria-disabled="${() => (read(props.disabled) === true ? "true" : undefined)}"
+		data-active="${() => (active() ? "true" : "false")}"
 		class="${() =>
 			cn(
 				buttonVariants({
-					variant: spec.current === true ? "outline" : "ghost",
-					size: spec.size,
+					variant: active() ? "outline" : "ghost",
+					size: props.size ?? "icon",
 				}),
-				spec.extra,
-				disabled() ? "pointer-events-none opacity-50" : "",
+				read(props.disabled) === true ? "pointer-events-none opacity-50" : "",
+				read(props.class),
 			)}"
-		@click="${spec.onClick}"
-	>${spec.label}</a>`;
+		@click="${onClick}"
+	>${slot(props.children)}</a>`;
+});
+
+export type PaginationStepProps = Omit<
+	PaginationLinkProps,
+	"size" | "isActive" | "aria-label"
+>;
+
+export const PaginationPrevious = component<PaginationStepProps>((props) =>
+	PaginationLink({
+		...props,
+		size: "default",
+		"aria-label": "Go to previous page",
+		class: () => cn("gap-1 px-2.5 sm:pl-2.5", read(props.class)),
+		children: html`${ChevronLeftIcon({})}<span class="hidden sm:block">Previous</span>`,
+	}),
+);
+
+export const PaginationNext = component<PaginationStepProps>((props) =>
+	PaginationLink({
+		...props,
+		size: "default",
+		"aria-label": "Go to next page",
+		class: () => cn("gap-1 px-2.5 sm:pr-2.5", read(props.class)),
+		children: html`<span class="hidden sm:block">Next</span>${ChevronRightIcon({})}`,
+	}),
+);
+
+export interface PaginationEllipsisProps {
+	class?: Reactive<string>;
 }
+
+/** Stands in for the pages that did not fit — see `pageWindow`. */
+export const PaginationEllipsis = component<PaginationEllipsisProps>(
+	(props) => html`<span
+		data-slot="pagination-ellipsis"
+		aria-hidden="true"
+		class="${() => cn("flex size-9 items-center justify-center", read(props.class))}"
+	>${MoreHorizontalIcon({ class: "size-4" })}<span class="sr-only">More pages</span></span>`,
+);

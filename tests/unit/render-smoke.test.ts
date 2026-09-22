@@ -247,7 +247,16 @@ const cases: readonly Case[] = [
 	{
 		name: "input-otp",
 		slot: "input-otp",
-		build: () => molecules.InputOTP({ length: 6 }),
+		build: () =>
+			molecules.InputOTP({
+				length: 6,
+				children: () =>
+					molecules.InputOTPGroup({
+						children: Array.from({ length: 6 }, () =>
+							molecules.InputOTPSlot({}),
+						),
+					}),
+			}),
 	},
 	{
 		name: "item",
@@ -273,7 +282,23 @@ const cases: readonly Case[] = [
 	{
 		name: "pagination",
 		slot: "pagination",
-		build: () => molecules.Pagination({ page: 3, pageCount: 20 }),
+		build: () =>
+			molecules.Pagination({
+				children: molecules.PaginationContent({
+					children: html`${molecules.PaginationItem({
+						children: molecules.PaginationPrevious({}),
+					})}${molecules.PaginationItem({
+						children: molecules.PaginationLink({
+							children: "1",
+							isActive: true,
+						}),
+					})}${molecules.PaginationItem({
+						children: molecules.PaginationEllipsis({}),
+					})}${molecules.PaginationItem({
+						children: molecules.PaginationNext({}),
+					})}`,
+				}),
+			}),
 	},
 	{
 		name: "radio-group",
@@ -292,9 +317,16 @@ const cases: readonly Case[] = [
 	},
 	{
 		name: "resizable",
-		slot: "resizable-group",
+		slot: "resizable-panel-group",
 		build: () =>
-			molecules.Resizable({ first: "L", second: "R", withHandle: true }),
+			molecules.ResizablePanelGroup({
+				children: () =>
+					html`${molecules.ResizablePanel({
+						children: "L",
+					})}${molecules.ResizableHandle({
+						withHandle: true,
+					})}${molecules.ResizablePanel({ children: "R" })}`,
+			}),
 	},
 	{
 		name: "table",
@@ -345,7 +377,15 @@ const cases: readonly Case[] = [
 	{
 		name: "carousel",
 		slot: "carousel",
-		build: () => organisms.Carousel({ slides: ["one", "two"] }),
+		build: () =>
+			organisms.Carousel({
+				children: () =>
+					html`${organisms.CarouselContent({
+						children: html`${organisms.CarouselItem({
+							children: "One",
+						})}${organisms.CarouselItem({ children: "Two" })}`,
+					})}${organisms.CarouselPrevious({})}${organisms.CarouselNext({})}`,
+			}),
 	},
 	{
 		name: "chart",

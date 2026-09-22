@@ -121,7 +121,16 @@ export {
 	type InputGroupTextProps,
 	inputGroupControlClasses,
 } from "./InputGroup.js";
-export { InputOTP, type InputOTPProps } from "./InputOTP.js";
+export {
+	InputOTP,
+	InputOTPGroup,
+	type InputOTPGroupProps,
+	type InputOTPProps,
+	InputOTPSeparator,
+	type InputOTPSeparatorProps,
+	InputOTPSlot,
+	type InputOTPSlotProps,
+} from "./InputOTP.js";
 export {
 	Item,
 	ItemActions,
@@ -139,7 +148,16 @@ export { Message, type MessageProps } from "./Message.js";
 export {
 	type PageSlot,
 	Pagination,
+	PaginationContent,
+	PaginationEllipsis,
+	type PaginationEllipsisProps,
+	PaginationItem,
+	PaginationLink,
+	type PaginationLinkProps,
+	PaginationNext,
+	PaginationPrevious,
 	type PaginationProps,
+	type PaginationStepProps,
 	pageWindow,
 } from "./Pagination.js";
 export { Picture, type PictureProps } from "./Picture.js";
@@ -149,7 +167,14 @@ export {
 	type RadioGroupItemProps,
 	type RadioGroupProps,
 } from "./RadioGroup.js";
-export { Resizable, type ResizableProps } from "./Resizable.js";
+export {
+	ResizableHandle,
+	type ResizableHandleProps,
+	ResizablePanel,
+	ResizablePanelGroup,
+	type ResizablePanelGroupProps,
+	type ResizablePanelProps,
+} from "./Resizable.js";
 export {
 	Table,
 	TableBody,

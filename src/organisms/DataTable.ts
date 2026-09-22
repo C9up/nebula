@@ -30,7 +30,16 @@ import {
 	ChevronsUpDownIcon,
 	ChevronUpIcon,
 } from "../lib/icons.js";
-import { Pagination } from "../molecules/Pagination.js";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationEllipsis,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+	pageWindow,
+} from "../molecules/Pagination.js";
 import {
 	Table,
 	TableBody,
@@ -271,16 +280,53 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 				}),
 			],
 		})}
-		${
-			props.pageSize === undefined
-				? null
-				: Pagination({
-						page: () => Math.min(page(), pageCount()),
-						pageCount,
-						onPageChange: (next) => page(next),
-					})
-		}
+		${props.pageSize === undefined ? null : renderPagination()}
 	</div>`;
+
+	/**
+	 * The page links.
+	 *
+	 * Composed from `Pagination`'s parts rather than described: `pageWindow`
+	 * still decides WHICH pages are shown — first, last, a run around the
+	 * current one and the gaps between — and the parts render that list.
+	 */
+	function renderPagination(): Child {
+		const current = (): number => Math.min(page(), pageCount());
+		const go = (target: number) => (): void => {
+			page(Math.min(Math.max(target, 1), pageCount()));
+		};
+		return Pagination({
+			children: () =>
+				PaginationContent({
+					children: [
+						PaginationItem({
+							children: PaginationPrevious({
+								disabled: () => current() <= 1,
+								onSelect: go(current() - 1),
+							}),
+						}),
+						...pageWindow(current(), pageCount()).map((entry) =>
+							PaginationItem({
+								children:
+									entry === null
+										? PaginationEllipsis({})
+										: PaginationLink({
+												children: String(entry),
+												isActive: () => current() === entry,
+												onSelect: go(entry),
+											}),
+							}),
+						),
+						PaginationItem({
+							children: PaginationNext({
+								disabled: () => current() >= pageCount(),
+								onSelect: go(current() + 1),
+							}),
+						}),
+					],
+				}),
+		});
+	}
 
 	function renderRow(row: Row): Child {
 		const key = props.rowKey(row);

@@ -41,7 +41,17 @@ export {
 	monthGrid,
 	startOfDay,
 } from "./Calendar.js";
-export { Carousel, type CarouselProps } from "./Carousel.js";
+export {
+	Carousel,
+	type CarouselButtonProps,
+	CarouselContent,
+	type CarouselContentProps,
+	CarouselItem,
+	type CarouselItemProps,
+	CarouselNext,
+	CarouselPrevious,
+	type CarouselProps,
+} from "./Carousel.js";
 export {
 	Chart,
 	type ChartDatum,

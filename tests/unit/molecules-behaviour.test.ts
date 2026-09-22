@@ -21,8 +21,16 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "../../src/molecules/Collapsible.js";
-import { InputOTP } from "../../src/molecules/InputOTP.js";
-import { Resizable } from "../../src/molecules/Resizable.js";
+import {
+	InputOTP,
+	InputOTPGroup,
+	InputOTPSlot,
+} from "../../src/molecules/InputOTP.js";
+import {
+	ResizableHandle,
+	ResizablePanel,
+	ResizablePanelGroup,
+} from "../../src/molecules/Resizable.js";
 import {
 	Tabs,
 	TabsContent,
@@ -348,6 +356,25 @@ describe("ToggleGroup", () => {
 });
 
 describe("InputOTP", () => {
+	/** The parts, assembled. `() =>` so the slots see the field's context. */
+	function otp(options: {
+		length: number;
+		name?: string;
+		onComplete?: (value: string) => void;
+	}) {
+		return InputOTP({
+			length: options.length,
+			name: options.name,
+			onComplete: options.onComplete,
+			children: () =>
+				InputOTPGroup({
+					children: Array.from({ length: options.length }, () =>
+						InputOTPSlot({}),
+					),
+				}),
+		});
+	}
+
 	function boxes(): HTMLInputElement[] {
 		return [
 			...document.querySelectorAll<HTMLInputElement>("input[data-otp-index]"),
@@ -360,7 +387,7 @@ describe("InputOTP", () => {
 	}
 
 	it("renders one box per character and one hidden field", () => {
-		const view = mount(InputOTP({ length: 4, name: "code" }));
+		const view = mount(otp({ length: 4, name: "code" }));
 		expect(boxes()).toHaveLength(4);
 		// One field, not four — the control posts as a single value.
 		expect(
@@ -370,7 +397,7 @@ describe("InputOTP", () => {
 	});
 
 	it("advances as you type and mirrors into the hidden field", () => {
-		const view = mount(InputOTP({ length: 3, name: "code" }));
+		const view = mount(otp({ length: 3, name: "code" }));
 		const inputs = boxes();
 		type(inputs[0] as HTMLInputElement, "1");
 		expect(document.activeElement).toBe(inputs[1]);
@@ -384,7 +411,7 @@ describe("InputOTP", () => {
 	});
 
 	it("keeps only the last character when a box already holds one", () => {
-		const view = mount(InputOTP({ length: 3 }));
+		const view = mount(otp({ length: 3 }));
 		const inputs = boxes();
 		type(inputs[0] as HTMLInputElement, "19");
 		expect(inputs[0]?.value).toBe("9");
@@ -393,7 +420,7 @@ describe("InputOTP", () => {
 
 	it("steps back and clears on backspace in an empty box", () => {
 		// What makes holding backspace erase the whole code.
-		const view = mount(InputOTP({ length: 3 }));
+		const view = mount(otp({ length: 3 }));
 		const inputs = boxes();
 		type(inputs[0] as HTMLInputElement, "1");
 		inputs[1]?.dispatchEvent(press("Backspace"));
@@ -402,7 +429,7 @@ describe("InputOTP", () => {
 	});
 
 	it("fills every box from a paste, wherever it started", () => {
-		const view = mount(InputOTP({ length: 6, name: "code" }));
+		const view = mount(otp({ length: 6, name: "code" }));
 		const inputs = boxes();
 		const paste = new Event("paste", { bubbles: true });
 		Object.defineProperty(paste, "clipboardData", {
@@ -419,7 +446,7 @@ describe("InputOTP", () => {
 
 	it("reports completion once every box is filled", () => {
 		const onComplete = vi.fn<(value: string) => void>();
-		const view = mount(InputOTP({ length: 2, onComplete }));
+		const view = mount(otp({ length: 2, onComplete }));
 		const inputs = boxes();
 		type(inputs[0] as HTMLInputElement, "7");
 		expect(onComplete).not.toHaveBeenCalled();
@@ -429,7 +456,7 @@ describe("InputOTP", () => {
 	});
 
 	it("offers the code to the OS autofill on the first box only", () => {
-		const view = mount(InputOTP({ length: 3 }));
+		const view = mount(otp({ length: 3 }));
 		const inputs = boxes();
 		expect(inputs[0]?.getAttribute("autocomplete")).toBe("one-time-code");
 		expect(inputs[1]?.getAttribute("autocomplete")).toBe("off");
@@ -438,10 +465,42 @@ describe("InputOTP", () => {
 });
 
 describe("Resizable", () => {
+	/** The parts, assembled. `() =>` so they see the group's context. */
+	function resizable(options: {
+		first: string;
+		second: string;
+		defaultSize?: number;
+		minSize?: number;
+		maxSize?: number;
+		direction?: "horizontal" | "vertical";
+		withHandle?: boolean;
+		onResize?: (percent: number) => void;
+	}) {
+		return ResizablePanelGroup({
+			direction: options.direction,
+			defaultSize: options.defaultSize,
+			minSize: options.minSize,
+			maxSize: options.maxSize,
+			onResize: options.onResize,
+			children: () =>
+				html`${ResizablePanel({
+					children: options.first,
+				})}${ResizableHandle({
+					withHandle: options.withHandle,
+				})}${ResizablePanel({ children: options.second })}`,
+		});
+	}
+
 	it("exposes the divider as a separator with a live value", () => {
 		// A resizable layout reachable only by dragging is unusable by keyboard,
 		// and a divider with no value says nothing about where it sits.
-		const view = mount(Resizable({ first: "L", second: "R", defaultSize: 40 }));
+		const view = mount(
+			resizable({
+				first: "L",
+				second: "R",
+				defaultSize: 40,
+			}),
+		);
 		const handle = document.querySelector("[data-slot='resizable-handle']");
 		expect(handle?.getAttribute("role")).toBe("separator");
 		expect(handle?.getAttribute("aria-valuenow")).toBe("40");
@@ -452,7 +511,12 @@ describe("Resizable", () => {
 	it("moves with the arrows", () => {
 		const onResize = vi.fn<(percent: number) => void>();
 		const view = mount(
-			Resizable({ first: "L", second: "R", defaultSize: 50, onResize }),
+			resizable({
+				first: "L",
+				second: "R",
+				defaultSize: 50,
+				onResize,
+			}),
 		);
 		const handle = document.querySelector<HTMLElement>(
 			"[data-slot='resizable-handle']",
@@ -467,7 +531,7 @@ describe("Resizable", () => {
 
 	it("jumps to the bounds with Home and End, and clamps to them", () => {
 		const view = mount(
-			Resizable({
+			resizable({
 				first: "L",
 				second: "R",
 				defaultSize: 50,
@@ -491,7 +555,11 @@ describe("Resizable", () => {
 
 	it("swaps to the vertical axis and its arrows", () => {
 		const view = mount(
-			Resizable({ first: "T", second: "B", direction: "vertical" }),
+			resizable({
+				first: "T",
+				second: "B",
+				direction: "vertical",
+			}),
 		);
 		const handle = document.querySelector<HTMLElement>(
 			"[data-slot='resizable-handle']",

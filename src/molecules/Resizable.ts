@@ -20,56 +20,137 @@
  * keyboard, and this is the whole of what it takes to fix that.
  */
 
-import { component, html, signal } from "@c9up/aurora";
-import { type Slot, slot } from "../lib/children.js";
+import {
+	component,
+	createContext,
+	html,
+	inject,
+	provide,
+	signal,
+} from "@c9up/aurora";
+import type { Parts, Slot } from "../lib/children.js";
+import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { GripVerticalIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read } from "../lib/props.js";
 
-export interface ResizableProps {
-	first?: Slot;
-	second?: Slot;
+const KEYBOARD_STEP = 5;
+
+interface ResizableApi {
+	readonly rootId: string;
+	readonly horizontal: boolean;
+	readonly min: number;
+	readonly max: number;
+	readonly size: () => number;
+	setSize(percent: number): void;
+	/** Claim a position: the FIRST panel is the one the size applies to. */
+	claimPanel(): number;
+}
+
+const ResizableContext = createContext<ResizableApi>("ResizablePanelGroup");
+
+export interface ResizablePanelGroupProps {
 	direction?: "horizontal" | "vertical";
 	/** First pane's share at first render, in percent. Default `50`. */
 	defaultSize?: number;
 	minSize?: number;
 	maxSize?: number;
-	/** Show the grip dots on the handle. */
-	withHandle?: boolean;
-	class?: Reactive<string>;
 	onResize?: (percent: number) => void;
+	class?: Reactive<string>;
+	children?: Parts;
 }
 
-const KEYBOARD_STEP = 5;
+export const ResizablePanelGroup = component<ResizablePanelGroupProps>(
+	(props) => {
+		const horizontal = props.direction !== "vertical";
+		const min = props.minSize ?? 10;
+		const max = props.maxSize ?? 90;
+		const size = signal(clamp(props.defaultSize ?? 50, min, max));
+		const rootId = uid("resizable");
+		let panels = 0;
 
-export const Resizable = component<ResizableProps>((props) => {
-	const horizontal = props.direction !== "vertical";
-	const min = props.minSize ?? 10;
-	const max = props.maxSize ?? 90;
-	const size = signal(clamp(props.defaultSize ?? 50, min, max));
-	const rootId = uid("resizable");
+		function setSize(percent: number): void {
+			const next = clamp(percent, min, max);
+			size(next);
+			props.onResize?.(next);
+		}
 
-	function setSize(percent: number): void {
-		const next = clamp(percent, min, max);
-		size(next);
-		props.onResize?.(next);
-	}
+		provide<ResizableApi>(ResizableContext, {
+			rootId,
+			horizontal,
+			min,
+			max,
+			size: () => size(),
+			setSize,
+			claimPanel() {
+				panels += 1;
+				return panels;
+			},
+		});
 
-	/**
-	 * Convert a pointer position into a percentage of the group.
-	 *
-	 * Measured against the group's own rect on every move rather than a rect
-	 * cached at drag start: the window can be resized mid-drag, and a stale rect
-	 * makes the divider drift away from the pointer.
-	 */
+		return html`<div
+			data-slot="resizable-panel-group"
+			id="${rootId}"
+			data-direction="${horizontal ? "horizontal" : "vertical"}"
+			class="${() =>
+				cn(
+					"flex h-full w-full",
+					horizontal ? "flex-row" : "flex-col",
+					read(props.class),
+				)}"
+		>${props.children?.()}</div>`;
+	},
+);
+
+export interface ResizablePanelProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+/**
+ * One pane.
+ *
+ * NAMED DEVIATION — two panes, not n. Upstream's `react-resizable-panels`
+ * distributes a size array across any number of panels and persists it;
+ * `ResizablePanelGroup` here holds ONE split, so the first panel takes the
+ * share and the second takes the rest. The parts are upstream's so a layout
+ * written against them reads the same; a third panel would simply have no
+ * share of its own.
+ */
+export const ResizablePanel = component<ResizablePanelProps>((props) => {
+	const group = inject(ResizableContext);
+	const first = group.claimPanel() === 1;
+	return html`<div
+		data-slot="resizable-panel"
+		class="${() => cn("overflow-hidden", first ? "" : "flex-1", read(props.class))}"
+		style="${() => (first ? `flex: 0 0 ${group.size()}%` : "")}"
+	>${slot(props.children)}</div>`;
+});
+
+export interface ResizableHandleProps {
+	/** Show the grip dots. */
+	withHandle?: boolean;
+	class?: Reactive<string>;
+}
+
+/**
+ * The divider.
+ *
+ * `role="separator"` with `aria-valuenow`, and it takes focus: the arrows,
+ * Home and End move it. A drag handle that only answers to a pointer is not
+ * reachable at all for a keyboard user, and there is no other way to resize.
+ */
+export const ResizableHandle = component<ResizableHandleProps>((props) => {
+	const group = inject(ResizableContext);
+
 	function percentAt(event: PointerEvent): number | null {
-		const root = document.getElementById(rootId);
+		const root = document.getElementById(group.rootId);
 		if (root === null) return null;
 		const rect = root.getBoundingClientRect();
-		const span = horizontal ? rect.width : rect.height;
+		const span = group.horizontal ? rect.width : rect.height;
 		if (span === 0) return null;
-		const offset = horizontal
+		const offset = group.horizontal
 			? event.clientX - rect.left
 			: event.clientY - rect.top;
 		return (offset / span) * 100;
@@ -83,7 +164,7 @@ export const Resizable = component<ResizableProps>((props) => {
 
 		const onMove = (move: PointerEvent): void => {
 			const percent = percentAt(move);
-			if (percent !== null) setSize(percent);
+			if (percent !== null) group.setSize(percent);
 		};
 		const onUp = (): void => {
 			target.releasePointerCapture(event.pointerId);
@@ -98,67 +179,49 @@ export const Resizable = component<ResizableProps>((props) => {
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {
-		const back = horizontal ? "ArrowLeft" : "ArrowUp";
-		const forward = horizontal ? "ArrowRight" : "ArrowDown";
+		const back = group.horizontal ? "ArrowLeft" : "ArrowUp";
+		const forward = group.horizontal ? "ArrowRight" : "ArrowDown";
 
 		if (event.key === back) {
 			event.preventDefault();
-			setSize(size() - KEYBOARD_STEP);
+			group.setSize(group.size() - KEYBOARD_STEP);
 		} else if (event.key === forward) {
 			event.preventDefault();
-			setSize(size() + KEYBOARD_STEP);
+			group.setSize(group.size() + KEYBOARD_STEP);
 		} else if (event.key === "Home") {
 			event.preventDefault();
-			setSize(min);
+			group.setSize(group.min);
 		} else if (event.key === "End") {
 			event.preventDefault();
-			setSize(max);
+			group.setSize(group.max);
 		}
 	}
 
 	return html`<div
-		data-slot="resizable-group"
-		id="${rootId}"
-		data-direction="${horizontal ? "horizontal" : "vertical"}"
+		data-slot="resizable-handle"
+		role="separator"
+		tabindex="0"
+		aria-orientation="${group.horizontal ? "vertical" : "horizontal"}"
+		aria-valuemin="${group.min}"
+		aria-valuemax="${group.max}"
+		aria-valuenow="${() => Math.round(group.size())}"
+		aria-label="Resize panes"
 		class="${() =>
 			cn(
-				"flex h-full w-full",
-				horizontal ? "flex-row" : "flex-col",
-				read(props.class),
-			)}"
-	>
-		<div
-			data-slot="resizable-panel"
-			class="overflow-hidden"
-			style="${() => `flex: 0 0 ${size()}%`}"
-		>${slot(props.first)}</div>
-		<div
-			data-slot="resizable-handle"
-			role="separator"
-			tabindex="0"
-			aria-orientation="${horizontal ? "vertical" : "horizontal"}"
-			aria-valuemin="${min}"
-			aria-valuemax="${max}"
-			aria-valuenow="${() => Math.round(size())}"
-			aria-label="Resize panes"
-			class="${cn(
 				"bg-border relative flex shrink-0 items-center justify-center outline-none",
 				"focus-visible:ring-ring focus-visible:ring-1 focus-visible:ring-offset-1",
-				horizontal ? "w-px cursor-col-resize" : "h-px cursor-row-resize",
+				group.horizontal ? "w-px cursor-col-resize" : "h-px cursor-row-resize",
+				read(props.class),
 			)}"
-			@pointerdown="${onPointerDown}"
-			@keydown="${onKeyDown}"
-		>
-			${
-				props.withHandle === true
-					? html`<span
-						class="bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border"
-					>${GripVerticalIcon({ class: "size-2.5" })}</span>`
-					: null
-			}
-		</div>
-		<div data-slot="resizable-panel" class="flex-1 overflow-hidden">${slot(props.second)}</div>
-	</div>`;
+		@pointerdown="${onPointerDown}"
+		@keydown="${onKeyDown}"
+	>${
+		props.withHandle === true
+			? html`<span
+					class="bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border"
+				>${GripVerticalIcon({ class: "size-2.5" })}</span>`
+			: null
+	}</div>`;
 });
 
 function clamp(value: number, min: number, max: number): number {

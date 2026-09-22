@@ -18,31 +18,53 @@
  * one field, rather than six.
  */
 
-import { component, html, signal } from "@c9up/aurora";
+import {
+	component,
+	createContext,
+	html,
+	inject,
+	provide,
+	signal,
+} from "@c9up/aurora";
+import type { Parts, Slot } from "../lib/children.js";
+import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
+import { MinusIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read, readOr } from "../lib/props.js";
 
+const slotClasses =
+	"border-input relative flex size-9 items-center justify-center border-y border-r text-center text-sm shadow-xs transition-all outline-none first:rounded-l-md first:border-l last:rounded-r-md focus:border-ring focus:ring-ring/50 focus:z-10 focus:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50";
+
+interface InputOTPApi {
+	readonly length: number;
+	readonly disabled: () => boolean;
+	/** Claim the next box's index, in the order the slots are built. */
+	claimSlot(): number;
+	onInput(index: number, event: Event): void;
+	onKeyDown(index: number, event: KeyboardEvent): void;
+	onPaste(index: number, event: ClipboardEvent): void;
+}
+
+const InputOTPContext = createContext<InputOTPApi>("InputOTP");
+
 export interface InputOTPProps {
-	/** Number of boxes. Default `6`. */
+	/** Number of boxes. Default `6` — and it must match the slots built. */
 	length?: number;
 	name?: string;
 	disabled?: Reactive<boolean>;
-	/** Insert a visual gap after this many boxes. `3` gives `123 456`. */
-	groupAfter?: number;
 	class?: Reactive<string>;
 	onValueChange?: (value: string) => void;
 	/** Fired once every box is filled. */
 	onComplete?: (value: string) => void;
+	children?: Parts;
 }
-
-const slotClasses =
-	"border-input relative flex size-9 items-center justify-center border-y border-r text-center text-sm shadow-xs transition-all outline-none first:rounded-l-md first:border-l last:rounded-r-md focus:border-ring focus:ring-ring/50 focus:z-10 focus:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50";
 
 export const InputOTP = component<InputOTPProps>((props) => {
 	const length = props.length ?? 6;
 	const groupId = uid("input-otp");
 	const characters = signal<readonly string[]>(new Array(length).fill(""));
+	let claimed = 0;
 
 	function boxes(): HTMLInputElement[] {
 		const root = document.getElementById(groupId);
@@ -74,93 +96,135 @@ export const InputOTP = component<InputOTPProps>((props) => {
 		commit(next);
 	}
 
-	function onInput(index: number, event: Event): void {
-		const target = event.target;
-		if (!(target instanceof HTMLInputElement)) return;
+	provide<InputOTPApi>(InputOTPContext, {
+		length,
+		disabled: () => readOr(props.disabled, false),
+		claimSlot() {
+			const index = claimed;
+			claimed += 1;
+			return index;
+		},
+		onInput(index, event) {
+			const target = event.target;
+			if (!(target instanceof HTMLInputElement)) return;
 
-		// A box already holding a character receives the new one appended; keep
-		// the last, which is what the user just typed.
-		const typed = target.value.slice(-1);
-		target.value = typed;
-		write(index, typed);
-		if (typed !== "" && index < length - 1) focusBox(index + 1);
-	}
-
-	function onKeyDown(index: number, event: KeyboardEvent): void {
-		if (event.key === "Backspace") {
-			if (characters()[index] === "" && index > 0) {
-				event.preventDefault();
-				write(index - 1, "");
-				focusBox(index - 1);
+			// A box already holding a character receives the new one appended; keep
+			// the last, which is what the user just typed.
+			const typed = target.value.slice(-1);
+			target.value = typed;
+			write(index, typed);
+			if (typed !== "" && index < length - 1) focusBox(index + 1);
+		},
+		onKeyDown(index, event) {
+			if (event.key === "Backspace") {
+				if (characters()[index] === "" && index > 0) {
+					event.preventDefault();
+					write(index - 1, "");
+					focusBox(index - 1);
+				}
+				return;
 			}
-			return;
-		}
-		if (event.key === "ArrowLeft") {
+			if (event.key === "ArrowLeft") {
+				event.preventDefault();
+				focusBox(index - 1);
+				return;
+			}
+			if (event.key === "ArrowRight") {
+				event.preventDefault();
+				focusBox(index + 1);
+			}
+		},
+		onPaste(index, event) {
+			const pasted = event.clipboardData?.getData("text") ?? "";
+			if (pasted === "") return;
 			event.preventDefault();
-			focusBox(index - 1);
-			return;
-		}
-		if (event.key === "ArrowRight") {
-			event.preventDefault();
-			focusBox(index + 1);
-		}
-	}
 
-	function onPaste(index: number, event: ClipboardEvent): void {
-		const pasted = event.clipboardData?.getData("text") ?? "";
-		if (pasted === "") return;
-		event.preventDefault();
+			const next = [...characters()];
+			let cursor = index;
+			for (const character of pasted) {
+				if (cursor >= length) break;
+				next[cursor] = character;
+				cursor += 1;
+			}
+			commit(next);
 
-		const next = [...characters()];
-		let cursor = index;
-		for (const character of pasted) {
-			if (cursor >= length) break;
-			next[cursor] = character;
-			cursor += 1;
-		}
-		commit(next);
-
-		// Reflect into the DOM: the boxes are uncontrolled between keystrokes, so
-		// writing the signal alone would leave the pasted characters invisible.
-		const inputs = boxes();
-		next.forEach((character, position) => {
-			const input = inputs[position];
-			if (input !== undefined) input.value = character;
-		});
-		focusBox(Math.min(cursor, length - 1));
-	}
-
-	const indices = Array.from({ length }, (_unused, index) => index);
+			// Reflect into the DOM: the boxes are uncontrolled between keystrokes,
+			// so writing the signal alone would leave the pasted characters
+			// invisible.
+			const inputs = boxes();
+			next.forEach((character, position) => {
+				const input = inputs[position];
+				if (input !== undefined) input.value = character;
+			});
+			focusBox(Math.min(cursor, length - 1));
+		},
+	});
 
 	return html`<div
 		data-slot="input-otp"
 		id="${groupId}"
 		class="${() => cn("flex items-center gap-2", read(props.class))}"
-	>
-		<div class="flex items-center">
-			${indices.map(
-				(index) => html`${
-					props.groupAfter !== undefined &&
-					index > 0 &&
-					index % props.groupAfter === 0
-						? html`<span aria-hidden="true" class="mx-1 text-muted-foreground">-</span>`
-						: null
-				}<input
-					data-slot="input-otp-slot"
-					data-otp-index="${index}"
-					type="text"
-					inputmode="numeric"
-					autocomplete="${index === 0 ? "one-time-code" : "off"}"
-					maxlength="1"
-					aria-label="${`Character ${index + 1} of ${length}`}"
-					?disabled="${() => readOr(props.disabled, false)}"
-					class="${slotClasses}"
-					@input="${(event: Event) => onInput(index, event)}"
-					@keydown="${(event: KeyboardEvent) => onKeyDown(index, event)}"
-					@paste="${(event: ClipboardEvent) => onPaste(index, event)}"
-				/>`,
-			)}
-		</div>
-		<input type="hidden" name="${props.name}" .value="${() => characters().join("")}" />
-	</div>`;
+	>${props.children?.()}<input
+			type="hidden"
+			name="${props.name}"
+			.value="${() => characters().join("")}"
+		/></div>`;
 });
+
+export interface InputOTPGroupProps {
+	children?: Slot;
+	class?: Reactive<string>;
+}
+
+/** A run of boxes with no gap between them. */
+export const InputOTPGroup = component<InputOTPGroupProps>(
+	(props) => html`<div
+		data-slot="input-otp-group"
+		class="${() => cn("flex items-center", read(props.class))}"
+	>${slot(props.children)}</div>`,
+);
+
+export interface InputOTPSlotProps {
+	class?: Reactive<string>;
+}
+
+/**
+ * One box.
+ *
+ * Claims its index as it is built, so the slots need no index prop and cannot
+ * be numbered wrongly. A real `<input>` per box rather than a single field
+ * with drawn cells: it is what gives each box its own caret, its own
+ * `autocomplete` and the one-time-code hint the platform fills from an SMS.
+ */
+export const InputOTPSlot = component<InputOTPSlotProps>((props) => {
+	const otp = inject(InputOTPContext);
+	const index = otp.claimSlot();
+	return html`<input
+		data-slot="input-otp-slot"
+		data-otp-index="${index}"
+		type="text"
+		inputmode="numeric"
+		autocomplete="${index === 0 ? "one-time-code" : "off"}"
+		maxlength="1"
+		aria-label="${`Character ${index + 1} of ${otp.length}`}"
+		?disabled="${() => otp.disabled()}"
+		class="${() => cn(slotClasses, read(props.class))}"
+		@input="${(event: Event) => otp.onInput(index, event)}"
+		@keydown="${(event: KeyboardEvent) => otp.onKeyDown(index, event)}"
+		@paste="${(event: ClipboardEvent) => otp.onPaste(index, event)}"
+	/>`;
+});
+
+export interface InputOTPSeparatorProps {
+	class?: Reactive<string>;
+}
+
+/** The dash between two groups. Decorative — the boxes carry the labels. */
+export const InputOTPSeparator = component<InputOTPSeparatorProps>(
+	(props) => html`<div
+		data-slot="input-otp-separator"
+		role="separator"
+		aria-hidden="true"
+		class="${() => cn("text-muted-foreground mx-1", read(props.class))}"
+	>${MinusIcon({ class: "size-4" })}</div>`,
+);
