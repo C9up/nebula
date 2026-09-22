@@ -1,9 +1,20 @@
 import { html } from "@c9up/aurora";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Command } from "../../src/organisms/Command.js";
-import { ContextMenu } from "../../src/organisms/ContextMenu.js";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "../../src/organisms/ContextMenu.js";
 import { DataTable } from "../../src/organisms/DataTable.js";
-import { Menubar } from "../../src/organisms/Menubar.js";
+import {
+	Menubar,
+	MenubarContent,
+	MenubarItem,
+	MenubarMenu,
+	MenubarTrigger,
+} from "../../src/organisms/Menubar.js";
 import { NavigationMenu } from "../../src/organisms/NavigationMenu.js";
 import { Questionnaire } from "../../src/organisms/Questionnaire.js";
 import {
@@ -544,8 +555,38 @@ describe("Menubar", () => {
 		{ label: "Edit", entries: [{ label: "Undo" }] },
 	];
 
+	/** The parts, assembled. `() =>` so they see the bar's context. */
+	function menubar(
+		bar: ReadonlyArray<{
+			label: string;
+			entries: ReadonlyArray<{ label: string; onSelect?: () => void }>;
+			disabled?: boolean;
+		}> = menus,
+	) {
+		return Menubar({
+			children: () =>
+				bar.map((menu) =>
+					MenubarMenu({
+						children: () =>
+							html`${MenubarTrigger({
+								children: menu.label,
+								disabled: menu.disabled,
+							})}${MenubarContent({
+								children: () =>
+									menu.entries.map((entry) =>
+										MenubarItem({
+											children: entry.label,
+											onSelect: entry.onSelect,
+										}),
+									),
+							})}`,
+					}),
+				),
+		});
+	}
+
 	it("presents the bar and its buttons with menubar roles", () => {
-		const view = mount(Menubar({ menus }));
+		const view = mount(menubar());
 		expect(one("[data-slot='menubar']")?.getAttribute("role")).toBe("menubar");
 		expect(all("[data-slot='menubar-trigger']")).toHaveLength(2);
 		expect(all("[data-slot='menubar-trigger']")[0]?.getAttribute("role")).toBe(
@@ -555,7 +596,7 @@ describe("Menubar", () => {
 	});
 
 	it("opens a menu on click and closes it on a second", () => {
-		const view = mount(Menubar({ menus }));
+		const view = mount(menubar());
 		const trigger = all("[data-slot='menubar-trigger']")[0];
 		trigger?.click();
 		expect(trigger?.getAttribute("aria-expanded")).toBe("true");
@@ -568,7 +609,7 @@ describe("Menubar", () => {
 
 	it("hands over on hover once a menu is already open", () => {
 		// What makes it a menubar rather than a row of independent dropdowns.
-		const view = mount(Menubar({ menus }));
+		const view = mount(menubar());
 		const triggers = all("[data-slot='menubar-trigger']");
 		triggers[0]?.click();
 		triggers[1]?.dispatchEvent(
@@ -581,7 +622,7 @@ describe("Menubar", () => {
 	});
 
 	it("stays shut when the pointer merely passes over it", () => {
-		const view = mount(Menubar({ menus }));
+		const view = mount(menubar());
 		const triggers = all("[data-slot='menubar-trigger']");
 		triggers[0]?.dispatchEvent(
 			new MouseEvent("pointerenter", { bubbles: true }),
@@ -593,7 +634,7 @@ describe("Menubar", () => {
 	it("opens with ArrowDown and lands on the first entry", () => {
 		// The role, not the text: the panel contains the item, so asserting the
 		// focused element's text passes even when focus is stuck on the panel.
-		const view = mount(Menubar({ menus }));
+		const view = mount(menubar());
 		const trigger = all("[data-slot='menubar-trigger']")[0];
 		trigger?.dispatchEvent(press("ArrowDown"));
 
@@ -606,14 +647,14 @@ describe("Menubar", () => {
 	it("holds focus on the panel when opened by pointer", () => {
 		// Nothing is pre-highlighted for a mouse user, but the panel still needs
 		// focus so Escape and the arrows reach it rather than the page behind.
-		const view = mount(Menubar({ menus }));
+		const view = mount(menubar());
 		all("[data-slot='menubar-trigger']")[0]?.click();
 		expect(document.activeElement?.getAttribute("role")).toBe("menu");
 		view.dispose();
 	});
 
 	it("walks the bar with the arrows while closed", () => {
-		const view = mount(Menubar({ menus }));
+		const view = mount(menubar());
 		const triggers = all("[data-slot='menubar-trigger']");
 		triggers[0]?.focus();
 		triggers[0]?.dispatchEvent(press("ArrowRight"));
@@ -623,9 +664,7 @@ describe("Menubar", () => {
 
 	it("skips a disabled menu", () => {
 		const view = mount(
-			Menubar({
-				menus: [{ label: "File", entries: [{ label: "New" }], disabled: true }],
-			}),
+			menubar([{ label: "File", entries: [{ label: "New" }], disabled: true }]),
 		);
 		const trigger = all("[data-slot='menubar-trigger']")[0];
 		trigger?.click();
@@ -637,9 +676,29 @@ describe("Menubar", () => {
 describe("ContextMenu", () => {
 	const entries = [{ label: "Cut" }, { label: "Copy" }];
 
+	/** The parts, assembled. `() =>` so they see the menu's context. */
+	function contextMenu(options: {
+		entries: ReadonlyArray<{ label: string; onSelect?: () => void }>;
+		onOpenChange?: (open: boolean) => void;
+	}) {
+		return ContextMenu({
+			onOpenChange: options.onOpenChange,
+			children: () =>
+				html`${ContextMenuTrigger({ children: "Region" })}${ContextMenuContent({
+					children: () =>
+						options.entries.map((entry) =>
+							ContextMenuItem({
+								children: entry.label,
+								onSelect: entry.onSelect,
+							}),
+						),
+				})}`,
+		});
+	}
+
 	it("opens on right-click, at the pointer", () => {
-		const view = mount(ContextMenu({ entries, children: "Region" }));
-		const region = one("[data-slot='context-menu']");
+		const view = mount(contextMenu({ entries }));
+		const region = one("[data-slot='context-menu-trigger']");
 		const event = new MouseEvent("contextmenu", {
 			bubbles: true,
 			clientX: 120,
@@ -659,22 +718,20 @@ describe("ContextMenu", () => {
 	});
 
 	it("suppresses the browser's own menu", () => {
-		const view = mount(ContextMenu({ entries, children: "Region" }));
+		const view = mount(contextMenu({ entries }));
 		const event = new MouseEvent("contextmenu", {
 			bubbles: true,
 			cancelable: true,
 		});
-		one("[data-slot='context-menu']")?.dispatchEvent(event);
+		one("[data-slot='context-menu-trigger']")?.dispatchEvent(event);
 		expect(event.defaultPrevented).toBe(true);
 		view.dispose();
 	});
 
 	it("reports opening and closing", () => {
 		const onOpenChange = vi.fn<(open: boolean) => void>();
-		const view = mount(
-			ContextMenu({ entries, children: "Region", onOpenChange }),
-		);
-		one("[data-slot='context-menu']")?.dispatchEvent(
+		const view = mount(contextMenu({ entries, onOpenChange }));
+		one("[data-slot='context-menu-trigger']")?.dispatchEvent(
 			new MouseEvent("contextmenu", { bubbles: true }),
 		);
 		expect(onOpenChange).toHaveBeenLastCalledWith(true);
@@ -686,10 +743,8 @@ describe("ContextMenu", () => {
 
 	it("runs an entry and closes", () => {
 		const onSelect = vi.fn();
-		const view = mount(
-			ContextMenu({ entries: [{ label: "Cut", onSelect }], children: "R" }),
-		);
-		one("[data-slot='context-menu']")?.dispatchEvent(
+		const view = mount(contextMenu({ entries: [{ label: "Cut", onSelect }] }));
+		one("[data-slot='context-menu-trigger']")?.dispatchEvent(
 			new MouseEvent("contextmenu", { bubbles: true }),
 		);
 		one("[role='menuitem']")?.click();

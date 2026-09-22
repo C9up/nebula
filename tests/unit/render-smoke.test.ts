@@ -362,11 +362,15 @@ const cases: readonly Case[] = [
 	},
 	{
 		name: "context-menu",
-		slot: "context-menu",
+		slot: "context-menu-trigger",
 		build: () =>
 			organisms.ContextMenu({
-				entries: [{ label: "Cut" }],
-				children: "Region",
+				children: () =>
+					html`${organisms.ContextMenuTrigger({
+						children: "Region",
+					})}${organisms.ContextMenuContent({
+						children: () => organisms.ContextMenuItem({ children: "Cut" }),
+					})}`,
 			}),
 	},
 	{
@@ -445,7 +449,15 @@ const cases: readonly Case[] = [
 		slot: "menubar",
 		build: () =>
 			organisms.Menubar({
-				menus: [{ label: "File", entries: [{ label: "New" }] }],
+				children: () =>
+					organisms.MenubarMenu({
+						children: () =>
+							html`${organisms.MenubarTrigger({
+								children: "File",
+							})}${organisms.MenubarContent({
+								children: () => organisms.MenubarItem({ children: "New" }),
+							})}`,
+					}),
 			}),
 	},
 	{
