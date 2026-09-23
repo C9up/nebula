@@ -1,44 +1,16 @@
 /**
- * Stable element ids.
+ * Stable element ids — aurora's counter, re-exported.
  *
- * Radix leans on React's `useId` to wire ARIA relationships — a trigger's
- * `aria-controls` has to name the id its content actually carries. Aurora has
- * no equivalent, and nebula needs one for two reasons: the ARIA wiring above,
- * and element lookup. Aurora templates have no `ref` directive, so a component
- * that must measure or focus a node finds it by id inside `onMount()`.
+ * It was nebula's own, and that was the bug: aurora resets its sequence at the
+ * start of each render pass (`renderPage` server-side, `hydrate` in the
+ * browser), and a second counter living here saw none of those resets. A
+ * long-lived server therefore shipped `tooltip-trigger-14` while the browser,
+ * hydrating from zero, minted `tooltip-trigger-1` and looked it up — so
+ * `byId` answered `null`, `floatingSurface` had no anchor, and the tooltip
+ * never opened although its mount hook had run and its trigger was wired.
  *
- * The counter is monotonic per module instance, so the sequence depends only
- * on the order components are constructed in. That order is identical on the
- * server and in the browser for the same tree, which is what makes the ids
- * survive hydration — the same property React's `useId` relies on.
- *
- * `resetIds()` exists for the server: a long-lived process renders many
- * requests, and without a reset the counter climbs forever and every response
- * ships different markup, defeating any HTML cache. Call it once per render
- * pass, before the tree is built.
+ * Every id nebula mints has to come from the same counter aurora resets; the
+ * names are kept so nothing importing them has to change.
  */
 
-let counter = 0;
-
-/** Mint an id unique within this render pass. */
-export function uid(prefix = "nebula"): string {
-	counter += 1;
-	return `${prefix}-${counter}`;
-}
-
-/** Restart the sequence. Call once per SSR render, before building the tree. */
-export function resetIds(): void {
-	counter = 0;
-}
-
-/**
- * Look an element up by the id a component minted for it.
- *
- * Returns `null` off the DOM (SSR) or before mount rather than throwing, so
- * callers can run the same code in both environments. Every consumer inside
- * nebula is in `onMount`, where the node is live.
- */
-export function byId(id: string): HTMLElement | null {
-	if (typeof document === "undefined") return null;
-	return document.getElementById(id);
-}
+export { byId, resetIds, uid } from "@c9up/aurora";
