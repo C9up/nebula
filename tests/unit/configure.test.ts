@@ -6,15 +6,38 @@
  * here it is a recorder, which is all the hook actually needs.
  */
 
+import { readFileSync } from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configure } from "../../src/configure.js";
 
 interface Written {
 	path: string;
 	content: string;
+}
+
+/**
+ * Read a stub the way `codemods.makeUsingStub` does.
+ *
+ * The real file, not a fixture: a test that stubbed this out would pass with
+ * a stub that does not exist.
+ */
+function renderStub(
+	stubsRoot: string,
+	stubPath: string,
+	state: Record<string, string | number | boolean>,
+): { to: string; body: string } {
+	const raw = readFileSync(resolve(stubsRoot, stubPath), "utf8");
+	const [, front = "", body = ""] = raw.split(/^---\r?\n/m, 3);
+	const declared = /^to:\s*(.+)$/m.exec(front)?.[1]?.trim() ?? "";
+	const render = (text: string): string =>
+		text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key: string) =>
+			state[key] === undefined ? match : String(state[key]),
+		);
+	return { to: render(declared), body: render(body) };
 }
 
 function recorder() {
@@ -26,6 +49,15 @@ function recorder() {
 		codemods: {
 			writeFile: async (path: string, content: string): Promise<void> => {
 				files.push({ path, content });
+			},
+			makeUsingStub: async (
+				stubsRoot: string,
+				stubPath: string,
+				state: Record<string, string | number | boolean> = {},
+			): Promise<{ path: string; contents: string }> => {
+				const { to, body } = renderStub(stubsRoot, stubPath, state);
+				files.push({ path: to, content: body });
+				return { path: to, contents: body };
 			},
 			registerCommand: async (importPath: string): Promise<void> => {
 				commands.push(importPath);

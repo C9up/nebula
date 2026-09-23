@@ -1,0 +1,21 @@
+---
+to: config/nebula.ts
+---
+import { defineConfig } from '@c9up/nebula'
+
+/**
+ * nebula — component registry and style adapter.
+ *
+ * Changing `adapter` and re-running `ream configure @c9up/nebula` swaps the
+ * CSS engine. The components themselves are untouched: all three adapters
+ * consume the same class names.
+ */
+export default defineConfig({
+  adapter: '{{ adapter }}',
+  paths: {
+    // Where `ream nebula:add` copies components. The atomic layers live under it.
+    components: 'resources/pages',
+    css: 'resources/css/app.css',
+    output: 'public/app.css',
+  },
+})

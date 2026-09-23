@@ -95,6 +95,7 @@
     "LICENSE",
     "README.md",
     "dist",
+    "stubs",
     "nebula.css",
     "registry.json",
     "src",

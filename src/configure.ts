@@ -21,6 +21,7 @@ import { resolve } from "node:path";
 import { adapterFor, isAdapterName } from "./adapters/index.js";
 import type { GeneratedFile } from "./adapters/types.js";
 import { type AdapterName, resolveConfig } from "./config.js";
+import { stubsRoot } from "./stubs.js";
 
 /**
  * The subset of the CLI's codemods this hook uses.
@@ -38,32 +39,16 @@ interface Codemods {
 	): Promise<void>;
 	/** Appends to `reamrc.commands` — the channel for package-shipped commands. */
 	registerCommand(importPath: string): Promise<void>;
+	makeUsingStub(
+		stubsRoot: string,
+		stubPath: string,
+		state?: Record<string, string | number | boolean>,
+		options?: { force?: boolean },
+	): Promise<{ path: string; contents: string }>;
 }
 
 /** Flags forwarded from `ream add` / `ream configure`, as the CLI encodes them. */
 type Flags = Record<string, string[] | undefined>;
-
-function configFile(adapter: AdapterName): string {
-	return `import { defineConfig } from '@c9up/nebula'
-
-/**
- * nebula — component registry and style adapter.
- *
- * Changing \`adapter\` and re-running \`ream configure @c9up/nebula\` swaps the
- * CSS engine. The components themselves are untouched: all three adapters
- * consume the same class names.
- */
-export default defineConfig({
-  adapter: '${adapter}',
-  paths: {
-    // Where \`ream nebula:add\` copies components. The atomic layers live under it.
-    components: 'resources/pages',
-    css: 'resources/css/app.css',
-    output: 'public/app.css',
-  },
-})
-`;
-}
 
 /**
  * Read the adapter from the forwarded flags.
@@ -91,7 +76,9 @@ export async function configure(
 	const adapter = adapterFor(name);
 	const config = resolveConfig({ adapter: name });
 
-	await codemods.writeFile("config/nebula.ts", configFile(name));
+	await codemods.makeUsingStub(stubsRoot, "config/nebula.stub", {
+		adapter: name,
+	});
 
 	// `reamrc.commands` is the channel Ream provides for commands a package
 	// ships, which directory discovery cannot see. `ream` forwards any
