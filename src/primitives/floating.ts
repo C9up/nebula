@@ -25,6 +25,8 @@
  * has to find an offset parent, and gets it wrong the moment one appears.
  */
 
+import { isRightToLeft } from "./direction.js";
+
 export type Side = "top" | "right" | "bottom" | "left";
 export type Align = "start" | "center" | "end";
 export type Placement = Side | `${Side}-${Align}`;
@@ -454,18 +456,6 @@ export function autoPosition(
 			observer?.disconnect();
 		},
 	};
-}
-
-/**
- * Is this element laid out right to left?
- *
- * The computed style rather than the `dir` attribute, so an element inheriting
- * the direction from `<html dir="rtl">` is answered correctly without every
- * anchor having to carry the attribute itself.
- */
-function isRightToLeft(element: HTMLElement): boolean {
-	if (typeof getComputedStyle !== "function") return false;
-	return getComputedStyle(element).direction === "rtl";
 }
 
 /**

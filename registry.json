@@ -5,6 +5,20 @@
   "layout": "mirror",
   "items": [
     {
+      "name": "accessible-icon",
+      "title": "AccessibleIcon",
+      "layer": "atoms",
+      "files": [
+        "atoms/AccessibleIcon.ts",
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/props.ts"
+      ],
+      "dependencies": [
+        "visually-hidden"
+      ]
+    },
+    {
       "name": "accordion",
       "title": "Accordion",
       "layer": "molecules",
@@ -15,6 +29,7 @@
         "lib/id.ts",
         "lib/props.ts",
         "molecules/Accordion.ts",
+        "primitives/direction.ts",
         "primitives/focusable.ts",
         "primitives/rovingFocus.ts"
       ],
@@ -46,6 +61,7 @@
         "lib/props.ts",
         "organisms/AlertDialog.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/focusTrap.ts",
@@ -280,6 +296,7 @@
         "lib/props.ts",
         "organisms/Combobox.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -319,6 +336,7 @@
         "lib/props.ts",
         "organisms/CommandDialog.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/focusTrap.ts",
@@ -345,6 +363,7 @@
         "lib/motion.ts",
         "lib/props.ts",
         "organisms/ContextMenu.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -389,6 +408,7 @@
         "lib/props.ts",
         "organisms/DatePicker.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -414,6 +434,7 @@
         "lib/props.ts",
         "organisms/DateRangePicker.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -441,6 +462,7 @@
         "lib/props.ts",
         "organisms/Dialog.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/focusTrap.ts",
@@ -466,6 +488,7 @@
         "lib/props.ts",
         "organisms/Drawer.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/focusTrap.ts",
@@ -492,6 +515,7 @@
         "lib/props.ts",
         "organisms/DropdownMenu.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -563,6 +587,7 @@
         "lib/props.ts",
         "organisms/HoverCard.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -689,6 +714,7 @@
         "lib/motion.ts",
         "lib/props.ts",
         "organisms/Menubar.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -757,6 +783,7 @@
         "lib/motion.ts",
         "lib/props.ts",
         "organisms/NavigationMenu.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -807,6 +834,7 @@
         "lib/props.ts",
         "organisms/Popover.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -900,6 +928,7 @@
         "lib/props.ts",
         "organisms/Select.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -946,6 +975,7 @@
         "lib/props.ts",
         "organisms/Sheet.ts",
         "primitives/controllable.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/focusTrap.ts",
@@ -1050,6 +1080,7 @@
         "lib/id.ts",
         "lib/props.ts",
         "molecules/Tabs.ts",
+        "primitives/direction.ts",
         "primitives/focusable.ts",
         "primitives/rovingFocus.ts"
       ],
@@ -1077,6 +1108,7 @@
         "lib/motion.ts",
         "lib/props.ts",
         "organisms/Toaster.ts",
+        "primitives/direction.ts",
         "primitives/floating.ts"
       ],
       "dependencies": []
@@ -1109,6 +1141,24 @@
       ]
     },
     {
+      "name": "toolbar",
+      "title": "Toolbar",
+      "layer": "molecules",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/props.ts",
+        "molecules/Toolbar.ts",
+        "primitives/direction.ts",
+        "primitives/focusable.ts",
+        "primitives/rovingFocus.ts"
+      ],
+      "dependencies": [
+        "button",
+        "separator"
+      ]
+    },
+    {
       "name": "tooltip",
       "title": "Tooltip",
       "layer": "organisms",
@@ -1119,6 +1169,7 @@
         "lib/motion.ts",
         "lib/props.ts",
         "organisms/Tooltip.ts",
+        "primitives/direction.ts",
         "primitives/dismissable.ts",
         "primitives/floating.ts",
         "primitives/floatingSurface.ts",
@@ -1139,6 +1190,18 @@
         "lib/props.ts",
         "lib/styled.ts",
         "molecules/Typography.ts"
+      ],
+      "dependencies": []
+    },
+    {
+      "name": "visually-hidden",
+      "title": "VisuallyHidden",
+      "layer": "atoms",
+      "files": [
+        "atoms/VisuallyHidden.ts",
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/props.ts"
       ],
       "dependencies": []
     }

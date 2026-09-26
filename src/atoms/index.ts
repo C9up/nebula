@@ -12,6 +12,10 @@
  * Slider is an atom despite being interactive, because it is one input.
  */
 
+export {
+	AccessibleIcon,
+	type AccessibleIconProps,
+} from "./AccessibleIcon.js";
 export { AspectRatio, type AspectRatioProps } from "./AspectRatio.js";
 export {
 	Avatar,
@@ -82,3 +86,7 @@ export {
 	type ToggleVariants,
 	toggleVariants,
 } from "./Toggle.js";
+export {
+	VisuallyHidden,
+	type VisuallyHiddenProps,
+} from "./VisuallyHidden.js";

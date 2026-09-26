@@ -19,6 +19,7 @@
  * which is not a budget worth optimising against correctness.
  */
 
+import { forward } from "./direction.js";
 import { focusSilently, isVisible } from "./focusable.js";
 
 export type Orientation = "vertical" | "horizontal" | "both";
@@ -132,7 +133,7 @@ export function rovingFocus(options: RovingFocusOptions): RovingFocus {
 		// A modifier means the user is talking to the browser, not the widget.
 		if (event.altKey || event.ctrlKey || event.metaKey) return;
 
-		const direction = directionFor(event.key, orientation);
+		const direction = directionFor(event.key, orientation, container);
 		if (direction !== 0) {
 			event.preventDefault();
 			move(direction);
@@ -177,15 +178,27 @@ export function rovingFocus(options: RovingFocusOptions): RovingFocus {
 	};
 }
 
-/** `-1` for previous, `+1` for next, `0` when the key is not ours. */
-function directionFor(key: string, orientation: Orientation): number {
+/**
+ * `-1` for previous, `+1` for next, `0` when the key is not ours.
+ *
+ * The horizontal pair is mirrored in a right-to-left group: ArrowRight means
+ * the key to the right, and in an RTL list the item to the right is the
+ * PREVIOUS one. Vertical never mirrors — `dir` does not turn a page upside
+ * down.
+ */
+function directionFor(
+	key: string,
+	orientation: Orientation,
+	container: HTMLElement,
+): number {
 	const vertical = orientation === "vertical" || orientation === "both";
 	const horizontal = orientation === "horizontal" || orientation === "both";
 
 	if (vertical && key === "ArrowDown") return 1;
 	if (vertical && key === "ArrowUp") return -1;
-	if (horizontal && key === "ArrowRight") return 1;
-	if (horizontal && key === "ArrowLeft") return -1;
+	if (horizontal && (key === "ArrowRight" || key === "ArrowLeft")) {
+		return forward(key, container);
+	}
 	return 0;
 }
 

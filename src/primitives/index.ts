@@ -19,6 +19,12 @@ export {
 	controllable,
 } from "./controllable.js";
 export {
+	type Direction,
+	directionOf,
+	forward,
+	isRightToLeft,
+} from "./direction.js";
+export {
 	type DismissableLayer,
 	type DismissableOptions,
 	type DismissReason,
@@ -43,6 +49,7 @@ export {
 	floatingSurface,
 } from "./floatingSurface.js";
 export {
+	FOCUSABLE_SELECTOR,
 	firstFocusable,
 	focusableWithin,
 	focusSilently,

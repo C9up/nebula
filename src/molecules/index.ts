@@ -207,6 +207,14 @@ export {
 	type ToggleGroupProps,
 } from "./ToggleGroup.js";
 export {
+	Toolbar,
+	ToolbarButton,
+	type ToolbarButtonProps,
+	type ToolbarProps,
+	ToolbarSeparator,
+	type ToolbarSeparatorProps,
+} from "./Toolbar.js";
+export {
 	Blockquote,
 	H1,
 	H2,

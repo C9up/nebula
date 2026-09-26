@@ -13,7 +13,16 @@
  * styles rather than trusting the markup.
  */
 
-const FOCUSABLE_SELECTOR = [
+/**
+ * The standard tabbable set.
+ *
+ * Exported because a composite widget that navigates "whatever controls are in
+ * here" — a toolbar — needs the same definition, and a second copy next door
+ * is how the two drift into disagreeing about `summary` or `contenteditable`.
+ * It is a selector, not an answer: `isFocusable` below is still what decides,
+ * because a selector cannot see `display: none` or a collapsed `<details>`.
+ */
+export const FOCUSABLE_SELECTOR = [
 	"a[href]",
 	"area[href]",
 	"button:not([disabled])",

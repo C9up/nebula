@@ -83,6 +83,26 @@ const cases: readonly Case[] = [
 		build: () => atoms.Checkbox({ label: "Agree" }),
 	},
 	{ name: "input", slot: "input", build: () => atoms.Input({ name: "email" }) },
+	{
+		name: "accessible-icon",
+		slot: "accessible-icon",
+		build: () =>
+			atoms.AccessibleIcon({ label: "Delete", children: html`<svg></svg>` }),
+	},
+	{
+		name: "visually-hidden",
+		slot: "visually-hidden",
+		build: () => atoms.VisuallyHidden({ children: "Delete" }),
+	},
+	{
+		name: "toolbar",
+		slot: "toolbar",
+		build: () =>
+			molecules.Toolbar({
+				label: "Formatting",
+				children: html`${molecules.ToolbarButton({ children: "B" })}`,
+			}),
+	},
 	{ name: "kbd", slot: "kbd", build: () => atoms.Kbd({ children: "⌘K" }) },
 	{
 		name: "label",
