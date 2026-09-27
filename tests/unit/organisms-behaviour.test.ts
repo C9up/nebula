@@ -1,5 +1,5 @@
 import { html } from "@c9up/aurora";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Combobox } from "../../src/organisms/Combobox.js";
 import {
 	Command,
@@ -518,6 +518,144 @@ describe("Questionnaire", () => {
 			(b) => b.textContent?.trim() === "Skip",
 		);
 		expect(skipOnRequired).toBe(false);
+		view.dispose();
+	});
+});
+
+describe("Toaster > update, deduplication and promise", () => {
+	// Fake timers for this block only: two of these assert on a COUNTDOWN — that
+	// a loading toast has none and that its success does — and the rest of the
+	// file runs on real ones.
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it("updates a toast shown again under the same id, instead of stacking", () => {
+		// The case this exists for: "you are offline", raised on every failed
+		// request, is one toast rather than nine.
+		const view = mount(Toaster({}));
+		toast.show({ id: "net", title: "Offline", duration: 0 });
+		toast.show({ id: "net", title: "Still offline", duration: 0 });
+		expect(all("[data-slot='toast']")).toHaveLength(1);
+		expect(one("[data-slot='toast']")?.textContent).toContain("Still offline");
+		view.dispose();
+	});
+
+	it("changes a toast's variant, which moves it between the live regions", () => {
+		const view = mount(Toaster({}));
+		toast.show({ id: "job", title: "Working", duration: 0 });
+		expect(all("[role='status'] [data-slot='toast']")).toHaveLength(1);
+		toast.update("job", { variant: "error", title: "Failed", duration: 0 });
+		expect(all("[role='status'] [data-slot='toast']")).toHaveLength(0);
+		expect(all("[role='alert'] [data-slot='toast']")).toHaveLength(1);
+		view.dispose();
+	});
+
+	it("ignores an update to a toast that has gone", () => {
+		const view = mount(Toaster({}));
+		toast.update("absent", { title: "nope" });
+		expect(all("[data-slot='toast']")).toHaveLength(0);
+		view.dispose();
+	});
+
+	it("keeps a loading toast on screen with no timer of its own", async () => {
+		// `loading` is waiting for an outcome, so it does not leave on its own.
+		const view = mount(Toaster({}));
+		toast.loading("Uploading");
+		await vi.advanceTimersByTimeAsync(60_000);
+		expect(all("[data-slot='toast']")).toHaveLength(1);
+		view.dispose();
+	});
+
+	it("turns one toast from loading into the success, and lets it expire", async () => {
+		const view = mount(Toaster({}));
+		const result = toast.promise(Promise.resolve({ name: "report.pdf" }), {
+			loading: "Saving…",
+			success: (saved) => `Saved ${saved.name}`,
+			error: "Could not save",
+		});
+		expect(one("[data-slot='toast']")?.textContent).toContain("Saving…");
+		expect(one("[data-slot='toast']")?.dataset.variant).toBe("loading");
+
+		await result;
+		await Promise.resolve();
+		// Still ONE toast — updated, not a second one.
+		expect(all("[data-slot='toast']")).toHaveLength(1);
+		expect(one("[data-slot='toast']")?.textContent).toContain(
+			"Saved report.pdf",
+		);
+		expect(one("[data-slot='toast']")?.dataset.variant).toBe("success");
+
+		// And it now has a countdown, which the loading toast did not.
+		await vi.advanceTimersByTimeAsync(10_000);
+		expect(all("[data-slot='toast']")).toHaveLength(0);
+		view.dispose();
+	});
+
+	it("reports a rejection AND still rejects, so the caller's error path runs", async () => {
+		const view = mount(Toaster({}));
+		const failure = new Error("disk full");
+		let seen: unknown;
+		await toast
+			.promise(Promise.reject(failure), {
+				loading: "Saving…",
+				success: "Saved",
+				error: (reason) => ({
+					title: "Could not save",
+					description: String(reason),
+				}),
+			})
+			.catch((reason: unknown) => {
+				seen = reason;
+			});
+		await Promise.resolve();
+
+		// Swallowing the rejection would leave a red toast and nothing else.
+		expect(seen).toBe(failure);
+		const shown = one("[role='alert'] [data-slot='toast']");
+		expect(shown?.textContent).toContain("Could not save");
+		expect(shown?.textContent).toContain("disk full");
+		view.dispose();
+	});
+
+	it("calls onClose however the toast left", () => {
+		const view = mount(Toaster({}));
+		const closed: string[] = [];
+		const byTimer = toast.show({
+			title: "a",
+			duration: 0,
+			onClose: () => closed.push("dismissed"),
+		});
+		toast.dismiss(byTimer);
+		toast.show({
+			title: "b",
+			duration: 0,
+			onClose: () => closed.push("cleared"),
+		});
+		toast.clear();
+		expect(closed).toEqual(["dismissed", "cleared"]);
+		view.dispose();
+	});
+
+	it("survives an onClose that throws", () => {
+		const view = mount(Toaster({}));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const id = toast.show({
+			title: "a",
+			duration: 0,
+			onClose: () => {
+				throw new Error("callback bug");
+			},
+		});
+		// The callback belongs to application code and runs from a timer, a click
+		// and `clear()` alike; one that throws must not leave the queue half done.
+		expect(() => toast.dismiss(id)).not.toThrow();
+		expect(all("[data-slot='toast']")).toHaveLength(0);
+		expect(errorSpy).toHaveBeenCalled();
+		errorSpy.mockRestore();
 		view.dispose();
 	});
 });

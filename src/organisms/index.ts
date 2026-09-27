@@ -388,6 +388,8 @@ export {
 export {
 	Toaster,
 	type ToasterProps,
+	type ToastId,
+	type ToastMessage,
 	type ToastOptions,
 	type ToastVariant,
 	toast,
