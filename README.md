@@ -82,7 +82,7 @@ Several of those are narrower than what they replace — see [parity with shadcn
 
 Checked against shadcn's published component list, not from memory. Every one of its components has a counterpart here — including the conversational set (`Bubble`, `Message`, `MessageScroller`, `Attachment`, `Marker`), `NativeSelect` and `Questionnaire` — and the ~40 simple ones are faithful down to the class strings, the variants and the ARIA attributes.
 
-Two of shadcn's entries have no direct counterpart on purpose. `DirectionProvider` is React context; Aurora has none, and the direction belongs on `<html dir>` — what it was really buying is [RTL support](#right-to-left), which is handled in the placement engine instead. `Form` has been folded into `Field` upstream; nebula ships both, with `Form` binding Aurora's own form controller. The components shadcn builds by wrapping a third-party library are reimplementations, and they are narrower. Stated plainly, because "complete port" would not be true:
+Two of shadcn's entries have no direct counterpart on purpose. `DirectionProvider` is React context. Aurora has context, and these components use it, but the direction belongs on `<html dir>` — what it was really buying is [RTL support](#right-to-left), which is handled in the placement engine instead. `Form` has been folded into `Field` upstream; nebula ships both, with `Form` binding Aurora's own form controller. The components shadcn builds by wrapping a third-party library are reimplementations, and they are narrower. Stated plainly, because "complete port" would not be true:
 
 | Component | shadcn | nebula |
 | --- | --- | --- |
@@ -90,7 +90,7 @@ Two of shadcn's entries have no direct counterpart on purpose. `DirectionProvide
 | DataTable | TanStack Table (column grouping, virtualisation, pinning, faceted filters, server-side) | sort, filter, page, select — in memory |
 | Sidebar | ~15 parts | the parts that are not re-skinned atoms — see below |
 | Carousel | embla (loop, autoplay, N slides per view) | scroll-snap, one slide per view, no loop or autoplay |
-| Toaster | sonner (promise toasts, arbitrary JSX, multiple positions) | four variants, action, pause on hover |
+| Toaster | Base UI's manager (display priority, anchored toasts, typed payload) — or sonner, with six positions | five variants, promise toasts, update and dedup by id, action, `onClose`, pause on hover, four corners |
 | Resizable | arbitrary nesting, persisted layouts, collapse-to-zero | two panes, one handle |
 | Combobox | single, multi-select and creatable recipes | single-select |
 | ScrollArea | scrollbars redrawn by Radix | native scrollbars, styled |
@@ -98,7 +98,7 @@ Two of shadcn's entries have no direct counterpart on purpose. `DirectionProvide
 | Questionnaire | branching logic, validation schemas | linear steps; single, multiple, freeform, skippable |
 | Bubble / Message | rich composition slots | the parts nebula's own layout needs |
 
-Two API-wide differences, both consequences of the runtime rather than choices about scope: there is no `asChild` (a compiled template has no element to clone), and compound components take data rather than children (Aurora has no React context).
+Two API-wide differences, both consequences of the runtime rather than choices about scope: there is no `asChild` (a compiled template has no element to clone), and compound components take data rather than children (Aurora's context lives on a stack during setup, so a part passed as a lazy slot is built after that frame has popped — see below).
 
 **The Sidebar deserves its own note**, because porting it part-for-part would have fought the atomic taxonomy rather than following it. `SidebarInput`, `SidebarSeparator` and `SidebarMenuSkeleton` are the existing `Input`, `Separator` and `Skeleton` atoms with a prefix — redeclaring them would break the composition rule the whole library is organised on. `SidebarProvider` is React context, and nebula's sidebar owns its own shared signal instead. `SidebarInset` is the content column beside the rail, which is `AppShell`, a template. What was genuinely missing and has been added: `SidebarMenuSub`, `SidebarMenuSubItem`, `SidebarMenuAction`, a badge slot, and tooltips when the rail is collapsed.
 
