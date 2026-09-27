@@ -13,10 +13,13 @@
  * icons are inlined, and the date maths is `Date` and `Intl`.
  *
  * **Compound components take data, not children.** shadcn composes through
- * React context — `<Tabs><TabsList><TabsTrigger>`. Aurora has no context, and
- * the workarounds are worse than the problem, so those components take an
- * `items` array and named slots. The rendered markup is unchanged, which means
- * shadcn's CSS and its examples still read across.
+ * React context — `<Tabs><TabsList><TabsTrigger>`. Aurora has context too, and
+ * these components use it; what they do not do is take their parts as children.
+ * Context here lives on a stack during a component's SETUP, so a part handed in
+ * as a `Slot` thunk is built later, once that frame has popped, and reads
+ * nothing. An `items` array and named slots keep every part built while the
+ * context is still there. The rendered markup is unchanged, which means shadcn's
+ * CSS and its examples still read across.
  *
  * **The atomic layer is a property of the component.** An atom renders its own
  * markup and composes nothing from nebula; a molecule assembles atoms or owns

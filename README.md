@@ -217,7 +217,9 @@ shadcn composes through React context:
 </Tabs>
 ```
 
-Aurora has no context, and the workarounds — a factory returning bound parts, a handle threaded through props — are more machinery for less clarity. So compound components take data:
+Aurora **does** have context — `createContext` / `provide` / `inject` — and these components use it: `Tabs` provides a `TabsApi` that `TabsTrigger` and `TabsContent` inject. What they do not do is take their parts as children.
+
+Context here lives on a stack during a component's **setup**, which is synchronous. A part handed in as a `Slot` thunk is built later, by the renderer, when that frame has already popped — so the shadcn shape, where a child reads the parent it was nested inside, cannot read anything. Taking data keeps every part built during setup, while the context is still there. So compound components take data:
 
 ```ts
 Tabs({

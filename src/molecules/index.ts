@@ -8,11 +8,12 @@
  * organisms.
  *
  * Compound components are data-driven — `Accordion({ items: [...] })`, not
- * `<Accordion><AccordionItem>`. shadcn's compound API is a React-context
- * artifact; Aurora has no context, and the alternatives (a factory returning
- * bound parts, a handle threaded through props) are more machinery for less
- * clarity. The rendered markup is unchanged, so shadcn's CSS and its examples
- * still read across.
+ * `<Accordion><AccordionItem>`. Not for want of context: Aurora has it and these
+ * components use it. It lives on a stack during SETUP, so a part passed as a
+ * `Slot` thunk is built after that frame has popped and has nothing to read —
+ * which is exactly the shape `<Accordion><AccordionItem>` would need. Data keeps
+ * every part built while the context is there. The rendered markup is unchanged,
+ * so shadcn's CSS and its examples still read across.
  */
 
 export {
