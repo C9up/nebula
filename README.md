@@ -8,7 +8,7 @@ Part of **[Ream](https://github.com/C9up/ream)** — a Rust-powered, AdonisJS-co
 
 shadcn/ui is React. [Aurora](https://github.com/C9up/aurora) is a tagged-template DOM runtime with signals and no build step. nebula is the shadcn component set — the same markup, the same Tailwind classes, the same behaviour — written for Aurora.
 
-Sixty-nine components across four atomic layers, plus the headless behaviour layer Radix would otherwise provide. Every component in shadcn's registry has a counterpart; several are deliberately narrower, and the [parity section](#parity-with-shadcn) says exactly which.
+Seventy-four components across four atomic layers, plus the headless behaviour layer Radix would otherwise provide. Every component in shadcn's registry has a counterpart; several are deliberately narrower, and the [parity section](#parity-with-shadcn) says exactly which.
 
 ## Installation
 
@@ -194,11 +194,11 @@ resources/pages/
 The rule is composition, not complexity. Slider is an atom though it is interactive, because it is one input. Card is a molecule though it is trivial, because it assembles parts.
 
 <details>
-<summary><strong>All 69 components</strong></summary>
+<summary><strong>All 74 components</strong></summary>
 
-**atoms (19)** — AspectRatio, Avatar, Badge, Button, Checkbox, Input, Kbd, Label, Marker, NativeSelect, Progress, ScrollArea, Separator, Skeleton, Slider, Spinner, Switch, Textarea, Toggle
+**atoms (22)** — AccessibleIcon, AspectRatio, Avatar, Badge, Button, Checkbox, Image, Input, Kbd, Label, Marker, NativeSelect, Progress, ScrollArea, Separator, Skeleton, Slider, Spinner, Switch, Textarea, Toggle, VisuallyHidden
 
-**molecules (21)** — Accordion, Alert, Attachment, Breadcrumb, Bubble, ButtonGroup, Card, Collapsible, Empty, Field, InputGroup, InputOTP, Item, Message, Pagination, RadioGroup, Resizable, Table, Tabs, ToggleGroup, Typography
+**molecules (23)** — Accordion, Alert, Attachment, Breadcrumb, Bubble, ButtonGroup, Card, Collapsible, Empty, Field, InputGroup, InputOTP, Item, Message, Pagination, Picture, RadioGroup, Resizable, Table, Tabs, ToggleGroup, Toolbar, Typography
 
 **organisms (26)** — AlertDialog, Calendar, Carousel, Chart, Combobox, Command, CommandDialog, ContextMenu, DataTable, DatePicker, DateRangePicker, Dialog, Drawer, DropdownMenu, Form, HoverCard, Menubar, MessageScroller, NavigationMenu, Popover, Questionnaire, Select, Sheet, Sidebar, Toaster, Tooltip
 
@@ -275,7 +275,7 @@ The headless layer is most of this package, and it is where shadcn's behaviour a
 ## Development
 
 ```bash
-pnpm test        # 391 unit tests
+pnpm test        # 593 unit tests
 pnpm typecheck
 pnpm lint
 pnpm registry    # regenerate registry.json from the source tree
