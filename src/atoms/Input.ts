@@ -33,6 +33,11 @@ export interface InputProps {
 	invalid?: Reactive<boolean>;
 	/** Names the element describing the error, for screen readers. */
 	describedBy?: Reactive<string | undefined>;
+	/**
+	 * The field's accessible name (`aria-label`), for a field no `<label>`
+	 * names. A placeholder is not one: it disappears as soon as the user types.
+	 */
+	label?: Reactive<string | undefined>;
 	class?: Reactive<string>;
 	onInput?: (value: string, event: Event) => void;
 	onChange?: (value: string, event: Event) => void;
@@ -63,6 +68,7 @@ export const Input = component<InputProps>((props) => {
 		autocomplete="${props.autocomplete}"
 		aria-invalid="${() => (read(props.invalid) === true ? "true" : undefined)}"
 		aria-describedby="${accessor(props.describedBy, undefined)}"
+		aria-label="${accessor(props.label, undefined)}"
 		?disabled="${accessor(props.disabled, false)}"
 		?readonly="${accessor(props.readonly, false)}"
 		?required="${accessor(props.required, false)}"

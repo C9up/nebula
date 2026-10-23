@@ -30,6 +30,7 @@ import {
 	ChevronsUpDownIcon,
 	ChevronUpIcon,
 } from "../lib/icons.js";
+import { type Reactive, read } from "../lib/props.js";
 import {
 	Pagination,
 	PaginationContent,
@@ -62,13 +63,27 @@ export interface Column<Row> {
 
 export interface DataTableProps<Row> {
 	columns: readonly Column<Row>[];
-	rows: readonly Row[];
+	/**
+	 * The rows, or an accessor for rows that change. An accessor must return the
+	 * same array until the data changes — a new one per read counts as new data
+	 * on every read, as it does for TanStack's `data`.
+	 */
+	rows: Reactive<readonly Row[]>;
 	/** Stable identity per row — used for selection and as the render key. */
 	rowKey: (row: Row) => string;
 	/** Rows per page. Omit to show everything. */
 	pageSize?: number;
+	/**
+	 * Go back to the first page when the rows change. Default `true`, as
+	 * TanStack's `autoResetPageIndex`: the page was chosen in data that is
+	 * gone. Turn it off for rows refreshed in place, such as a polled list.
+	 * Sorting and the filter always survive a change.
+	 */
+	autoResetPage?: boolean;
 	/** Show a filter box. Provide `filterMatch` to say what it searches. */
 	filterPlaceholder?: string;
+	/** The filter box's accessible name. Defaults to the placeholder. */
+	filterLabel?: string;
 	filterMatch?: (row: Row, query: string) => boolean;
 	/** Add a checkbox column. */
 	selectable?: boolean;
@@ -83,7 +98,13 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 	const sortKey = signal<string | undefined>(undefined);
 	const sortDirection = signal<SortDirection>("asc");
 	const query = signal("");
-	const page = signal(1);
+	/**
+	 * The page, and the rows it was chosen in. Derived rather than reset by an
+	 * effect: when the rows are no longer those, the page reads as the first.
+	 */
+	const page = signal<{ readonly number: number; readonly of: readonly Row[] }>(
+		{ number: 1, of: read(props.rows) },
+	);
 	const selected = signal<readonly string[]>([]);
 
 	function readCell(row: Row, column: Column<Row>): Child {
@@ -98,11 +119,20 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 	}
 
 	function filtered(): readonly Row[] {
+		const rows = read(props.rows);
 		const needle = query().trim().toLowerCase();
-		if (needle === "" || props.filterMatch === undefined) return props.rows;
-		return props.rows.filter(
-			(row) => props.filterMatch?.(row, needle) === true,
-		);
+		if (needle === "" || props.filterMatch === undefined) return rows;
+		return rows.filter((row) => props.filterMatch?.(row, needle) === true);
+	}
+
+	function pageNumber(): number {
+		const { number, of } = page();
+		if (props.autoResetPage !== false && of !== read(props.rows)) return 1;
+		return number;
+	}
+
+	function goToPage(number: number): void {
+		page({ number, of: read(props.rows) });
 	}
 
 	function sorted(): readonly Row[] {
@@ -135,7 +165,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 		if (props.pageSize === undefined) return rows;
 		// Clamp: filtering down to fewer pages while on the last one would
 		// otherwise show an empty table with no way back.
-		const current = Math.min(page(), pageCount());
+		const current = Math.min(pageNumber(), pageCount());
 		const from = (current - 1) * props.pageSize;
 		return rows.slice(from, from + props.pageSize);
 	}
@@ -210,10 +240,11 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 				: Input({
 						type: "search",
 						placeholder: props.filterPlaceholder ?? "Filter…",
+						label: props.filterLabel ?? props.filterPlaceholder ?? "Filter…",
 						class: "max-w-sm",
 						onInput: (value) => {
 							query(value);
-							page(1);
+							goToPage(1);
 						},
 					})
 		}
@@ -291,9 +322,9 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 	 * current one and the gaps between — and the parts render that list.
 	 */
 	function renderPagination(): Child {
-		const current = (): number => Math.min(page(), pageCount());
+		const current = (): number => Math.min(pageNumber(), pageCount());
 		const go = (target: number) => (): void => {
-			page(Math.min(Math.max(target, 1), pageCount()));
+			goToPage(Math.min(Math.max(target, 1), pageCount()));
 		};
 		return Pagination({
 			children: () =>
