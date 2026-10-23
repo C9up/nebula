@@ -7,11 +7,11 @@
  *   Dialog({ children: () => html`
  *     ${DialogTrigger({ children: "Edit" })}
  *     ${DialogContent({ children: () => html`
- *       ${DialogHeader({ children: () => html`
+ *       ${DialogHeader({ children: html`
  *         ${DialogTitle({ children: "Edit profile" })}
  *         ${DialogDescription({ children: "Change it." })}
  *       ` })}
- *       ${DialogFooter({ children: () => Button({ children: "Save" }) })}
+ *       ${DialogFooter({ children: Button({ children: "Save" }) })}
  *     ` })}
  *   ` })
  *
@@ -21,6 +21,10 @@
  * with the title's id and a panel rendered first would have had nothing to
  * point at.
  *
+ * Hence `DialogHeader` gets a VALUE: it takes a `Slot`, which the renderer calls
+ * later, and a `DialogTitle` built in there finds no context left to read (see
+ * `Parts`). Content that changes goes inside the title, not around it.
+ *
  * The `panel` callback matters more than it looks. The overlay's root spans
  * the viewport so the backdrop can, which means containment has to be answered
  * against the panel — check the root and every click on the page counts as
@@ -29,7 +33,8 @@
  * `aria-labelledby` points at the title and `aria-describedby` at the
  * description, so a screen reader announces what the dialog is for on open. A
  * dialog with neither announces only "dialog", which is why a missing
- * `DialogTitle` is warned about — as upstream warns — rather than tolerated.
+ * `DialogTitle` is warned about rather than tolerated — as Radix did through
+ * 1.1; 1.3 counts its titles and no longer warns.
  */
 
 import {
