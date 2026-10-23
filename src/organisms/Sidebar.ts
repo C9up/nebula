@@ -210,7 +210,11 @@ export const Sidebar = component<SidebarProps>((props) => {
 					data-slot="sidebar"
 					data-state="${() => sidebar.state()}"
 					data-side="${side}"
-					data-collapsible="${collapsible}"
+					data-collapsible="${() =>
+						// The mode only once collapsed, as upstream: every
+						// `group-data-[collapsible=icon]:` class keys off it, and set
+						// while expanded it squeezed the full-width bar to icons.
+						sidebar.state() === "collapsed" ? collapsible : ""}"
 					aria-label="${props.label ?? "Sidebar"}"
 					class="${() =>
 						cn(
