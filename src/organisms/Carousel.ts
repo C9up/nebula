@@ -52,6 +52,8 @@ const CarouselContext = createContext<CarouselApi>("Carousel");
 export interface CarouselProps {
 	/** Announced before the slides. */
 	label?: string;
+	/** What a screen reader calls the region. Default `"carousel"`. */
+	roleDescription?: string;
 	orientation?: "horizontal" | "vertical";
 	class?: Reactive<string>;
 	children?: Parts;
@@ -138,7 +140,7 @@ export const Carousel = component<CarouselProps>((props) => {
 	return html`<div
 		data-slot="carousel"
 		role="region"
-		aria-roledescription="carousel"
+		aria-roledescription="${props.roleDescription ?? "carousel"}"
 		aria-label="${props.label ?? "Carousel"}"
 		class="${() => cn("relative", read(props.class))}"
 		@keydown="${onKeyDown}"
@@ -168,6 +170,10 @@ export const CarouselContent = component<CarouselContentProps>((props) => {
 
 export interface CarouselItemProps {
 	children?: Slot;
+	/** What a screen reader calls one slide. Default `"slide"`. */
+	roleDescription?: string;
+	/** The slide's name from its position. Default `"3 of 7"`. */
+	label?: (position: number, count: number) => string;
 	class?: Reactive<string>;
 }
 
@@ -184,14 +190,20 @@ export const CarouselItem = component<CarouselItemProps>((props) => {
 	return html`<div
 		data-slot="carousel-item"
 		role="group"
-		aria-roledescription="slide"
-		aria-label="${() => `${position} of ${carousel.slideCount()}`}"
+		aria-roledescription="${props.roleDescription ?? "slide"}"
+		aria-label="${() => (props.label ?? slideOf)(position, carousel.slideCount())}"
 		class="${() =>
 			cn("min-w-0 shrink-0 grow-0 basis-full snap-start", read(props.class))}"
 	>${slot(props.children)}</div>`;
 });
 
+function slideOf(position: number, count: number): string {
+	return `${position} of ${count}`;
+}
+
 export interface CarouselButtonProps {
+	/** The arrow's accessible name. Default `"Previous slide"` / `"Next slide"`. */
+	label?: string;
 	class?: Reactive<string>;
 }
 
@@ -202,7 +214,7 @@ export const CarouselPrevious = component<CarouselButtonProps>((props) => {
 	return html`<button
 		type="button"
 		data-slot="carousel-previous"
-		aria-label="Previous slide"
+		aria-label="${props.label ?? "Previous slide"}"
 		?disabled="${() => carousel.atStart()}"
 		class="${() =>
 			cn(
@@ -222,7 +234,7 @@ export const CarouselNext = component<CarouselButtonProps>((props) => {
 	return html`<button
 		type="button"
 		data-slot="carousel-next"
-		aria-label="Next slide"
+		aria-label="${props.label ?? "Next slide"}"
 		?disabled="${() => carousel.atEnd()}"
 		class="${() =>
 			cn(

@@ -26,7 +26,13 @@ import { type Reactive, read, readOr } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
 import { focusSilently } from "../primitives/focusable.js";
-import { Calendar, startOfDay } from "./Calendar.js";
+import { Calendar, type CalendarLabels, startOfDay } from "./Calendar.js";
+
+/** The calendar's words, plus the popup's accessible name. */
+export interface DatePickerLabels extends CalendarLabels {
+	/** Default `"Choose a date"`, or `"Choose a date range"`. */
+	dialog: string;
+}
 
 export interface DatePickerProps {
 	name?: string;
@@ -38,6 +44,7 @@ export interface DatePickerProps {
 	disabled?: Reactive<boolean>;
 	invalid?: Reactive<boolean>;
 	locale?: string;
+	labels?: Partial<DatePickerLabels>;
 	class?: Reactive<string>;
 	onValueChange?: (date: Date) => void;
 }
@@ -86,7 +93,7 @@ export const DatePicker = component<DatePickerProps>((props) => {
 				data-slot="date-picker-content"
 				id="${contentId}"
 				role="dialog"
-				aria-label="Choose a date"
+				aria-label="${props.labels?.dialog ?? "Choose a date"}"
 				class="${cn(
 					"bg-popover text-popover-foreground z-50 rounded-md border p-0 shadow-md outline-none",
 					zoomInOut,
@@ -98,6 +105,7 @@ export const DatePicker = component<DatePickerProps>((props) => {
 					min: props.min,
 					max: props.max,
 					locale: props.locale,
+					labels: props.labels,
 					onValueChange: choose,
 				})}
 			</div>`,

@@ -26,7 +26,7 @@ import { controllable } from "../primitives/controllable.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
 import { focusSilently } from "../primitives/focusable.js";
 import { Calendar, type DateRange, startOfDay } from "./Calendar.js";
-import { toISODate } from "./DatePicker.js";
+import { type DatePickerLabels, toISODate } from "./DatePicker.js";
 
 export interface DateRangePickerProps {
 	/** Base name for the hidden inputs — `"stay"` posts `stay_from` / `stay_to`. */
@@ -39,6 +39,7 @@ export interface DateRangePickerProps {
 	disabled?: Reactive<boolean>;
 	invalid?: Reactive<boolean>;
 	locale?: string;
+	labels?: Partial<DatePickerLabels>;
 	class?: Reactive<string>;
 	/** Fires on both clicks — `to` is absent after the first. */
 	onValueChange?: (range: DateRange) => void;
@@ -90,7 +91,7 @@ export const DateRangePicker = component<DateRangePickerProps>((props) => {
 				data-slot="date-range-picker-content"
 				id="${contentId}"
 				role="dialog"
-				aria-label="Choose a date range"
+				aria-label="${props.labels?.dialog ?? "Choose a date range"}"
 				class="${cn(
 					"bg-popover text-popover-foreground z-50 rounded-md border p-0 shadow-md outline-none",
 					zoomInOut,
@@ -103,6 +104,7 @@ export const DateRangePicker = component<DateRangePickerProps>((props) => {
 					min: props.min,
 					max: props.max,
 					locale: props.locale,
+					labels: props.labels,
 					onRangeChange: pick,
 				})}
 			</div>`,

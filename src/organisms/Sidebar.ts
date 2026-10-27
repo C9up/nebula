@@ -175,6 +175,8 @@ export interface SidebarProps {
 	collapsible?: "icon" | "offcanvas" | "none";
 	/** Announced as the navigation landmark's name. */
 	label?: string;
+	/** The close cross of the sheet it turns into on mobile. Default `"Close"`. */
+	closeLabel?: string;
 	class?: Reactive<string>;
 }
 
@@ -192,6 +194,7 @@ export const Sidebar = component<SidebarProps>((props) => {
 					children: () =>
 						SheetContent({
 							side,
+							closeLabel: props.closeLabel,
 							class: "bg-sidebar text-sidebar-foreground w-[18rem] p-0",
 							children: () =>
 								html`${SheetHeader({
@@ -238,6 +241,8 @@ export const Sidebar = component<SidebarProps>((props) => {
 export interface SidebarTriggerProps {
 	/** Overrides the provider's toggle — for a trigger outside the shell. */
 	onToggle?: () => void;
+	/** The button's accessible name. Default `"Toggle sidebar"`. */
+	label?: string;
 	class?: Reactive<string>;
 }
 
@@ -245,7 +250,7 @@ export const SidebarTrigger = component<SidebarTriggerProps>((props) =>
 	Button({
 		variant: "ghost",
 		size: "icon",
-		label: "Toggle sidebar",
+		label: props.label ?? "Toggle sidebar",
 		class: () => cn("size-7", read(props.class)),
 		onClick: () => {
 			if (props.onToggle !== undefined) {
@@ -259,6 +264,8 @@ export const SidebarTrigger = component<SidebarTriggerProps>((props) =>
 );
 
 export interface SidebarRailProps {
+	/** Accessible name and tooltip. Default `"Toggle sidebar"`. */
+	label?: string;
 	class?: Reactive<string>;
 }
 
@@ -274,9 +281,9 @@ export const SidebarRail = component<SidebarRailProps>(
 	(props) => html`<button
 		type="button"
 		data-slot="sidebar-rail"
-		aria-label="Toggle sidebar"
+		aria-label="${props.label ?? "Toggle sidebar"}"
 		tabindex="-1"
-		title="Toggle sidebar"
+		title="${props.label ?? "Toggle sidebar"}"
 		class="${() =>
 			cn(
 				"hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",

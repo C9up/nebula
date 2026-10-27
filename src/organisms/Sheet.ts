@@ -51,6 +51,7 @@ interface RegisteredContent {
 	readonly body: Child;
 	readonly side: Side;
 	readonly showCloseButton: boolean;
+	readonly closeLabel: string;
 	readonly class?: Reactive<string>;
 }
 
@@ -197,6 +198,8 @@ export interface SheetContentProps {
 	/** Which edge it comes from. Default `"right"`. */
 	side?: Side;
 	showCloseButton?: boolean;
+	/** The corner cross's accessible name. Default `"Close"`. */
+	closeLabel?: string;
 	class?: Reactive<string>;
 }
 
@@ -216,6 +219,7 @@ export const SheetContent = component<SheetContentProps>((props) => {
 		body,
 		side: props.side ?? "right",
 		showCloseButton: props.showCloseButton ?? true,
+		closeLabel: props.closeLabel ?? "Close",
 		class: props.class,
 	});
 	return html``;
@@ -289,7 +293,7 @@ function renderSurface(
 				data-slot="sheet-close"
 				class="${closeButtonClasses}"
 				@click="${() => ids.close()}"
-			>${XIcon({ class: "size-4" })}<span class="sr-only">Close</span></button>`
+			>${XIcon({ class: "size-4" })}<span class="sr-only">${registered.closeLabel}</span></button>`
 		: null;
 	return html`<div data-slot="sheet-portal" class="${cn("fixed inset-0 z-50", fadeInOut)}">
 		<div data-slot="sheet-overlay" class="${dialogBackdropClasses}"></div>

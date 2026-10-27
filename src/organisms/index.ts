@@ -37,6 +37,7 @@ export {
 	addDays,
 	addMonths,
 	Calendar,
+	type CalendarLabels,
 	type CalendarProps,
 	type DateRange,
 	isSameDay,
@@ -120,7 +121,12 @@ export {
 	type ContextMenuTriggerProps,
 } from "./ContextMenu.js";
 export { type Column, DataTable, type DataTableProps } from "./DataTable.js";
-export { DatePicker, type DatePickerProps, toISODate } from "./DatePicker.js";
+export {
+	DatePicker,
+	type DatePickerLabels,
+	type DatePickerProps,
+	toISODate,
+} from "./DatePicker.js";
 export {
 	DateRangePicker,
 	type DateRangePickerProps,

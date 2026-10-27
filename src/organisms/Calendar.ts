@@ -37,6 +37,19 @@ export interface DateRange {
 	readonly to?: Date;
 }
 
+/**
+ * The words the calendar writes itself — react-day-picker's `labels`.
+ *
+ * Month and weekday names come from `Intl` in `locale`; these two do not, and
+ * a screen reader would read them in English in the middle of a French page.
+ */
+export interface CalendarLabels {
+	/** The previous-month arrow. Default `"Previous month"`. */
+	previousMonth: string;
+	/** The next-month arrow. Default `"Next month"`. */
+	nextMonth: string;
+}
+
 export interface CalendarProps {
 	/**
 	 * `"range"` picks a span in two clicks. Default `"single"`.
@@ -63,6 +76,7 @@ export interface CalendarProps {
 	/** `0` Sunday, `1` Monday. Defaults to the locale's own first day. */
 	weekStartsOn?: number;
 	locale?: string;
+	labels?: Partial<CalendarLabels>;
 	class?: Reactive<string>;
 	/** `"single"` mode. */
 	onValueChange?: (date: Date) => void;
@@ -374,7 +388,7 @@ export const Calendar = component<CalendarProps>((props) => {
 		<div class="flex items-center justify-between pb-4">
 			<button
 				type="button"
-				aria-label="Previous month"
+				aria-label="${props.labels?.previousMonth ?? "Previous month"}"
 				class="${buttonVariants({ variant: "outline", size: "icon", class: "size-7" })}"
 				@click="${() => month(addMonths(month(), -1))}"
 			>${ChevronLeftIcon({ class: "size-4" })}</button>
@@ -383,7 +397,7 @@ export const Calendar = component<CalendarProps>((props) => {
 			</div>
 			<button
 				type="button"
-				aria-label="Next month"
+				aria-label="${props.labels?.nextMonth ?? "Next month"}"
 				class="${buttonVariants({ variant: "outline", size: "icon", class: "size-7" })}"
 				@click="${() => month(addMonths(month(), 1))}"
 			>${ChevronRightIcon({ class: "size-4" })}</button>

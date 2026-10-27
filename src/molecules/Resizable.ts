@@ -131,6 +131,8 @@ export const ResizablePanel = component<ResizablePanelProps>((props) => {
 export interface ResizableHandleProps {
 	/** Show the grip dots. */
 	withHandle?: boolean;
+	/** The separator's accessible name. Default `"Resize panes"`. */
+	label?: string;
 	class?: Reactive<string>;
 }
 
@@ -205,7 +207,7 @@ export const ResizableHandle = component<ResizableHandleProps>((props) => {
 		aria-valuemin="${group.min}"
 		aria-valuemax="${group.max}"
 		aria-valuenow="${() => Math.round(group.size())}"
-		aria-label="Resize panes"
+		aria-label="${props.label ?? "Resize panes"}"
 		class="${() =>
 			cn(
 				"bg-border relative flex shrink-0 items-center justify-center outline-none",

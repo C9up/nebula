@@ -26,6 +26,8 @@ export interface SettingsLayoutProps {
 	title: Child;
 	description?: Child;
 	sections: readonly SettingsSection[];
+	/** The section list's accessible name. Default `"Settings sections"`. */
+	navLabel?: string;
 	children?: Slot;
 	class?: Reactive<string>;
 }
@@ -46,7 +48,7 @@ export const SettingsLayout = component<SettingsLayoutProps>((props) => {
 		<div class="flex flex-col gap-8 md:flex-row md:gap-12">
 			<nav
 				data-slot="settings-nav"
-				aria-label="Settings sections"
+				aria-label="${props.navLabel ?? "Settings sections"}"
 				class="flex gap-2 overflow-x-auto md:w-48 md:shrink-0 md:flex-col md:overflow-visible"
 			>
 				${props.sections.map(

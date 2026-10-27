@@ -39,6 +39,7 @@ const slotClasses =
 interface InputOTPApi {
 	readonly length: number;
 	readonly disabled: () => boolean;
+	readonly slotLabel: (position: number, length: number) => string;
 	/** Claim the next box's index, in the order the slots are built. */
 	claimSlot(): number;
 	onInput(index: number, event: Event): void;
@@ -51,6 +52,8 @@ const InputOTPContext = createContext<InputOTPApi>("InputOTP");
 export interface InputOTPProps {
 	/** Number of boxes. Default `6` — and it must match the slots built. */
 	length?: number;
+	/** Each box's accessible name from its position. Default `"Character 2 of 6"`. */
+	slotLabel?: (position: number, length: number) => string;
 	name?: string;
 	disabled?: Reactive<boolean>;
 	class?: Reactive<string>;
@@ -99,6 +102,9 @@ export const InputOTP = component<InputOTPProps>((props) => {
 	provide<InputOTPApi>(InputOTPContext, {
 		length,
 		disabled: () => readOr(props.disabled, false),
+		slotLabel:
+			props.slotLabel ??
+			((position, total) => `Character ${position} of ${total}`),
 		claimSlot() {
 			const index = claimed;
 			claimed += 1;
@@ -206,7 +212,7 @@ export const InputOTPSlot = component<InputOTPSlotProps>((props) => {
 		inputmode="numeric"
 		autocomplete="${index === 0 ? "one-time-code" : "off"}"
 		maxlength="1"
-		aria-label="${`Character ${index + 1} of ${otp.length}`}"
+		aria-label="${otp.slotLabel(index + 1, otp.length)}"
 		?disabled="${() => otp.disabled()}"
 		class="${() => cn(slotClasses, read(props.class))}"
 		@input="${(event: Event) => otp.onInput(index, event)}"

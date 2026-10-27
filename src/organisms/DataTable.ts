@@ -36,10 +36,12 @@ import {
 	PaginationContent,
 	PaginationEllipsis,
 	PaginationItem,
+	type PaginationLabels,
 	PaginationLink,
 	PaginationNext,
 	PaginationPrevious,
 	pageWindow,
+	paginationLabels,
 } from "../molecules/Pagination.js";
 import {
 	Table,
@@ -87,6 +89,12 @@ export interface DataTableProps<Row> {
 	filterMatch?: (row: Row, query: string) => boolean;
 	/** Add a checkbox column. */
 	selectable?: boolean;
+	/** The header checkbox's accessible name. Default `"Select all rows on this page"`. */
+	selectAllLabel?: string;
+	/** A row checkbox's accessible name. Default `"Select row <key>"`. */
+	selectRowLabel?: (row: Row) => string;
+	/** The pager's words — see `PaginationLabels`. */
+	paginationLabels?: Partial<PaginationLabels>;
 	onSelectionChange?: (keys: readonly string[]) => void;
 	emptyMessage?: Child;
 	class?: string;
@@ -257,7 +265,8 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 								? TableHead({
 										class: "w-10",
 										children: Checkbox({
-											label: "Select all rows on this page",
+											label:
+												props.selectAllLabel ?? "Select all rows on this page",
 											checked: () => {
 												const keys = visible().map(props.rowKey);
 												return (
@@ -326,12 +335,17 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 		const go = (target: number) => (): void => {
 			goToPage(Math.min(Math.max(target, 1), pageCount()));
 		};
+		const word = (key: keyof PaginationLabels): string =>
+			props.paginationLabels?.[key] ?? paginationLabels[key];
 		return Pagination({
+			"aria-label": word("navigation"),
 			children: () =>
 				PaginationContent({
 					children: [
 						PaginationItem({
 							children: PaginationPrevious({
+								"aria-label": word("previousPage"),
+								children: word("previous"),
 								disabled: () => current() <= 1,
 								onSelect: go(current() - 1),
 							}),
@@ -340,7 +354,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 							PaginationItem({
 								children:
 									entry === null
-										? PaginationEllipsis({})
+										? PaginationEllipsis({ label: word("morePages") })
 										: PaginationLink({
 												children: String(entry),
 												isActive: () => current() === entry,
@@ -350,6 +364,8 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 						),
 						PaginationItem({
 							children: PaginationNext({
+								"aria-label": word("nextPage"),
+								children: word("next"),
 								disabled: () => current() >= pageCount(),
 								onSelect: go(current() + 1),
 							}),
@@ -367,7 +383,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 				props.selectable === true
 					? TableCell({
 							children: Checkbox({
-								label: `Select row ${key}`,
+								label: props.selectRowLabel?.(row) ?? `Select row ${key}`,
 								checked: () => selected().includes(key),
 								onCheckedChange: () => toggleRow(key),
 							}),

@@ -87,6 +87,10 @@ export interface QuestionnaireProps {
 	nextLabel?: string;
 	skipLabel?: string;
 	submitLabel?: string;
+	/** The progress bar's accessible name. Default `"Questionnaire progress"`. */
+	progressLabel?: string;
+	/** The counter under the bar. Default `"Question 2 of 5"`. */
+	counterLabel?: (position: number, total: number) => string;
 	class?: Reactive<string>;
 }
 
@@ -118,6 +122,10 @@ export function isAnswered(
 	if (answer === undefined) return false;
 	if (isMultiple(question)) return asSet(answer).length > 0;
 	return asValue(answer).trim() !== "";
+}
+
+function questionOf(position: number, total: number): string {
+	return `Question ${position} of ${total}`;
 }
 
 export const Questionnaire = component<QuestionnaireProps>((props) => {
@@ -192,13 +200,13 @@ export const Questionnaire = component<QuestionnaireProps>((props) => {
 					${Progress({
 						value: () => step() + 1,
 						max: total,
-						label: "Questionnaire progress",
+						label: props.progressLabel ?? "Questionnaire progress",
 					})}
 					<p
 						id="${counterId}"
 						aria-live="polite"
 						class="text-muted-foreground text-xs tabular-nums"
-					>${() => `Question ${step() + 1} of ${total}`}</p>
+					>${() => (props.counterLabel ?? questionOf)(step() + 1, total)}</p>
 				</div>`
 		}
 

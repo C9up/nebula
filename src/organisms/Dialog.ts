@@ -22,7 +22,8 @@
  * point at.
  *
  * Hence `DialogHeader` gets a VALUE: it takes a `Slot`, which the renderer calls
- * later, and a `DialogTitle` built in there finds no context left to read (see
+ * when the panel renders, and a `DialogTitle` built in there registers after
+ * the panel has looked for one — it renders, and the panel stays unnamed (see
  * `Parts`). Content that changes goes inside the title, not around it.
  *
  * The `panel` callback matters more than it looks. The overlay's root spans
@@ -71,6 +72,7 @@ const closeButtonClasses =
 interface RegisteredContent {
 	readonly body: Child;
 	readonly showCloseButton: boolean;
+	readonly closeLabel: string;
 	readonly dismissOnOutside: boolean;
 	readonly dismissOnEscape: boolean;
 	readonly class?: Reactive<string>;
@@ -243,6 +245,8 @@ export interface DialogContentProps {
 	children?: Parts;
 	/** The corner cross. */
 	showCloseButton?: boolean;
+	/** The cross's accessible name. Default `"Close"`. */
+	closeLabel?: string;
 	/** A click outside closes. `false` for a decision that must be made. */
 	dismissOnOutside?: boolean;
 	/** Escape closes. `false` for the same reason. */
@@ -263,6 +267,7 @@ export const DialogContent = component<DialogContentProps>((props) => {
 	dialog.register({
 		body,
 		showCloseButton: props.showCloseButton ?? true,
+		closeLabel: props.closeLabel ?? "Close",
 		dismissOnOutside: props.dismissOnOutside ?? true,
 		dismissOnEscape: props.dismissOnEscape ?? true,
 		class: props.class,
@@ -285,6 +290,8 @@ export const DialogHeader = component<DialogSectionProps>(
 export interface DialogFooterProps extends DialogSectionProps {
 	/** Append a "Close" button after the children, as upstream can. */
 	showCloseButton?: boolean;
+	/** That button's text. Default `"Close"`. */
+	closeLabel?: string;
 }
 
 export const DialogFooter = component<DialogFooterProps>((props) => {
@@ -295,7 +302,7 @@ export const DialogFooter = component<DialogFooterProps>((props) => {
 					type="button"
 					data-slot="dialog-close"
 					@click="${() => dialog.setOpen(false)}"
-				>${Button({ variant: "outline", children: "Close" })}</button>`
+				>${Button({ variant: "outline", children: props.closeLabel ?? "Close" })}</button>`
 			: null;
 	return html`<div
 		data-slot="dialog-footer"
@@ -352,7 +359,7 @@ function renderSurface(
 				data-slot="dialog-close"
 				class="${closeButtonClasses}"
 				@click="${() => ids.close()}"
-			>${XIcon({ class: "size-4" })}<span class="sr-only">Close</span></button>`
+			>${XIcon({ class: "size-4" })}<span class="sr-only">${registered.closeLabel}</span></button>`
 		: null;
 	return html`<div data-slot="dialog-portal" class="${cn("fixed inset-0 z-50", fadeInOut)}">
 		<div data-slot="dialog-overlay" class="${dialogBackdropClasses}"></div>

@@ -79,11 +79,45 @@ export interface PaginationProps {
 	class?: Reactive<string>;
 }
 
-export const Pagination = component<PaginationProps>(
+/**
+ * Every text the pagination writes, in one place.
+ *
+ * The defaults are upstream's English. An app in another language passes its
+ * own: most of these are read only by a screen reader, which would otherwise
+ * switch to English in the middle of the page.
+ */
+export interface PaginationLabels {
+	/** The `<nav>`'s accessible name. */
+	navigation: string;
+	/** The visible word beside the previous arrow. */
+	previous: string;
+	/** The previous link's accessible name. */
+	previousPage: string;
+	next: string;
+	nextPage: string;
+	/** The ellipsis's hidden text. */
+	morePages: string;
+}
+
+/** Frozen: the defaults, not a place to set an app's language from. */
+export const paginationLabels: Readonly<PaginationLabels> = Object.freeze({
+	navigation: "pagination",
+	previous: "Previous",
+	previousPage: "Go to previous page",
+	next: "Next",
+	nextPage: "Go to next page",
+	morePages: "More pages",
+});
+
+export interface PaginationNavProps extends PaginationProps {
+	"aria-label"?: string;
+}
+
+export const Pagination = component<PaginationNavProps>(
 	(props) => html`<nav
 		data-slot="pagination"
 		role="navigation"
-		aria-label="pagination"
+		aria-label="${props["aria-label"] ?? paginationLabels.navigation}"
 		class="${() => cn("mx-auto flex w-full justify-center", read(props.class))}"
 	>${slot(props.children)}</nav>`,
 );
@@ -153,18 +187,24 @@ export const PaginationLink = component<PaginationLinkProps>((props) => {
 	>${slot(props.children)}</a>`;
 });
 
+/**
+ * `aria-label` replaces the accessible name, as upstream's prop spread lets it.
+ * `children` replaces the visible word and keeps the arrow — upstream writes
+ * that word in the file, which an app owning its copy can edit and a package
+ * cannot.
+ */
 export type PaginationStepProps = Omit<
 	PaginationLinkProps,
-	"size" | "isActive" | "aria-label"
+	"size" | "isActive"
 >;
 
 export const PaginationPrevious = component<PaginationStepProps>((props) =>
 	PaginationLink({
 		...props,
 		size: "default",
-		"aria-label": "Go to previous page",
+		"aria-label": props["aria-label"] ?? paginationLabels.previousPage,
 		class: () => cn("gap-1 px-2.5 sm:pl-2.5", read(props.class)),
-		children: html`${ChevronLeftIcon({})}<span class="hidden sm:block">Previous</span>`,
+		children: html`${ChevronLeftIcon({})}<span class="hidden sm:block">${slot(props.children ?? paginationLabels.previous)}</span>`,
 	}),
 );
 
@@ -172,13 +212,15 @@ export const PaginationNext = component<PaginationStepProps>((props) =>
 	PaginationLink({
 		...props,
 		size: "default",
-		"aria-label": "Go to next page",
+		"aria-label": props["aria-label"] ?? paginationLabels.nextPage,
 		class: () => cn("gap-1 px-2.5 sm:pr-2.5", read(props.class)),
-		children: html`<span class="hidden sm:block">Next</span>${ChevronRightIcon({})}`,
+		children: html`<span class="hidden sm:block">${slot(props.children ?? paginationLabels.next)}</span>${ChevronRightIcon({})}`,
 	}),
 );
 
 export interface PaginationEllipsisProps {
+	/** The hidden text. Default `"More pages"`. */
+	label?: string;
 	class?: Reactive<string>;
 }
 
@@ -188,5 +230,5 @@ export const PaginationEllipsis = component<PaginationEllipsisProps>(
 		data-slot="pagination-ellipsis"
 		aria-hidden="true"
 		class="${() => cn("flex size-9 items-center justify-center", read(props.class))}"
-	>${MoreHorizontalIcon({ class: "size-4" })}<span class="sr-only">More pages</span></span>`,
+	>${MoreHorizontalIcon({ class: "size-4" })}<span class="sr-only">${props.label ?? paginationLabels.morePages}</span></span>`,
 );

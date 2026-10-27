@@ -32,10 +32,15 @@ export interface BreadcrumbProps {
 	class?: Reactive<string>;
 }
 
-export const Breadcrumb = component<BreadcrumbProps>(
+export interface BreadcrumbNavProps extends BreadcrumbProps {
+	/** The `<nav>`'s accessible name. Default `"breadcrumb"`. */
+	"aria-label"?: string;
+}
+
+export const Breadcrumb = component<BreadcrumbNavProps>(
 	(props) => html`<nav
 		data-slot="breadcrumb"
-		aria-label="breadcrumb"
+		aria-label="${props["aria-label"] ?? "breadcrumb"}"
 		class="${() => cn(read(props.class))}"
 	>${slot(props.children)}</nav>`,
 );
@@ -97,12 +102,18 @@ export const BreadcrumbSeparator = component<BreadcrumbProps>(
 	>${props.children === undefined ? ChevronRightIcon() : slot(props.children)}</li>`,
 );
 
+export interface BreadcrumbEllipsisProps {
+	/** The hidden text. Default `"More"`. */
+	label?: string;
+	class?: Reactive<string>;
+}
+
 /** Stands in for ancestors that did not fit. */
-export const BreadcrumbEllipsis = component<BreadcrumbProps>(
+export const BreadcrumbEllipsis = component<BreadcrumbEllipsisProps>(
 	(props) => html`<span
 		data-slot="breadcrumb-ellipsis"
 		role="presentation"
 		aria-hidden="true"
 		class="${() => cn("flex size-9 items-center justify-center", read(props.class))}"
-	>${MoreHorizontalIcon({ class: "size-4" })}<span class="sr-only">More</span></span>`,
+	>${MoreHorizontalIcon({ class: "size-4" })}<span class="sr-only">${props.label ?? "More"}</span></span>`,
 );

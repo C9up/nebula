@@ -327,6 +327,8 @@ const variantClasses: Record<ToastVariant, string> = {
 export interface ToasterProps {
 	/** Which corner. Default `"bottom-right"`. */
 	position?: "top-right" | "top-left" | "bottom-right" | "bottom-left";
+	/** The dismiss cross's accessible name, as sonner names the prop. */
+	closeButtonAriaLabel?: string;
 	class?: Reactive<string>;
 }
 
@@ -346,6 +348,8 @@ const positionClasses: Record<NonNullable<ToasterProps["position"]>, string> = {
  */
 export const Toaster = component<ToasterProps>((props) => {
 	const position = props.position ?? "bottom-right";
+	const closeLabel = props.closeButtonAriaLabel ?? "Dismiss notification";
+	const render = (entry: ActiveToast): Child => renderToast(entry, closeLabel);
 
 	return html`<div
 		data-slot="toaster"
@@ -363,18 +367,18 @@ export const Toaster = component<ToasterProps>((props) => {
 			${() =>
 				queue()
 					.filter((entry) => entry.variant !== "error")
-					.map(renderToast)}
+					.map(render)}
 		</div>
 		<div role="alert" aria-live="assertive" aria-atomic="false" class="contents">
 			${() =>
 				queue()
 					.filter((entry) => entry.variant === "error")
-					.map(renderToast)}
+					.map(render)}
 		</div>
 	</div>`;
 });
 
-function renderToast(entry: ActiveToast): Child {
+function renderToast(entry: ActiveToast, closeLabel: string): Child {
 	return html`<div
 		data-slot="toast"
 		data-variant="${entry.variant}"
@@ -412,7 +416,7 @@ function renderToast(entry: ActiveToast): Child {
 		}
 		<button
 			type="button"
-			aria-label="Dismiss notification"
+			aria-label="${closeLabel}"
 			class="opacity-60 transition-opacity hover:opacity-100"
 			@click="${() => dismiss(entry.id)}"
 		>${XIcon({ class: "size-4" })}</button>
