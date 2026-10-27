@@ -28,6 +28,16 @@ describe("nebula > prebuilt stylesheet", () => {
 		expect(stylesheet).toContain("body{background-color:var(--background)");
 	});
 
+	it("keeps a checked box on the primary fill in the dark theme", () => {
+		// `dark:bg-input/30` and `checked:bg-primary` have the same specificity,
+		// and Tailwind sorts the `dark:` variant later, so in the dark theme a
+		// checked box kept the near-transparent fill and its dark tick vanished.
+		// The `dark:checked:` rule carries one more pseudo-class and wins.
+		expect(stylesheet).toContain(
+			".dark\\:checked\\:bg-primary:is(.dark *):checked,.dark\\:indeterminate\\:bg-primary:is(.dark *):indeterminate{background-color:var(--primary)}",
+		);
+	});
+
 	it("still carries the tokens both rules read", () => {
 		// The rules above are worth nothing if the palette they reference is not
 		// in the same file — the css adapter imports this one and nothing else.

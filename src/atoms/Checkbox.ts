@@ -22,7 +22,7 @@ import { CheckIcon, MinusIcon } from "../lib/icons.js";
 import { accessor, type Reactive, read } from "../lib/props.js";
 
 export const checkboxClasses =
-	"peer size-4 shrink-0 appearance-none rounded-[4px] border border-input bg-transparent shadow-xs outline-none transition-shadow dark:bg-input/30 checked:border-primary checked:bg-primary indeterminate:border-primary indeterminate:bg-primary focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20";
+	"peer size-4 shrink-0 appearance-none rounded-[4px] border border-input bg-transparent shadow-xs outline-none transition-shadow dark:bg-input/30 checked:border-primary checked:bg-primary indeterminate:border-primary indeterminate:bg-primary focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:checked:bg-primary dark:indeterminate:bg-primary";
 
 export interface CheckboxProps {
 	id?: string;
