@@ -300,6 +300,15 @@ const cases: readonly Case[] = [
 			}),
 	},
 	{
+		name: "piece-map",
+		slot: "piece-map",
+		build: () =>
+			molecules.PieceMap({
+				groups: [[{ state: "have" }, { state: "missing" }]],
+				tones: { have: "bg-primary", missing: "border" },
+			}),
+	},
+	{
 		name: "pagination",
 		slot: "pagination",
 		build: () =>

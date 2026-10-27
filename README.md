@@ -194,11 +194,11 @@ resources/pages/
 The rule is composition, not complexity. Slider is an atom though it is interactive, because it is one input. Card is a molecule though it is trivial, because it assembles parts.
 
 <details>
-<summary><strong>All 74 components</strong></summary>
+<summary><strong>All 75 components</strong></summary>
 
 **atoms (22)** — AccessibleIcon, AspectRatio, Avatar, Badge, Button, Checkbox, Image, Input, Kbd, Label, Marker, NativeSelect, Progress, ScrollArea, Separator, Skeleton, Slider, Spinner, Switch, Textarea, Toggle, VisuallyHidden
 
-**molecules (23)** — Accordion, Alert, Attachment, Breadcrumb, Bubble, ButtonGroup, Card, Collapsible, Empty, Field, InputGroup, InputOTP, Item, Message, Pagination, Picture, RadioGroup, Resizable, Table, Tabs, ToggleGroup, Toolbar, Typography
+**molecules (24)** — Accordion, Alert, Attachment, Breadcrumb, Bubble, ButtonGroup, Card, Collapsible, Empty, Field, InputGroup, InputOTP, Item, Message, Pagination, Picture, PieceMap, RadioGroup, Resizable, Table, Tabs, ToggleGroup, Toolbar, Typography
 
 **organisms (26)** — AlertDialog, Calendar, Carousel, Chart, Combobox, Command, CommandDialog, ContextMenu, DataTable, DatePicker, DateRangePicker, Dialog, Drawer, DropdownMenu, Form, HoverCard, Menubar, MessageScroller, NavigationMenu, Popover, Questionnaire, Select, Sheet, Sidebar, Toaster, Tooltip
 

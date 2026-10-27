@@ -823,6 +823,19 @@
       ]
     },
     {
+      "name": "piece-map",
+      "title": "PieceMap",
+      "layer": "molecules",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/cva.ts",
+        "lib/props.ts",
+        "molecules/PieceMap.ts"
+      ],
+      "dependencies": []
+    },
+    {
       "name": "popover",
       "title": "Popover",
       "layer": "organisms",

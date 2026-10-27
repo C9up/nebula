@@ -167,6 +167,16 @@ export {
 } from "./Pagination.js";
 export { Picture, type PictureProps } from "./Picture.js";
 export {
+	type Piece,
+	PieceMap,
+	PieceMapLegend,
+	type PieceMapLegendItem,
+	type PieceMapLegendProps,
+	type PieceMapProps,
+	type PieceVariants,
+	pieceVariants,
+} from "./PieceMap.js";
+export {
 	RadioGroup,
 	RadioGroupItem,
 	type RadioGroupItemProps,
