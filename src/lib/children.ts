@@ -44,13 +44,16 @@ export type Slot = Reactive<Child>;
  * `Parts` names it so the type makes the requirement, rather than a blank
  * surface at runtime.
  *
- * Called ONCE, during setup — the structure of a compound component is fixed,
- * and its moving pieces are signals inside the parts.
+ * Called ONCE, during setup. What changes goes in an accessor inside it, and
+ * parts built there still reach their provider — Aurora calls the accessor
+ * with the providers it was written under — so a list of options can follow a
+ * signal:
  *
- * The same rule read from the other end: a part that READS context must be
- * built eagerly too, so it must not be hidden inside a `Slot`. `Slot` exists
- * for content that CHANGES, and the renderer calls it later, by which time
- * there is no context left to read:
+ *     SelectContent({ children: () => html`${() => roles().map((r) => SelectItem(…))}` })
+ *
+ * A part that has to be KNOWN at setup is the exception. `DialogTitle` names
+ * the panel, and the panel reads whether there is a title before it renders
+ * its children, so a title built later in an accessor leaves it unnamed:
  *
  *     DialogHeader({ children: html`${DialogTitle(…)}` })       // ✓ a value
  *     DialogHeader({ children: () => html`${DialogTitle(…)}` }) // ✗ too late

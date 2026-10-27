@@ -3,8 +3,8 @@
  *
  * The example once handed `DialogHeader` a thunk. `DialogHeader` takes a
  * `Slot`, which the renderer calls after setup, so the `DialogTitle` inside it
- * was built with no context left to read: the panel failed to render on open,
- * and the setup-time check warned about a title that was right there.
+ * was built after the dialog had looked for one: the setup-time check warned
+ * about a title that was right there, and the panel had no name.
  */
 
 import { html } from "@c9up/aurora";

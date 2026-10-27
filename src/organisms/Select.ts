@@ -19,10 +19,19 @@
  *     ` })}
  *   ` })
  *
- * The items REGISTER themselves as they are built, in document order, and the
- * keyboard model then walks that list rather than the DOM. That is deliberate:
- * the listbox pattern keeps focus on the trigger and only moves
- * `aria-activedescendant`, so there is no focused element to walk from.
+ * The items REGISTER themselves as they are built: what each one is called and
+ * whether it is disabled, by value. WHICH options exist and in what order is
+ * read from the mounted list, as Radix's collection reads it — so options built
+ * in an accessor follow a signal:
+ *
+ *     SelectContent({ children: () => html`${() => roles().map((role) =>
+ *       SelectItem({ value: role.id, children: role.name }))}` })
+ *
+ * Closed, the list is still mounted, outside the document, as Radix renders a
+ * closed select's content into a DocumentFragment: the options exist, so the
+ * trigger shows the chosen one's label and the keyboard can walk them. Focus
+ * stays on the trigger and only `aria-activedescendant` moves, so the walk is
+ * over those options, not over focusable elements.
  *
  * What a native `<select>` was doing for free, and all of which has to be put
  * back by hand:
@@ -42,12 +51,16 @@
 import {
 	component,
 	createContext,
+	effect,
 	html,
 	inject,
+	onMount,
 	onUnmount,
 	provide,
+	render,
 	signal,
 	type TemplateResult,
+	untrack,
 } from "@c9up/aurora";
 import type { Child, Parts, Slot } from "../lib/children.js";
 import { slot } from "../lib/children.js";
@@ -55,7 +68,7 @@ import { cn } from "../lib/cn.js";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
 import { slideInFromSide, zoomInOut } from "../lib/motion.js";
-import { type Reactive, read, readOr } from "../lib/props.js";
+import { accessor, type Reactive, read, readOr } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import type { Align, Placement, Side } from "../primitives/floating.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
@@ -91,7 +104,12 @@ interface RegisteredContent {
 }
 
 interface SelectApi {
-	readonly triggerId: string;
+	/**
+	 * The trigger's id: the one it was given, or one minted here. Claimed as the
+	 * trigger is built, which is before anything that reads it — the anchor,
+	 * the list's `aria-labelledby`, the focus return — first runs.
+	 */
+	claimTriggerId(id: string | undefined): string;
 	readonly listId: string;
 	readonly open: () => boolean;
 	readonly value: () => string | undefined;
@@ -108,6 +126,12 @@ interface SelectApi {
 	setActive(value: string | undefined): void;
 	onTriggerKeyDown(event: KeyboardEvent): void;
 	registerItem(item: RegisteredItem): void;
+	/**
+	 * An option's element is in a mounted list; the returned function says it
+	 * left. Counted, because the list can be mounted twice for a moment — the
+	 * closing panel still fading out, the closed copy already in place.
+	 */
+	attachItem(value: string): () => void;
 	registerContent(content: RegisteredContent): void;
 }
 
@@ -126,9 +150,25 @@ export interface SelectProps {
 }
 
 export const Select = component<SelectProps>((props) => {
-	const triggerId = uid("select-trigger");
+	let triggerId = uid("select-trigger");
 	const listId = uid("select-list");
-	const items: RegisteredItem[] = [];
+	/** What each value's option is called, latest registration first. */
+	const registry = new Map<string, RegisteredItem>();
+	/** Moves whenever an option registers, so the chosen label follows. */
+	const revision = signal(0);
+	/** How many mounted lists hold each value's option. */
+	const attached = new Map<string, number>();
+	/** Whether a list has been mounted at all — never, on the server. */
+	let mountedOnce = false;
+	// Untracked read: called while the accessor building an option runs, and
+	// reading the counter there would make that accessor re-run on every change.
+	const bump = (): void => {
+		revision(untrack(() => revision()) + 1);
+	};
+	/** The open panel, once it has rendered. */
+	let panel: HTMLElement | null = null;
+	/** Where the list is mounted while closed — outside the document. */
+	let closedHost: HTMLElement | null = null;
 	/** Per instance, not per module: two selects may offer the same value. */
 	const optionIds = new Map<string, string>();
 	let content: RegisteredContent | undefined;
@@ -144,8 +184,26 @@ export const Select = component<SelectProps>((props) => {
 	/** The option the keyboard is on. Distinct from the selected one. */
 	const active = signal<string | undefined>(undefined);
 
+	/**
+	 * The options the list holds now, in its order. Read from the mounted list,
+	 * which is what drops an option a signal removed and places one it added;
+	 * before anything is mounted (on the server), in registration order.
+	 */
+	function items(): readonly RegisteredItem[] {
+		const root = open() && panel?.isConnected === true ? panel : closedHost;
+		if (root === null) return [...registry.values()];
+		const out: RegisteredItem[] = [];
+		for (const element of root.querySelectorAll<HTMLElement>(
+			"[data-slot=select-item]",
+		)) {
+			const item = registry.get(element.dataset.value ?? "");
+			if (item !== undefined && item.id === element.id) out.push(item);
+		}
+		return out;
+	}
+
 	const enabled = (): readonly RegisteredItem[] =>
-		items.filter((item) => !item.disabled);
+		items().filter((item) => !item.disabled);
 
 	function choose(value: string): void {
 		selection.set(value);
@@ -235,7 +293,10 @@ export const Select = component<SelectProps>((props) => {
 	}
 
 	provide<SelectApi>(SelectContext, {
-		triggerId,
+		claimTriggerId(id) {
+			if (id !== undefined) triggerId = id;
+			return triggerId;
+		},
 		listId,
 		open: () => open(),
 		value: () => selection.current(),
@@ -243,8 +304,15 @@ export const Select = component<SelectProps>((props) => {
 		disabled: () => readOr(props.disabled, false),
 		invalid: () => read(props.invalid) === true,
 		required: props.required === true,
-		chosenLabel: () =>
-			items.find((item) => item.value === selection.current())?.textValue,
+		chosenLabel: () => {
+			revision();
+			const current = selection.current();
+			if (current === undefined) return undefined;
+			// An option a signal removed keeps its registration, but not its
+			// place in a list: its label must not stay on the trigger.
+			if (mountedOnce && !attached.has(current)) return undefined;
+			return registry.get(current)?.textValue;
+		},
 		itemId(value) {
 			let id = optionIds.get(value);
 			if (id === undefined) {
@@ -261,7 +329,19 @@ export const Select = component<SelectProps>((props) => {
 		setActive: (value) => active(value),
 		onTriggerKeyDown,
 		registerItem(item) {
-			items.push(item);
+			registry.set(item.value, item);
+			bump();
+		},
+		attachItem(value) {
+			mountedOnce = true;
+			attached.set(value, (attached.get(value) ?? 0) + 1);
+			bump();
+			return () => {
+				const left = (attached.get(value) ?? 1) - 1;
+				if (left > 0) attached.set(value, left);
+				else attached.delete(value);
+				bump();
+			};
 		},
 		registerContent(registered) {
 			content = registered;
@@ -288,7 +368,32 @@ export const Select = component<SelectProps>((props) => {
 			// Focus never enters the panel — the listbox pattern keeps it on the
 			// trigger — so nothing here traps or moves it.
 			content: () => renderList(registered, { listId, triggerId }),
-			onOpened: scrollActiveIntoView,
+			onOpened: (element) => {
+				panel = element;
+				scrollActiveIntoView(element);
+			},
+		});
+
+		onMount(() => {
+			let unmountClosed: (() => void) | null = null;
+			const stop = effect(() => {
+				if (open()) {
+					unmountClosed?.();
+					unmountClosed = null;
+					closedHost = null;
+					return;
+				}
+				if (unmountClosed !== null) return;
+				const host = document.createElement("div");
+				// Untracked: what the options read belongs to their own bindings,
+				// not to this effect, which only follows `open`.
+				unmountClosed = untrack(() => render(html`${registered.body}`, host));
+				closedHost = host;
+			});
+			return () => {
+				stop();
+				unmountClosed?.();
+			};
 		});
 	}
 
@@ -301,7 +406,7 @@ export const Select = component<SelectProps>((props) => {
 	function scrollActiveIntoView(panel: HTMLElement): void {
 		const current = active() ?? selection.current();
 		if (current === undefined) return;
-		const id = items.find((item) => item.value === current)?.id;
+		const id = registry.get(current)?.id;
 		if (id === undefined) return;
 		panel
 			.querySelector(`#${CSS.escape(id)}`)
@@ -318,9 +423,19 @@ export const Select = component<SelectProps>((props) => {
 		/></div>`;
 });
 
+/**
+ * `id`, `label` and `describedBy` as on `Input`: upstream's trigger takes every
+ * button prop, and these are the ones that name it — a `FieldLabel` points its
+ * `for` at the `id`, and a `<label for>` names a `<button>`. Without them the
+ * combobox's only name was the value it showed.
+ */
 export interface SelectTriggerProps {
 	children?: Slot;
 	size?: "default" | "sm";
+	id?: string;
+	/** Accessible name (`aria-label`), for a select no `<label>` names. */
+	label?: Reactive<string | undefined>;
+	describedBy?: Reactive<string | undefined>;
 	class?: Reactive<string>;
 }
 
@@ -329,7 +444,9 @@ export const SelectTrigger = component<SelectTriggerProps>((props) => {
 	return html`<button
 		type="button"
 		data-slot="select-trigger"
-		id="${select.triggerId}"
+		id="${select.claimTriggerId(props.id)}"
+		aria-label="${accessor(props.label, undefined)}"
+		aria-describedby="${accessor(props.describedBy, undefined)}"
 		role="combobox"
 		aria-haspopup="listbox"
 		aria-expanded="${() => (select.open() ? "true" : "false")}"
@@ -448,6 +565,10 @@ export const SelectItem = component<SelectItemProps>((props) => {
 			(typeof children === "string" ? children : props.value),
 		disabled: props.disabled === true,
 	});
+
+	// On each mount, not once: the same option is mounted again every time the
+	// list opens or closes, and unmounted when a signal drops it.
+	onMount(() => select.attachItem(props.value));
 
 	const chosen = (): boolean => select.value() === props.value;
 	return html`<div
