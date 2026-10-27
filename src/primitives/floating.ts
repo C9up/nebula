@@ -360,6 +360,32 @@ export interface AutoPositionOptions extends PositionOptions {
 	onPositioned?: (position: Position) => void;
 }
 
+/**
+ * The surface's size as laid out, before any transform.
+ *
+ * `getBoundingClientRect()` includes transforms, and every surface opens under
+ * `zoom-in-95`: measured on its first frame it is 5% short, and one placed on
+ * the `top` side lands that much too low, over the control that opened it. A
+ * transform never changes layout, so the `ResizeObserver` would not correct it
+ * afterwards either. floating-ui reads the same two sources in the same order
+ * (`getCssDimensions`): the computed size, which keeps sub-pixel widths, and
+ * the integer offset size when the two disagree.
+ */
+function layoutRect(element: HTMLElement): Rect {
+	const box = element.getBoundingClientRect();
+	const css = getComputedStyle(element);
+	let width = Number.parseFloat(css.width) || 0;
+	let height = Number.parseFloat(css.height) || 0;
+	if (
+		Math.round(width) !== element.offsetWidth ||
+		Math.round(height) !== element.offsetHeight
+	) {
+		width = element.offsetWidth;
+		height = element.offsetHeight;
+	}
+	return { x: box.x, y: box.y, width, height };
+}
+
 export interface AutoPosition {
 	/** Recompute and rewrite the styles now. */
 	update(): void;
@@ -390,7 +416,7 @@ export function autoPosition(
 			floating.style.width = `${anchorRect.width}px`;
 		}
 
-		const floatingRect = floating.getBoundingClientRect();
+		const floatingRect = layoutRect(floating);
 		const position = resolvePosition(
 			anchorRect,
 			floatingRect,
