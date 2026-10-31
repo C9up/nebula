@@ -13,11 +13,13 @@
  * frozen for the lifetime of the node.
  */
 
-import type { TemplateResult } from "@c9up/aurora";
+import { type Each, isEach, type TemplateResult } from "@c9up/aurora";
 import type { Reactive } from "./props.js";
 
 export type Child =
 	| TemplateResult
+	/** A keyed list from aurora's `each`, which keeps its rows by key. */
+	| Each
 	| Node
 	| string
 	| number
@@ -73,5 +75,8 @@ export type Parts = () => Child;
  */
 export function slot(content: Slot | undefined): () => Child {
 	if (content === undefined) return () => null;
+	// A keyed list is a function too, but it is content, not an accessor for
+	// content: handed over as the value, it keeps its rows by key.
+	if (isEach(content)) return () => content;
 	return typeof content === "function" ? content : () => content;
 }

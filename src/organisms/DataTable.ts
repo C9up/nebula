@@ -20,7 +20,14 @@
  * attribute is what says it to everyone else.
  */
 
-import { html, signal, type TemplateResult } from "@c9up/aurora";
+import {
+	each,
+	html,
+	memo,
+	type ReadSignal,
+	signal,
+	type TemplateResult,
+} from "@c9up/aurora";
 import { Checkbox } from "../atoms/Checkbox.js";
 import { Input } from "../atoms/Input.js";
 import type { Child } from "../lib/children.js";
@@ -178,6 +185,9 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 		return rows.slice(from, from + props.pageSize);
 	}
 
+	/** Whether the body shows the empty row — read apart, so the list survives. */
+	const isEmpty = memo(() => visible().length === 0);
+
 	function toggleSort(column: Column<Row>): void {
 		if (column.sortable === false) return;
 		if (sortKey() === column.key) {
@@ -304,19 +314,19 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 					}),
 				}),
 				TableBody({
-					children: () => {
-						const rows = visible();
-						if (rows.length === 0) {
-							return TableRow({
-								children: TableCell({
-									colspan: columnCount,
-									class: "h-24 text-center",
-									children: props.emptyMessage ?? "No results.",
-								}),
-							});
-						}
-						return rows.map((row) => renderRow(row));
-					},
+					// Rows by key: a re-read, a sort or a page change keeps the rows
+					// that stay, with their open menus and focus. The body itself only
+					// switches between the list and the empty row.
+					children: () =>
+						isEmpty()
+							? TableRow({
+									children: TableCell({
+										colspan: columnCount,
+										class: "h-24 text-center",
+										children: props.emptyMessage ?? "No results.",
+									}),
+								})
+							: each(visible, props.rowKey, renderRow),
 				}),
 			],
 		})}
@@ -375,22 +385,30 @@ export function DataTable<Row>(props: DataTableProps<Row>): TemplateResult {
 		});
 	}
 
-	function renderRow(row: Row): Child {
-		const key = props.rowKey(row);
+	/**
+	 * One row, built once for its key. The cells read the row through its
+	 * accessor, so a row whose data changed redraws its cells and nothing else.
+	 */
+	function renderRow(row: ReadSignal<Row>): Child {
+		const key = props.rowKey(row());
 		return TableRow({
 			selected: () => selected().includes(key),
 			children: [
 				props.selectable === true
 					? TableCell({
 							children: Checkbox({
-								label: props.selectRowLabel?.(row) ?? `Select row ${key}`,
+								label: () =>
+									props.selectRowLabel?.(row()) ?? `Select row ${key}`,
 								checked: () => selected().includes(key),
 								onCheckedChange: () => toggleRow(key),
 							}),
 						})
 					: null,
 				...props.columns.map((column) =>
-					TableCell({ class: column.class, children: readCell(row, column) }),
+					TableCell({
+						class: column.class,
+						children: () => readCell(row(), column),
+					}),
 				),
 			],
 		});
