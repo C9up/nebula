@@ -1,6 +1,11 @@
 /**
  * Toaster — transient notifications.
  *
+ * @deprecated shadcn has deprecated its `toast` component in favour of
+ * `sonner`, and so does nebula: use `organisms/Sonner.ts` (`nebula add
+ * sonner`), whose `Toaster` and `toast` follow sonner's API. This one stays
+ * until apps have moved.
+ *
  * shadcn ships two: `sonner`, which wraps a third-party library, and `toast`,
  * its own, built on Base UI. nebula keeps it in-house with zero dependencies
  * and follows the SECOND — the shape is the same: one region mounted once near
@@ -244,6 +249,8 @@ function resolveMessage<T>(
  * Raise a toast. Returns its id, which `dismiss` accepts.
  *
  * Callable from anywhere — no component, no context, no handle.
+ *
+ * @deprecated Use `toast` from `organisms/Sonner.ts`, shadcn's current toaster.
  */
 export const toast = {
 	show,
@@ -345,6 +352,8 @@ const positionClasses: Record<NonNullable<ToasterProps["position"]>, string> = {
  * `data-nebula-live` marks it as exempt from the `aria-hidden` sweep a modal
  * performs over its siblings — a toast raised while a dialog is open still has
  * to be announced.
+ *
+ * @deprecated Use `Toaster` from `organisms/Sonner.ts`, shadcn's current toaster.
  */
 export const Toaster = component<ToasterProps>((props) => {
 	const position = props.position ?? "bottom-right";

@@ -1047,6 +1047,19 @@
       "dependencies": []
     },
     {
+      "name": "sonner",
+      "title": "Sonner",
+      "layer": "organisms",
+      "files": [
+        "lib/children.ts",
+        "lib/cn.ts",
+        "lib/icons.ts",
+        "lib/props.ts",
+        "organisms/Sonner.ts"
+      ],
+      "dependencies": []
+    },
+    {
       "name": "spinner",
       "title": "Spinner",
       "layer": "atoms",

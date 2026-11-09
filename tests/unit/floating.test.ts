@@ -79,6 +79,24 @@ describe("resolvePosition", () => {
 		expect(position.arrow?.x).toBe(123);
 	});
 
+	it("stands an arrow's length off the anchor, as Radix's popper does", () => {
+		// The arrow lives in the gap. With shadcn's `sideOffset = 0` and no room
+		// for it, its tip landed on the trigger.
+		const anchor = { x: 400, y: 300, width: 100, height: 40 };
+		const top = resolvePosition(anchor, surface, viewport, {
+			placement: "top",
+			offset: 0,
+			arrowSize: 10,
+		});
+		expect(top.y).toBe(300 - 100 - 10);
+		const right = resolvePosition(anchor, surface, viewport, {
+			placement: "right",
+			offset: 4,
+			arrowSize: 10,
+		});
+		expect(right.x).toBe(400 + 100 + 4 + 10);
+	});
+
 	it("keeps the arrow clear of the corners", () => {
 		const anchor = { x: 10, y: 300, width: 20, height: 40 };
 		const position = resolvePosition(anchor, surface, viewport, {

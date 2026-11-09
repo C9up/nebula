@@ -55,7 +55,11 @@ export interface PositionOptions {
 	flip?: boolean;
 	/** Slide along the cross axis to stay on screen. Default `true`. */
 	shift?: boolean;
-	/** Arrow size in px; centres the arrow and keeps it off the corners. */
+	/**
+	 * Arrow size in px; centres the arrow and keeps it off the corners. It is
+	 * also added to `offset`, so the surface stands an arrow's length away
+	 * from the anchor (the arrow is square, so its width is its height).
+	 */
 	arrowSize?: number;
 	/**
 	 * Mirror the placement for a right-to-left writing direction.
@@ -105,7 +109,10 @@ export function resolvePosition(
 	viewport: Viewport,
 	options: PositionOptions = {},
 ): Position {
-	const offset = options.offset ?? DEFAULT_OFFSET;
+	// The arrow stands in the gap, so the gap starts past it — Radix's popper
+	// offsets by `sideOffset + arrowHeight` for the same reason. That is why
+	// shadcn's `sideOffset = 0` still leaves the arrow clear of the trigger.
+	const offset = (options.offset ?? DEFAULT_OFFSET) + (options.arrowSize ?? 0);
 	const padding = options.padding ?? DEFAULT_PADDING;
 	const requested = options.placement ?? "bottom";
 	const [physicalSide, physicalAlign] = splitPlacement(requested);
@@ -453,6 +460,10 @@ export function autoPosition(
 		floating.setAttribute("data-align", position.align);
 
 		const arrowEl = options.arrow?.();
+		// The arrow's `data-[side=…]` classes read the arrow's OWN attribute, so it
+		// is written here on every placement: without it none of them applied and
+		// the arrow sat in the text, and a flip has to turn it around.
+		arrowEl?.setAttribute("data-side", position.side);
 		if (arrowEl && position.arrow) {
 			const { x, y } = position.arrow;
 			arrowEl.style.position = "absolute";

@@ -294,6 +294,10 @@ export interface TooltipContentProps {
 	/** Which edge of the trigger to sit on. Flips when there is no room. */
 	side?: Side;
 	align?: Align;
+	/**
+	 * Gap past the arrow, in px. `0`, as upstream: the arrow's own length is
+	 * added by the positioner, the way Radix's popper adds it.
+	 */
 	sideOffset?: number;
 	class?: Reactive<string>;
 }

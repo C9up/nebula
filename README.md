@@ -8,7 +8,7 @@ Part of **[Ream](https://github.com/C9up/ream)** — a Rust-powered, AdonisJS-co
 
 shadcn/ui is React. [Aurora](https://github.com/C9up/aurora) is a tagged-template DOM runtime with signals and no build step. nebula is the shadcn component set — the same markup, the same Tailwind classes, the same behaviour — written for Aurora.
 
-Seventy-four components across four atomic layers, plus the headless behaviour layer Radix would otherwise provide. Every component in shadcn's registry has a counterpart; several are deliberately narrower, and the [parity section](#parity-with-shadcn) says exactly which.
+Seventy-six components across four atomic layers, plus the headless behaviour layer Radix would otherwise provide. Every component in shadcn's registry has a counterpart; several are deliberately narrower, and the [parity section](#parity-with-shadcn) says exactly which.
 
 ## Installation
 
@@ -67,9 +67,9 @@ shadcn stands on Radix, `clsx`, `tailwind-merge`, `class-variance-authority`, `l
 | `class-variance-authority` | `lib/cva.ts` — reimplemented, and it runs its result through `cn` |
 | Radix UI | `primitives/` — focus trap, dismissable layers, roving focus, type-ahead, presence, portals |
 | `@floating-ui/dom` | `primitives/floating.ts` — offset, flip, shift, arrow, available height |
-| `lucide-react` | `lib/icons.ts` — the eighteen glyphs the set needs, inlined |
+| `lucide-react` | `lib/icons.ts` — the twenty-six glyphs the set needs, inlined |
 | `cmdk` | `organisms/Command.ts` |
-| `sonner` | `organisms/Toaster.ts` |
+| `sonner` | `organisms/Sonner.ts` |
 | `react-day-picker` + `date-fns` | `organisms/Calendar.ts` — `Date` and `Intl` |
 | `@tanstack/react-table` | `organisms/DataTable.ts` — sort, filter, page, select |
 | `recharts` | `organisms/Chart.ts` — line, area and bar, as inline SVG |
@@ -90,7 +90,8 @@ Two of shadcn's entries have no direct counterpart on purpose. `DirectionProvide
 | DataTable | TanStack Table (column grouping, virtualisation, pinning, faceted filters, server-side) | sort, filter, page, select — in memory |
 | Sidebar | ~15 parts | the parts that are not re-skinned atoms — see below |
 | Carousel | embla (loop, autoplay, N slides per view) | scroll-snap, one slide per view, no loop or autoplay |
-| Toaster | Base UI's manager (display priority, anchored toasts, typed payload) — or sonner, with six positions | five variants, promise toasts, update and dedup by id, action, `onClose`, pause on hover, four corners |
+| Sonner | sonner, in full | sonner's `toast` API and Toaster props, six positions, the stack that fans out on hover, rich colours, `Alt+T`; no swipe to dismiss, no `getHistory`, and `toast.promise` returns `{ id, unwrap }` |
+| Toaster (deprecated) | Base UI's manager (display priority, anchored toasts, typed payload) — shadcn has deprecated it for sonner, and so has nebula | five variants, promise toasts, update and dedup by id, action, `onClose`, pause on hover, four corners |
 | Resizable | arbitrary nesting, persisted layouts, collapse-to-zero | two panes, one handle |
 | Combobox | single, multi-select and creatable recipes | single-select |
 | ScrollArea | scrollbars redrawn by Radix | native scrollbars, styled |
@@ -194,13 +195,13 @@ resources/pages/
 The rule is composition, not complexity. Slider is an atom though it is interactive, because it is one input. Card is a molecule though it is trivial, because it assembles parts.
 
 <details>
-<summary><strong>All 75 components</strong></summary>
+<summary><strong>All 76 components</strong></summary>
 
 **atoms (22)** — AccessibleIcon, AspectRatio, Avatar, Badge, Button, Checkbox, Image, Input, Kbd, Label, Marker, NativeSelect, Progress, ScrollArea, Separator, Skeleton, Slider, Spinner, Switch, Textarea, Toggle, VisuallyHidden
 
 **molecules (24)** — Accordion, Alert, Attachment, Breadcrumb, Bubble, ButtonGroup, Card, Collapsible, Empty, Field, InputGroup, InputOTP, Item, Message, Pagination, Picture, PieceMap, RadioGroup, Resizable, Table, Tabs, ToggleGroup, Toolbar, Typography
 
-**organisms (26)** — AlertDialog, Calendar, Carousel, Chart, Combobox, Command, CommandDialog, ContextMenu, DataTable, DatePicker, DateRangePicker, Dialog, Drawer, DropdownMenu, Form, HoverCard, Menubar, MessageScroller, NavigationMenu, Popover, Questionnaire, Select, Sheet, Sidebar, Toaster, Tooltip
+**organisms (27)** — AlertDialog, Calendar, Carousel, Chart, Combobox, Command, CommandDialog, ContextMenu, DataTable, DatePicker, DateRangePicker, Dialog, Drawer, DropdownMenu, Form, HoverCard, Menubar, MessageScroller, NavigationMenu, Popover, Questionnaire, Select, Sheet, Sidebar, Sonner, Toaster, Tooltip
 
 **templates (3)** — AppShell, AuthLayout, SettingsLayout
 

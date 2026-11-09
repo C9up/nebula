@@ -661,6 +661,7 @@ const cases: readonly Case[] = [
 					})}${organisms.SidebarInset({ children: "page" })}`,
 			}),
 	},
+	{ name: "sonner", slot: "sonner", build: () => organisms.Sonner({}) },
 	{ name: "toaster", slot: "toaster", build: () => organisms.Toaster({}) },
 	{
 		name: "tooltip",

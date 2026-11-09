@@ -391,6 +391,29 @@ export {
 	sidebarState,
 	useSidebar,
 } from "./Sidebar.js";
+/**
+ * shadcn's `sonner`. Its file exports `Toaster` and `toast`, as upstream; the
+ * barrel renames them because the deprecated `Toaster` below still owns those
+ * names until apps have moved — `nebula add sonner` gives the file itself.
+ */
+export {
+	type Action as SonnerAction,
+	type ExternalToast,
+	type Offset as SonnerOffset,
+	type Position as SonnerPosition,
+	type PromiseData as SonnerPromiseData,
+	type PromiseExtendedResult as SonnerPromiseExtendedResult,
+	type PromiseResult as SonnerPromiseResult,
+	type ToastClassnames,
+	Toaster as Sonner,
+	type ToasterProps as SonnerProps,
+	type ToastIcons,
+	type ToastId as SonnerToastId,
+	type ToastOptions as SonnerToastOptions,
+	type ToastT,
+	type ToastType,
+	toast as sonnerToast,
+} from "./Sonner.js";
 export {
 	Toaster,
 	type ToasterProps,

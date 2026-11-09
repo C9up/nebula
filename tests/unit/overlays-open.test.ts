@@ -750,6 +750,25 @@ describe("Tooltip parts", () => {
 		view.dispose();
 	});
 
+	it("gives the arrow the side the surface was placed on", () => {
+		// The arrow's `data-[side=…]` classes read the arrow's own attribute.
+		// Written on the surface alone, none applied and the arrow sat in the
+		// middle of the text.
+		vi.useFakeTimers();
+		const view = mount(tooltip("?", "Help"));
+		hover(one("[data-slot='tooltip-trigger']"), "focusin");
+		vi.runOnlyPendingTimers();
+
+		const side = one("[data-slot='tooltip-content']")?.getAttribute(
+			"data-side",
+		);
+		expect(side).toMatch(/^(top|bottom|left|right)$/);
+		expect(one("[data-slot='tooltip-arrow']")?.getAttribute("data-side")).toBe(
+			side,
+		);
+		view.dispose();
+	});
+
 	it("marks the trigger open, so a style can follow the state", () => {
 		vi.useFakeTimers();
 		const view = mount(tooltip("?", "Help"));
