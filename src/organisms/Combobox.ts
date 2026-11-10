@@ -20,7 +20,7 @@ import { cn } from "../lib/cn.js";
 import { ChevronsUpDownIcon } from "../lib/icons.js";
 import { uid } from "../lib/id.js";
 import { zoomInOut } from "../lib/motion.js";
-import { type Reactive, read, readOr } from "../lib/props.js";
+import { accessor, type Reactive, read, readOr } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import { floatingSurface } from "../primitives/floatingSurface.js";
 import { focusSilently } from "../primitives/focusable.js";
@@ -42,8 +42,21 @@ export interface ComboboxOption {
 	group?: string;
 }
 
+/**
+ * `id`, `label`, `labelledBy` and `describedBy` name the trigger. Upstream's
+ * trigger is a Button that takes every button prop; these are the ones that
+ * name it — a `<Label for>` or a `FieldLabel` points at the `id`. Without them
+ * the combobox's only name was the value it showed.
+ */
 export interface ComboboxProps {
 	options: readonly ComboboxOption[];
+	/** The trigger's id; a unique one is minted when left out. */
+	id?: string;
+	/** Accessible name (`aria-label`), for a combobox no `<label>` names. */
+	label?: Reactive<string | undefined>;
+	/** Id(s) of the element(s) that name it (`aria-labelledby`). */
+	labelledBy?: Reactive<string | undefined>;
+	describedBy?: Reactive<string | undefined>;
 	name?: string;
 	value?: Reactive<string | undefined>;
 	defaultValue?: string;
@@ -60,7 +73,7 @@ export interface ComboboxProps {
 }
 
 export const Combobox = component<ComboboxProps>((props) => {
-	const triggerId = uid("combobox-trigger");
+	const triggerId = props.id ?? uid("combobox-trigger");
 	const contentId = uid("combobox-content");
 	const open = signal(false);
 
@@ -165,6 +178,9 @@ export const Combobox = component<ComboboxProps>((props) => {
 			type="button"
 			data-slot="combobox-trigger"
 			id="${triggerId}"
+			aria-label="${accessor(props.label, undefined)}"
+			aria-labelledby="${accessor(props.labelledBy, undefined)}"
+			aria-describedby="${accessor(props.describedBy, undefined)}"
 			role="combobox"
 			aria-haspopup="listbox"
 			aria-expanded="${() => (open() ? "true" : "false")}"
