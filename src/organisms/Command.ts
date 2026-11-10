@@ -29,6 +29,8 @@ import {
 	createContext,
 	html,
 	inject,
+	onMount,
+	onUnmount,
 	provide,
 	signal,
 } from "@c9up/aurora";
@@ -67,13 +69,23 @@ interface RegisteredItem extends CommandCandidate {
 	run(): void;
 }
 
+/** One mounted item's registration. */
+interface Registration {
+	/** Run this item — the mounted one, whatever else shares its value. */
+	select(): void;
+	/** Mounted: the palette's bindings learn it is there. */
+	mounted(): void;
+	/** Unmounted: it leaves the palette. */
+	unregister(): void;
+}
+
 interface CommandApi {
 	readonly inputId: string;
 	readonly listId: string;
 	readonly query: () => string;
 	readonly active: () => string | undefined;
 	setActive(value: string | undefined): void;
-	register(item: Omit<RegisteredItem, "id">): void;
+	register(item: Omit<RegisteredItem, "id">): Registration;
 	/** This palette's element id for a value. Per instance: ids are page-wide. */
 	itemId(value: string): string;
 	/** Does this item survive the current query? */
@@ -139,6 +151,33 @@ export const Command = component<CommandProps>((props) => {
 	 */
 	const explicitActive = signal<string | undefined>(undefined);
 
+	/**
+	 * Bumped when items mount or unmount, so the bindings that read the list
+	 * — the empty state, the groups, the highlight — follow it. `items` itself
+	 * stays a plain array, filled during setup: a signal written while the
+	 * items are being built re-entered the effect building them.
+	 *
+	 * Coalesced to one bump per task, as cmdk schedules its store updates: a
+	 * list of a hundred items mounting is one pass over the bindings, not a
+	 * hundred.
+	 */
+	const revision = signal(0);
+	let scheduled = false;
+	function changed(): void {
+		if (scheduled) return;
+		scheduled = true;
+		queueMicrotask(() => {
+			scheduled = false;
+			// The highlighted item left: back to "the first match", as cmdk
+			// re-selects the first item when the selected one unmounts.
+			const chosen = explicitActive();
+			if (chosen !== undefined && !items.some((i) => i.value === chosen)) {
+				explicitActive(undefined);
+			}
+			revision(revision() + 1);
+		});
+	}
+
 	function active(): string | undefined {
 		const chosen = explicitActive();
 		if (chosen !== undefined) return chosen;
@@ -146,15 +185,20 @@ export const Command = component<CommandProps>((props) => {
 	}
 
 	function matches(): readonly RegisteredItem[] {
+		revision();
 		const filter = props.filter ?? defaultFilter;
 		return items.filter((item) => !item.disabled && filter(item, query()));
 	}
 
+	function runItem(item: RegisteredItem): void {
+		if (item.disabled || !items.includes(item)) return;
+		item.run();
+		props.onSelect?.(item.value);
+	}
+
 	function run(value: string): void {
 		const item = items.find((entry) => entry.value === value);
-		if (item === undefined || item.disabled) return;
-		item.run();
-		props.onSelect?.(value);
+		if (item !== undefined) runItem(item);
 	}
 
 	function move(delta: number): void {
@@ -178,7 +222,18 @@ export const Command = component<CommandProps>((props) => {
 		setActive: (value) => explicitActive(value),
 		itemId,
 		register(item) {
-			items.push({ ...item, id: itemId(item.value) });
+			const entry: RegisteredItem = { ...item, id: itemId(item.value) };
+			items.push(entry);
+			return {
+				select: () => runItem(entry),
+				mounted: changed,
+				unregister(): void {
+					const index = items.indexOf(entry);
+					if (index === -1) return;
+					items.splice(index, 1);
+					changed();
+				},
+			};
 		},
 		isVisible(value) {
 			return matches().some((item) => item.value === value);
@@ -334,7 +389,9 @@ export const CommandItem = component<CommandItemProps>((props) => {
 	const children = props.children;
 
 	const id = command.itemId(props.value);
-	command.register({
+	// Registered during setup, so the first pass over the bindings sees it;
+	// gone again when it unmounts, as cmdk's item cleanup.
+	const registration = command.register({
 		value: props.value,
 		textValue:
 			props.textValue ??
@@ -344,6 +401,8 @@ export const CommandItem = component<CommandItemProps>((props) => {
 		groupId: group?.groupId,
 		run: () => props.onSelect?.(),
 	});
+	onMount(() => registration.mounted());
+	onUnmount(() => registration.unregister());
 
 	const chosen = (): boolean => command.active() === props.value;
 	return html`<div
@@ -360,7 +419,7 @@ export const CommandItem = component<CommandItemProps>((props) => {
 				"relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[active]:bg-accent data-[active]:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
 				read(props.class),
 			)}"
-		@click="${() => command.run(props.value)}"
+		@click="${() => registration.select()}"
 		@pointerenter="${() => command.setActive(props.value)}"
 	>${slot(children)}</div>`;
 });
