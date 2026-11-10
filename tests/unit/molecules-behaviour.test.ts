@@ -381,7 +381,8 @@ describe("InputOTP", () => {
 		];
 	}
 
-	function type(box: HTMLInputElement, value: string): void {
+	function type(box: HTMLInputElement | undefined, value: string): void {
+		if (box === undefined) throw new Error("no such box");
 		box.value = value;
 		box.dispatchEvent(new Event("input", { bubbles: true }));
 	}
@@ -399,9 +400,9 @@ describe("InputOTP", () => {
 	it("advances as you type and mirrors into the hidden field", () => {
 		const view = mount(otp({ length: 3, name: "code" }));
 		const inputs = boxes();
-		type(inputs[0] as HTMLInputElement, "1");
+		type(inputs[0], "1");
 		expect(document.activeElement).toBe(inputs[1]);
-		type(inputs[1] as HTMLInputElement, "2");
+		type(inputs[1], "2");
 
 		const hidden = document.querySelector<HTMLInputElement>(
 			"input[type='hidden']",
@@ -413,7 +414,8 @@ describe("InputOTP", () => {
 	it("keeps the typed character when a box already holds one", () => {
 		const view = mount(otp({ length: 3 }));
 		const inputs = boxes();
-		const box = inputs[0] as HTMLInputElement;
+		const box = inputs[0];
+		if (box === undefined) throw new Error("no first box");
 		// What a browser sends for one key pressed in a box already filled.
 		box.value = "19";
 		box.dispatchEvent(
@@ -432,7 +434,7 @@ describe("InputOTP", () => {
 		// What makes holding backspace erase the whole code.
 		const view = mount(otp({ length: 3 }));
 		const inputs = boxes();
-		type(inputs[0] as HTMLInputElement, "1");
+		type(inputs[0], "1");
 		inputs[1]?.dispatchEvent(press("Backspace"));
 		expect(document.activeElement).toBe(inputs[0]);
 		view.dispose();
@@ -458,9 +460,9 @@ describe("InputOTP", () => {
 		const onComplete = vi.fn<(value: string) => void>();
 		const view = mount(otp({ length: 2, onComplete }));
 		const inputs = boxes();
-		type(inputs[0] as HTMLInputElement, "7");
+		type(inputs[0], "7");
 		expect(onComplete).not.toHaveBeenCalled();
-		type(inputs[1] as HTMLInputElement, "9");
+		type(inputs[1], "9");
 		expect(onComplete).toHaveBeenCalledWith("79");
 		view.dispose();
 	});

@@ -15,7 +15,9 @@
 				"noNonNullAssertion": "error"
 			},
 			"recommended": true,
-			"nursery": {},
+			"nursery": {
+				"noUnsafeTypeAssertion": "error"
+			},
 			"correctness": {
 				"noUnusedImports": "error"
 			}

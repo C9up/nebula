@@ -238,13 +238,18 @@ function optionsOf(message: ToastMessage): Omit<ToastOptions, "id"> {
 	return { title: message };
 }
 
+/** A stage given as a function of the outcome, rather than as the message. */
+function isMessageOf<T>(
+	message: ToastMessage | ((value: T) => ToastMessage),
+): message is (value: T) => ToastMessage {
+	return typeof message === "function";
+}
+
 function resolveMessage<T>(
 	message: ToastMessage | ((value: T) => ToastMessage),
 	value: T,
 ): Omit<ToastOptions, "id"> {
-	if (typeof message === "function") {
-		return optionsOf((message as (v: T) => ToastMessage)(value));
-	}
+	if (isMessageOf(message)) return optionsOf(message(value));
 	return optionsOf(message);
 }
 

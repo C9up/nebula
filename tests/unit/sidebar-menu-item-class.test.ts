@@ -6,14 +6,14 @@
  * as dimming a disabled entry had to be worked around.
  */
 
-import { render, signal } from "@c9up/aurora";
+import { render, signal, type TemplateResult } from "@c9up/aurora";
 import { describe, expect, it } from "vitest";
 import { SidebarMenuButton } from "../../src/organisms/Sidebar.js";
 
-function mount(build: () => unknown) {
+function mount(build: () => TemplateResult) {
 	const host = document.createElement("div");
 	document.body.appendChild(host);
-	render(build() as never, host);
+	render(build(), host);
 	return host;
 }
 

@@ -11,7 +11,7 @@
  * is the value the user believes they are confirming.
  */
 
-import { render, signal } from "@c9up/aurora";
+import { render, signal, type TemplateResult } from "@c9up/aurora";
 import { describe, expect, it } from "vitest";
 import { NativeSelect } from "../../src/atoms/NativeSelect.js";
 
@@ -21,10 +21,10 @@ const OPTIONS = [
 	{ value: "fr.av", label: "Assurance-vie" },
 ];
 
-function mount(build: () => unknown) {
+function mount(build: () => TemplateResult) {
 	const host = document.createElement("div");
 	document.body.appendChild(host);
-	render(build() as never, host);
+	render(build(), host);
 	const select = host.querySelector("select");
 	if (select === null) throw new Error("no <select> rendered");
 	return { host, select };

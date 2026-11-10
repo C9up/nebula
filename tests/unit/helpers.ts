@@ -33,6 +33,25 @@ export function mount(template: TemplateResult): Mounted {
 	};
 }
 
+/**
+ * A computed style holding exactly these values, for a stubbed
+ * `getComputedStyle`.
+ *
+ * A real `CSSStyleDeclaration` with the values defined on it, so it is the
+ * type the stub must return. jsdom computes no animations, and some of these
+ * properties it does not know at all, so setting them through the style
+ * would not stick.
+ */
+export function computedStyle(
+	values: Readonly<Record<string, string>>,
+): CSSStyleDeclaration {
+	const style = document.createElement("div").style;
+	for (const [property, value] of Object.entries(values)) {
+		Object.defineProperty(style, property, { value, configurable: true });
+	}
+	return style;
+}
+
 /** Every portal host currently in the document. */
 export function portals(): HTMLElement[] {
 	return [...document.querySelectorAll<HTMLElement>("[data-nebula-portal]")];

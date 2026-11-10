@@ -408,17 +408,20 @@ function containsKeyframes(rules: CSSRuleList, name: string): boolean {
 	for (const rule of Array.from(rules)) {
 		if (isKeyframesNamed(rule, name)) return true;
 		// `cssRules` on a group rule (media, supports, layer); absent on others.
-		const nested = Reflect.get(rule, "cssRules");
-		if (
-			nested !== null &&
-			typeof nested === "object" &&
-			typeof Reflect.get(nested, "length") === "number" &&
-			containsKeyframes(nested as CSSRuleList, name)
-		) {
-			return true;
-		}
+		const nested: unknown = Reflect.get(rule, "cssRules");
+		if (isRuleList(nested) && containsKeyframes(nested, name)) return true;
 	}
 	return false;
+}
+
+/** A `CSSRuleList`, read structurally: not every DOM exposes the class. */
+function isRuleList(value: unknown): value is CSSRuleList {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		typeof Reflect.get(value, "length") === "number" &&
+		typeof Reflect.get(value, "item") === "function"
+	);
 }
 
 /**

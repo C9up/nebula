@@ -11,6 +11,7 @@
 import { component, html, render, signal } from "@c9up/aurora";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { floatingSurface } from "../../src/primitives/floatingSurface.js";
+import { computedStyle } from "./helpers.js";
 
 let host: HTMLElement;
 let first: HTMLElement;
@@ -51,7 +52,7 @@ function wire() {
 		});
 		return html`<span></span>`;
 	});
-	render(Owner({}) as never, host);
+	render(Owner({}), host);
 	return { open, target, builds: () => built };
 }
 
@@ -67,14 +68,15 @@ const panels = () => [...document.querySelectorAll("[data-panel]")];
  * written without this passes whatever the code does.
  */
 function keepExitPending(): void {
-	vi.spyOn(window, "getComputedStyle").mockReturnValue({
-		animationName: "exit",
-		animationDuration: "120ms",
-		animationDelay: "0s",
-		transitionDuration: "0s",
-		transitionDelay: "0s",
-		getPropertyValue: () => "",
-	} as unknown as CSSStyleDeclaration);
+	vi.spyOn(window, "getComputedStyle").mockReturnValue(
+		computedStyle({
+			animationName: "exit",
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		}),
+	);
 }
 
 describe("nebula > floatingSurface across anchors", () => {

@@ -10,6 +10,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { onExitFinished, presence } from "../../src/primitives/presence.js";
+import { computedStyle } from "./helpers.js";
 
 let element: HTMLElement;
 
@@ -25,13 +26,15 @@ afterEach(() => {
 
 /** Declare an animation whose keyframes do not exist. */
 function declareMissingAnimation(): void {
-	vi.spyOn(window, "getComputedStyle").mockReturnValue({
-		animationName: "exit",
-		animationDuration: "120ms",
-		animationDelay: "0s",
-		transitionDuration: "0s",
-		transitionDelay: "0s",
-	} as unknown as CSSStyleDeclaration);
+	vi.spyOn(window, "getComputedStyle").mockReturnValue(
+		computedStyle({
+			animationName: "exit",
+			animationDuration: "120ms",
+			animationDelay: "0s",
+			transitionDuration: "0s",
+			transitionDelay: "0s",
+		}),
+	);
 }
 
 describe("nebula > onExitFinished never strands a node", () => {
@@ -65,13 +68,15 @@ describe("nebula > onExitFinished never strands a node", () => {
 	});
 
 	it("does not wait at all when nothing is declared", () => {
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: "none",
-			animationDuration: "0s",
-			animationDelay: "0s",
-			transitionDuration: "0s",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: "none",
+				animationDuration: "0s",
+				animationDelay: "0s",
+				transitionDuration: "0s",
+				transitionDelay: "0s",
+			}),
+		);
 		const done = vi.fn();
 
 		onExitFinished(element, done);
@@ -100,13 +105,15 @@ describe("nebula > onExitFinished never strands a node", () => {
  */
 describe("nebula > a missing stylesheet says so", () => {
 	function declare(name: string) {
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: name,
-			animationDuration: "120ms",
-			animationDelay: "0s",
-			transitionDuration: "0s",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: name,
+				animationDuration: "120ms",
+				animationDelay: "0s",
+				transitionDuration: "0s",
+				transitionDelay: "0s",
+			}),
+		);
 	}
 
 	/**
@@ -196,13 +203,15 @@ describe("nebula > a missing stylesheet says so", () => {
  */
 describe("nebula > presence() is bounded too", () => {
 	function declareMissing() {
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: "nebula-never-defined",
-			animationDuration: "120ms",
-			animationDelay: "0s",
-			transitionDuration: "0s",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: "nebula-never-defined",
+				animationDuration: "120ms",
+				animationDelay: "0s",
+				transitionDuration: "0s",
+				transitionDelay: "0s",
+			}),
+		);
 	}
 
 	it("unmounts on the deadline when the animation never runs", () => {
@@ -226,13 +235,15 @@ describe("nebula > presence() is bounded too", () => {
 		sheet.textContent =
 			"@keyframes nebula-real-exit { from { opacity: 1 } to { opacity: 0 } }";
 		document.head.appendChild(sheet);
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: "nebula-real-exit",
-			animationDuration: "120ms",
-			animationDelay: "0s",
-			transitionDuration: "0s",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: "nebula-real-exit",
+				animationDuration: "120ms",
+				animationDelay: "0s",
+				transitionDuration: "0s",
+				transitionDelay: "0s",
+			}),
+		);
 		const p = presence(true);
 		p.attach(element);
 
@@ -251,13 +262,15 @@ describe("nebula > presence() is bounded too", () => {
 		sheet.textContent =
 			"@keyframes nebula-real-exit { from { opacity: 1 } to { opacity: 0 } }";
 		document.head.appendChild(sheet);
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: "nebula-real-exit",
-			animationDuration: "120ms",
-			animationDelay: "0s",
-			transitionDuration: "0s",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: "nebula-real-exit",
+				animationDuration: "120ms",
+				animationDelay: "0s",
+				transitionDuration: "0s",
+				transitionDelay: "0s",
+			}),
+		);
 		const p = presence(true);
 		p.attach(element);
 		p.close();
@@ -281,13 +294,15 @@ describe("nebula > detecting keyframes precisely", () => {
 		sheet.textContent =
 			"@media screen { @keyframes nebula-nested { from { opacity: 1 } } }";
 		document.head.appendChild(sheet);
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: "nebula-nested",
-			animationDuration: "120ms",
-			animationDelay: "0s",
-			transitionDuration: "0s",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: "nebula-nested",
+				animationDuration: "120ms",
+				animationDelay: "0s",
+				transitionDuration: "0s",
+				transitionDelay: "0s",
+			}),
+		);
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 		try {
@@ -306,13 +321,15 @@ describe("nebula > detecting keyframes precisely", () => {
 		sheet.textContent =
 			"@keyframes nebula-a { from { opacity: 1 } } @keyframes nebula-b { from { opacity: 1 } }";
 		document.head.appendChild(sheet);
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: "nebula-a, nebula-b",
-			animationDuration: "120ms",
-			animationDelay: "0s",
-			transitionDuration: "0s",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: "nebula-a, nebula-b",
+				animationDuration: "120ms",
+				animationDelay: "0s",
+				transitionDuration: "0s",
+				transitionDelay: "0s",
+			}),
+		);
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 		try {
@@ -337,29 +354,33 @@ describe("nebula > waiting for the right things", () => {
 	}
 
 	function declare(animationName: string, transition = "0s") {
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName,
-			animationDuration: "120ms",
-			animationDelay: "0s",
-			animationIterationCount: "1",
-			transitionDuration: transition,
-			transitionProperty: "opacity",
-			transitionDelay: "0s",
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName,
+				animationDuration: "120ms",
+				animationDelay: "0s",
+				animationIterationCount: "1",
+				transitionDuration: transition,
+				transitionProperty: "opacity",
+				transitionDelay: "0s",
+			}),
+		);
 	}
 
 	/** Everything the deadline reads, spelled out. */
 	function declareStyle(style: Record<string, string>) {
-		vi.spyOn(window, "getComputedStyle").mockReturnValue({
-			animationName: "none",
-			animationDuration: "0s",
-			animationDelay: "0s",
-			animationIterationCount: "1",
-			transitionDuration: "0s",
-			transitionProperty: "all",
-			transitionDelay: "0s",
-			...style,
-		} as unknown as CSSStyleDeclaration);
+		vi.spyOn(window, "getComputedStyle").mockReturnValue(
+			computedStyle({
+				animationName: "none",
+				animationDuration: "0s",
+				animationDelay: "0s",
+				animationIterationCount: "1",
+				transitionDuration: "0s",
+				transitionProperty: "all",
+				transitionDelay: "0s",
+				...style,
+			}),
+		);
 	}
 
 	it("waits for EVERY animation, not the first one to finish", () => {
