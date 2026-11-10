@@ -410,11 +410,21 @@ describe("InputOTP", () => {
 		view.dispose();
 	});
 
-	it("keeps only the last character when a box already holds one", () => {
+	it("keeps the typed character when a box already holds one", () => {
 		const view = mount(otp({ length: 3 }));
 		const inputs = boxes();
-		type(inputs[0] as HTMLInputElement, "19");
+		const box = inputs[0] as HTMLInputElement;
+		// What a browser sends for one key pressed in a box already filled.
+		box.value = "19";
+		box.dispatchEvent(
+			new InputEvent("input", {
+				bubbles: true,
+				inputType: "insertText",
+				data: "9",
+			}),
+		);
 		expect(inputs[0]?.value).toBe("9");
+		expect(inputs[1]?.value).toBe("");
 		view.dispose();
 	});
 

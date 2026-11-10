@@ -38,6 +38,7 @@ const slotClasses =
 
 interface InputOTPApi {
 	readonly length: number;
+	readonly inputMode: "numeric" | "text";
 	readonly disabled: () => boolean;
 	readonly slotLabel: (position: number, length: number) => string;
 	/** Claim the next box's index, in the order the slots are built. */
@@ -49,9 +50,22 @@ interface InputOTPApi {
 
 const InputOTPContext = createContext<InputOTPApi>("InputOTP");
 
+/** input-otp's patterns, for the `pattern` prop. */
+export const REGEXP_ONLY_DIGITS = "^\\d+$";
+export const REGEXP_ONLY_CHARS = "^[a-zA-Z]+$";
+export const REGEXP_ONLY_DIGITS_AND_CHARS = "^[a-zA-Z0-9]+$";
+
 export interface InputOTPProps {
 	/** Number of boxes. Default `6` — and it must match the slots built. */
 	length?: number;
+	/**
+	 * What the code may hold, tested against the whole value as input-otp
+	 * does: a character or a fill that would not match is refused. None by
+	 * default, as input-otp; `REGEXP_ONLY_DIGITS` for a numeric code.
+	 */
+	pattern?: RegExp | string;
+	/** The on-screen keyboard. Default `"numeric"`. */
+	inputMode?: "numeric" | "text";
 	/** Each box's accessible name from its position. Default `"Character 2 of 6"`. */
 	slotLabel?: (position: number, length: number) => string;
 	name?: string;
@@ -99,8 +113,47 @@ export const InputOTP = component<InputOTPProps>((props) => {
 		commit(next);
 	}
 
+	const pattern =
+		typeof props.pattern === "string"
+			? new RegExp(props.pattern)
+			: props.pattern;
+
+	function accepts(next: readonly string[]): boolean {
+		const joined = next.join("");
+		return pattern === undefined || joined === "" || pattern.test(joined);
+	}
+
+	/** Put the boxes back to what the code holds. */
+	function reflect(): void {
+		const inputs = boxes();
+		characters().forEach((character, position) => {
+			const input = inputs[position];
+			if (input !== undefined) input.value = character;
+		});
+	}
+
+	/**
+	 * Share a run of characters out over the boxes from `index`: a paste, and
+	 * a whole code an autofill or an IME put into one box.
+	 */
+	function spread(index: number, text: string): void {
+		const next = [...characters()];
+		let cursor = index;
+		for (const character of text) {
+			if (cursor >= length) break;
+			next[cursor] = character;
+			cursor += 1;
+		}
+		if (accepts(next)) commit(next);
+		// The boxes are uncontrolled between keystrokes, so writing the signal
+		// alone would leave the characters invisible — or a refused fill in place.
+		reflect();
+		focusBox(Math.min(cursor, length - 1));
+	}
+
 	provide<InputOTPApi>(InputOTPContext, {
 		length,
+		inputMode: props.inputMode ?? "numeric",
 		disabled: () => readOr(props.disabled, false),
 		slotLabel:
 			props.slotLabel ??
@@ -114,12 +167,31 @@ export const InputOTP = component<InputOTPProps>((props) => {
 			const target = event.target;
 			if (!(target instanceof HTMLInputElement)) return;
 
-			// A box already holding a character receives the new one appended; keep
-			// the last, which is what the user just typed.
-			const typed = target.value.slice(-1);
-			target.value = typed;
-			write(index, typed);
-			if (typed !== "" && index < length - 1) focusBox(index + 1);
+			const value = target.value;
+			// One key pressed in a box already holding a character: the box holds
+			// both, and the one just typed is what counts.
+			const typed =
+				event instanceof InputEvent &&
+				event.inputType === "insertText" &&
+				event.data !== null &&
+				[...event.data].length === 1
+					? event.data
+					: undefined;
+			if ([...value].length > 1 && typed === undefined) {
+				// A whole code at once: autofill, a password manager, an IME.
+				spread(index, value);
+				return;
+			}
+			const character = typed ?? value;
+			const next = [...characters()];
+			next[index] = character;
+			if (!accepts(next)) {
+				target.value = characters()[index] ?? "";
+				return;
+			}
+			target.value = character;
+			commit(next);
+			if (character !== "" && index < length - 1) focusBox(index + 1);
 		},
 		onKeyDown(index, event) {
 			if (event.key === "Backspace") {
@@ -144,25 +216,7 @@ export const InputOTP = component<InputOTPProps>((props) => {
 			const pasted = event.clipboardData?.getData("text") ?? "";
 			if (pasted === "") return;
 			event.preventDefault();
-
-			const next = [...characters()];
-			let cursor = index;
-			for (const character of pasted) {
-				if (cursor >= length) break;
-				next[cursor] = character;
-				cursor += 1;
-			}
-			commit(next);
-
-			// Reflect into the DOM: the boxes are uncontrolled between keystrokes,
-			// so writing the signal alone would leave the pasted characters
-			// invisible.
-			const inputs = boxes();
-			next.forEach((character, position) => {
-				const input = inputs[position];
-				if (input !== undefined) input.value = character;
-			});
-			focusBox(Math.min(cursor, length - 1));
+			spread(index, pasted);
 		},
 	});
 
@@ -209,9 +263,9 @@ export const InputOTPSlot = component<InputOTPSlotProps>((props) => {
 		data-slot="input-otp-slot"
 		data-otp-index="${index}"
 		type="text"
-		inputmode="numeric"
+		inputmode="${otp.inputMode}"
 		autocomplete="${index === 0 ? "one-time-code" : "off"}"
-		maxlength="1"
+		maxlength="${otp.length}"
 		aria-label="${otp.slotLabel(index + 1, otp.length)}"
 		?disabled="${() => otp.disabled()}"
 		class="${() => cn(slotClasses, read(props.class))}"
