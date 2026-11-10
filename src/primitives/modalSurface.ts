@@ -63,25 +63,59 @@ export interface ModalSurfaceOptions {
 	onClosed?: () => void;
 }
 
+interface Armed {
+	readonly layer: DismissableLayer;
+	readonly trap: FocusTrap;
+	readonly restoreSiblings: () => void;
+}
+
 interface Live {
 	readonly mount: Portal;
 	/** Carries `data-state`; the exit animation is watched here. */
 	readonly element: HTMLElement;
-	readonly layer: DismissableLayer;
-	readonly trap: FocusTrap;
+	readonly panel: HTMLElement;
 	readonly unlock: () => void;
-	readonly restoreSiblings: () => void;
+	/** What makes it modal: `null` once closed, through its exit. */
+	armed: Armed | null;
 	cancelExit: (() => void) | null;
 }
 
 export function modalSurface(options: ModalSurfaceOptions): void {
 	let live: Live | null = null;
 
+	function arm(host: HTMLElement, panel: HTMLElement): Armed {
+		const restoreSiblings = hideSiblingsFrom(host);
+		const trap = focusTrap(panel, {
+			initialFocus: () => options.initialFocus?.(panel) ?? null,
+			returnFocus: options.returnFocus,
+		});
+		const layer = dismissable({
+			element: () => panel,
+			onDismiss: options.onClose,
+			escapeKey: options.dismissOnEscape !== false,
+			outsidePointer: options.dismissOnOutside !== false,
+			outsideFocus: false,
+		});
+		return { layer, trap, restoreSiblings };
+	}
+
+	function disarm(current: Live): void {
+		const armed = current.armed;
+		if (armed === null) return;
+		current.armed = null;
+		armed.layer.remove();
+		armed.trap.release();
+		armed.restoreSiblings();
+	}
+
 	function show(): void {
 		if (live !== null) {
+			// Reopened while its exit was still playing: the same node comes
+			// back, and it is a modal again, not a panel the page reads through.
 			live.cancelExit?.();
 			live.cancelExit = null;
 			live.element.setAttribute("data-state", "open");
+			if (live.armed === null) live.armed = arm(live.mount.host, live.panel);
 			return;
 		}
 
@@ -95,28 +129,13 @@ export function modalSurface(options: ModalSurfaceOptions): void {
 
 		const panel = options.panel?.(element) ?? element;
 		const unlock = options.lockScroll === false ? () => {} : lockScroll();
-		const restoreSiblings = hideSiblingsFrom(mount.host);
-
-		const trap = focusTrap(panel, {
-			initialFocus: () => options.initialFocus?.(panel) ?? null,
-			returnFocus: options.returnFocus,
-		});
-
-		const layer = dismissable({
-			element: () => panel,
-			onDismiss: options.onClose,
-			escapeKey: options.dismissOnEscape !== false,
-			outsidePointer: options.dismissOnOutside !== false,
-			outsideFocus: false,
-		});
 
 		live = {
 			mount,
 			element,
-			layer,
-			trap,
+			panel,
 			unlock,
-			restoreSiblings,
+			armed: arm(mount.host, panel),
 			cancelExit: null,
 		};
 		options.onOpened?.(panel);
@@ -124,11 +143,9 @@ export function modalSurface(options: ModalSurfaceOptions): void {
 
 	function hide(): void {
 		const current = live;
-		if (current === null) return;
+		if (current === null || current.armed === null) return;
 
-		current.layer.remove();
-		current.trap.release();
-		current.restoreSiblings();
+		disarm(current);
 		current.element.setAttribute("data-state", "closed");
 		options.onClosed?.();
 
@@ -146,9 +163,7 @@ export function modalSurface(options: ModalSurfaceOptions): void {
 		if (current === null) return;
 		live = null;
 		current.cancelExit?.();
-		current.layer.remove();
-		current.trap.release();
-		current.restoreSiblings();
+		disarm(current);
 		current.unlock();
 		current.mount.close();
 	}
@@ -165,35 +180,57 @@ export function modalSurface(options: ModalSurfaceOptions): void {
 	});
 }
 
+/** How many open modals hide each node; it is shown again at zero. */
+const hiddenBy = new WeakMap<Element, number>();
+/** Nodes that were already `aria-hidden` when the first modal reached them. */
+const hiddenBefore = new WeakSet<Element>();
+
 /**
  * Hide everything except the overlay from assistive technology.
  *
- * Marks each sibling of the portal host, and restores exactly what was there
- * before — an element that was *already* `aria-hidden` for its own reasons
- * must stay that way after the dialog closes, so the previous value is saved
- * rather than the attribute simply removed.
+ * Marks each sibling of the portal host. Counted per node, as the
+ * `aria-hidden` package Radix modals use does: stacked modals hide the same
+ * page, and they close in any order — a confirm that closes its parent sheet
+ * before itself is enough — so a node is shown again only when the last
+ * modal hiding it lets go. A node the application had hidden itself is never
+ * touched.
  *
- * Only siblings of the host, not the whole page: a second modal opening over
- * the first must not hide it, and it will not, because it appends its own host
- * after the first one and only touches what is beside it.
+ * Only siblings of the host, not the whole page: a second modal hides the
+ * first one's host along with the page, and shows it again when it closes.
+ *
+ * The returned release runs once, however many paths reach it.
  */
 function hideSiblingsFrom(host: HTMLElement): () => void {
 	const parent = host.parentElement;
 	if (parent === null) return () => {};
 
-	const saved: Array<[Element, string | null]> = [];
+	const hidden: Element[] = [];
 	for (const sibling of parent.children) {
 		if (sibling === host) continue;
 		// A live region announcing outside the dialog (a toast) is deliberate.
 		if (sibling.hasAttribute("data-nebula-live")) continue;
-		saved.push([sibling, sibling.getAttribute("aria-hidden")]);
-		sibling.setAttribute("aria-hidden", "true");
+		const count = (hiddenBy.get(sibling) ?? 0) + 1;
+		hiddenBy.set(sibling, count);
+		hidden.push(sibling);
+		const attribute = sibling.getAttribute("aria-hidden");
+		const alreadyHidden = attribute !== null && attribute !== "false";
+		if (count === 1 && alreadyHidden) hiddenBefore.add(sibling);
+		if (!alreadyHidden) sibling.setAttribute("aria-hidden", "true");
 	}
 
+	let released = false;
 	return (): void => {
-		for (const [element, previous] of saved) {
-			if (previous === null) element.removeAttribute("aria-hidden");
-			else element.setAttribute("aria-hidden", previous);
+		if (released) return;
+		released = true;
+		for (const element of hidden) {
+			const count = (hiddenBy.get(element) ?? 1) - 1;
+			if (count > 0) {
+				hiddenBy.set(element, count);
+				continue;
+			}
+			hiddenBy.delete(element);
+			if (!hiddenBefore.has(element)) element.removeAttribute("aria-hidden");
+			hiddenBefore.delete(element);
 		}
 	};
 }
