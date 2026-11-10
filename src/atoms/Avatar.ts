@@ -19,8 +19,10 @@
 import {
 	component,
 	createContext,
+	effect,
 	html,
 	inject,
+	onMount,
 	provide,
 	signal,
 } from "@c9up/aurora";
@@ -69,30 +71,75 @@ export const Avatar = component<AvatarProps>((props) => {
 export interface AvatarImageProps {
 	src?: Reactive<string | undefined>;
 	alt?: Reactive<string>;
+	/**
+	 * Sent with the request for the picture. `"no-referrer"` keeps the page's
+	 * URL from a host the picture comes from — a user-supplied avatar URL.
+	 */
+	referrerPolicy?: ReferrerPolicy;
+	crossOrigin?: "anonymous" | "use-credentials";
 	class?: Reactive<string>;
 }
 
+/**
+ * The picture, once it has loaded.
+ *
+ * As Radix's `useImageLoadingStatus`: the source is preloaded off-document,
+ * with its referrer policy and CORS mode, and tried again whenever it
+ * changes — a broken avatar replaced by a new upload shows the new one. The
+ * `<img>` is rendered only once loaded, so a broken picture is never painted.
+ */
 export const AvatarImage = component<AvatarImageProps>((props) => {
 	const avatar = inject(AvatarContext);
 
-	const hasSrc = (): boolean => {
+	const source = (): string | undefined => {
 		const src = read(props.src);
-		return src !== undefined && src !== "";
+		return src === undefined || src === "" ? undefined : src;
 	};
 
 	// Reported during setup, so the fallback built after it already reads the
 	// right state rather than flashing through `absent`.
-	avatar.setState(hasSrc() ? "pending" : "absent");
+	avatar.setState(source() === undefined ? "absent" : "pending");
+
+	onMount(() =>
+		effect(() => {
+			const src = source();
+			if (src === undefined) {
+				avatar.setState("absent");
+				return;
+			}
+			avatar.setState("pending");
+			// A load still in flight for a source it has moved past must not
+			// decide the state of the current one.
+			let current = true;
+			const settle = (next: LoadState): void => {
+				if (current) avatar.setState(next);
+			};
+			const image = new Image();
+			image.addEventListener("load", () => {
+				settle(image.naturalWidth > 0 ? "loaded" : "failed");
+			});
+			image.addEventListener("error", () => settle("failed"));
+			if (props.referrerPolicy !== undefined) {
+				image.referrerPolicy = props.referrerPolicy;
+			}
+			image.crossOrigin = props.crossOrigin ?? null;
+			image.src = src;
+			if (image.complete && image.naturalWidth > 0) settle("loaded");
+			return () => {
+				current = false;
+			};
+		}),
+	);
 
 	return html`${() =>
-		hasSrc() && avatar.state() !== "failed"
+		avatar.state() === "loaded"
 			? html`<img
 					data-slot="avatar-image"
-					src="${() => read(props.src)}"
+					src="${source}"
 					alt="${() => readOr(props.alt, "")}"
+					referrerpolicy="${props.referrerPolicy}"
+					crossorigin="${props.crossOrigin}"
 					class="${() => cn("aspect-square size-full object-cover", read(props.class))}"
-					@load="${() => avatar.setState("loaded")}"
-					@error="${() => avatar.setState("failed")}"
 				/>`
 			: null}`;
 });

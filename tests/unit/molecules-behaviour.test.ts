@@ -594,27 +594,9 @@ describe("Avatar parts", () => {
 					})}`,
 			}),
 		);
-		expect(document.querySelector("[data-slot='avatar-image']")).not.toBeNull();
-		expect(document.querySelector("[data-slot='avatar-fallback']")).toBeNull();
-		view.dispose();
-	});
-
-	it("swaps to the fallback once the image has actually failed", () => {
-		const view = mount(
-			Avatar({
-				children: () =>
-					html`${AvatarImage({ src: "/gone.png" })}${AvatarFallback({
-						children: "AB",
-					})}`,
-			}),
-		);
-		document
-			.querySelector("[data-slot='avatar-image']")
-			?.dispatchEvent(new Event("error"));
+		// Nor the picture: it is rendered once loaded (avatar-image-loading).
 		expect(document.querySelector("[data-slot='avatar-image']")).toBeNull();
-		expect(
-			document.querySelector("[data-slot='avatar-fallback']")?.textContent,
-		).toBe("AB");
+		expect(document.querySelector("[data-slot='avatar-fallback']")).toBeNull();
 		view.dispose();
 	});
 
