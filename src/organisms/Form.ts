@@ -77,6 +77,17 @@ export function bind<T, K extends keyof T & string>(
 
 export interface FormProps<T> {
 	form: AuroraForm<T>;
+	/**
+	 * How the browser submits it before the page is hydrated, or when a
+	 * script fails to load. Default `"post"`.
+	 */
+	method?: "post" | "get" | "dialog";
+	/** Where that submission goes. Left out, it goes to the current page. */
+	action?: string;
+	enctype?:
+		| "application/x-www-form-urlencoded"
+		| "multipart/form-data"
+		| "text/plain";
 	children?: Slot;
 	class?: Reactive<string>;
 }
@@ -88,11 +99,21 @@ export interface FormProps<T> {
  * styled, appear one at a time, and vanish on scroll — and they would fire
  * before the controller's validation ever runs, so the user would see two
  * different error presentations for the same field.
+ *
+ * NAMED DEVIATION: `method="post"` unless told otherwise. shadcn's `Form`
+ * renders no `<form>`, so the app writes its own method; this one owns the
+ * element, and the server renders it. Pressed before hydration, a form with
+ * no method is a GET, and every named field — a password included — lands in
+ * the URL, the history and the access logs. An app with CSRF protection puts
+ * its token field among the children, so that early POST is accepted.
  */
 export function Form<T>(props: FormProps<T>): ReturnType<typeof html> {
 	return html`<form
 		data-slot="form"
 		novalidate
+		method="${props.method ?? "post"}"
+		action="${props.action}"
+		enctype="${props.enctype}"
 		class="${() => cn("flex flex-col gap-6", read(props.class))}"
 		@submit="${(event: Event) => {
 			// A DOM listener returns nothing, so this promise is nobody's to
