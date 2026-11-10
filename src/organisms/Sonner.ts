@@ -4,8 +4,10 @@
  * shadcn deprecated its own `toast` component in favour of `sonner`, a thin
  * wrapper over Emil Kowalski's library of the same name. This is that pair in
  * one file, ported to aurora without the library: a `Toaster` region mounted
- * once near the root, and a `toast` function callable from anywhere — a route
- * handler's error branch included — with no reference to the region.
+ * once near the root, and a `toast` function callable from anywhere in the
+ * browser — a route handler's error branch included — with no reference to
+ * the region. On the server a toast is not kept: the region renders empty
+ * there, and page code that raises one runs again in the browser.
  *
  *     Toaster({ richColors: true, closeButton: true })
  *
@@ -233,8 +235,19 @@ function idFor(data: { id?: ToastId }): ToastId {
 	return id;
 }
 
+/**
+ * No document: this is the server, rendering a page for one request in a
+ * process that renders everyone's. A toast kept here would reach the next
+ * user's markup and never leave, its timer belonging to a mounted row.
+ */
+function onServer(): boolean {
+	return typeof document === "undefined";
+}
+
 function create(data: ToastInput): ToastId {
 	const id = idFor(data);
+	// The page code that raised it runs again in the browser, where it is kept.
+	if (onServer()) return id;
 	const list = records();
 	const existing = list.find((entry) => entry.id === id && !entry.removing);
 	if (existing !== undefined) {
@@ -733,9 +746,16 @@ export const Toaster = component<ToasterProps>((props) => {
 	const assertive = signal<readonly Announcement[]>([]);
 	let announcements = 0;
 
+	/**
+	 * Off until mounted, as sonner's list is state filled from an effect: the
+	 * server's markup carries no toast, and adopting it renders none either,
+	 * so the rows appear once the region is live.
+	 */
+	const adopted = signal(false);
+
 	/** The toasts this region shows: its own `toasterId`, or none. */
 	const mine = (): readonly ToastRecord[] =>
-		records().filter((entry) =>
+		(adopted() ? records() : []).filter((entry) =>
 			props.id === undefined
 				? entry.toasterId === undefined
 				: entry.toasterId === props.id,
@@ -790,6 +810,7 @@ export const Toaster = component<ToasterProps>((props) => {
 	};
 
 	onMount(() => {
+		adopted(true);
 		// A stack of one has nothing to fan out.
 		const stopCollapse = effect(() => {
 			if (mine().length <= 1) expanded(false);

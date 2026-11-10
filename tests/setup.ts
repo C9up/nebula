@@ -4,5 +4,9 @@
  * to scroll in a headless DOM and nothing to assert about it, so a no-op is
  * the honest stand-in. It is the only browser API these tests fake, and only
  * because rendering is the one question jsdom deliberately declines to answer.
+ *
+ * Guarded: the suites that stand in for the server run with no DOM at all.
  */
-Element.prototype.scrollIntoView = () => {};
+if (typeof Element !== "undefined") {
+	Element.prototype.scrollIntoView = () => {};
+}

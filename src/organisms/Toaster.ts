@@ -41,7 +41,7 @@
  *   single most common complaint about the pattern.
  */
 
-import { component, html, signal } from "@c9up/aurora";
+import { component, html, onMount, signal } from "@c9up/aurora";
 import type { Child } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { LoaderIcon, XIcon } from "../lib/icons.js";
@@ -185,6 +185,9 @@ function show(options: ToastOptions): ToastId {
 	} else {
 		id = options.id;
 	}
+	// No document: the server, rendering one request in a process shared by
+	// every user. Kept here, the toast would reach the next user's markup.
+	if (typeof document === "undefined") return id;
 	const variant = options.variant ?? "default";
 	const entry: ActiveToast = { ...options, id, variant };
 	queue([...queue(), entry]);
@@ -359,6 +362,13 @@ export const Toaster = component<ToasterProps>((props) => {
 	const position = props.position ?? "bottom-right";
 	const closeLabel = props.closeButtonAriaLabel ?? "Dismiss notification";
 	const render = (entry: ActiveToast): Child => renderToast(entry, closeLabel);
+	// Empty until mounted, so the server's markup carries no toast and the
+	// browser adopts the same empty region before filling it.
+	const adopted = signal(false);
+	onMount(() => {
+		adopted(true);
+	});
+	const shown = (): readonly ActiveToast[] => (adopted() ? queue() : []);
 
 	return html`<div
 		data-slot="toaster"
@@ -374,13 +384,13 @@ export const Toaster = component<ToasterProps>((props) => {
 	>
 		<div role="status" aria-live="polite" aria-atomic="false" class="contents">
 			${() =>
-				queue()
+				shown()
 					.filter((entry) => entry.variant !== "error")
 					.map(render)}
 		</div>
 		<div role="alert" aria-live="assertive" aria-atomic="false" class="contents">
 			${() =>
-				queue()
+				shown()
 					.filter((entry) => entry.variant === "error")
 					.map(render)}
 		</div>
