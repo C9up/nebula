@@ -62,18 +62,25 @@ const MOBILE_BREAKPOINT = 768;
 
 let sharedOpen: Signal<boolean> | undefined;
 
-/**
- * The cookie-backed open state, shared by every sidebar on the page.
- *
- * A module singleton and not a per-provider signal: the shell renders once and
- * the trigger may sit in a header that is not inside the provider's subtree.
- */
-export function sidebarState(defaultOpen = true): Signal<boolean> {
-	sharedOpen ??= cookieState(COOKIE_NAME, defaultOpen, booleanCookie, {
+function openFromCookie(defaultOpen: boolean): Signal<boolean> {
+	return cookieState(COOKIE_NAME, defaultOpen, booleanCookie, {
 		path: "/",
 		maxAge: COOKIE_MAX_AGE_DAYS * 24 * 60 * 60,
 		sameSite: "lax",
 	});
+}
+
+/**
+ * The cookie-backed open state, shared by every sidebar on the page.
+ *
+ * In the browser, a module singleton and not a per-provider signal: the shell
+ * renders once and the trigger may sit in a header that is not inside the
+ * provider's subtree. On the server a module is shared by every request, so
+ * each call reads the cookie of the request being rendered instead.
+ */
+export function sidebarState(defaultOpen = true): Signal<boolean> {
+	if (typeof document === "undefined") return openFromCookie(defaultOpen);
+	sharedOpen ??= openFromCookie(defaultOpen);
 	return sharedOpen;
 }
 
@@ -90,6 +97,11 @@ export interface SidebarApi {
 }
 
 const SidebarContext = createContext<SidebarApi>("SidebarProvider");
+/** The same provider, for the parts that also work outside one. */
+const NearestSidebar = createContext<SidebarApi | null>(
+	"SidebarProvider",
+	null,
+);
 
 /**
  * The sidebar's state, from inside it.
@@ -153,13 +165,14 @@ export const SidebarProvider = component<SidebarProviderProps>((props) => {
 		return controlled === undefined ? open() : controlled;
 	}
 
-	provide<SidebarApi>(SidebarContext, {
+	const api = provide<SidebarApi>(SidebarContext, {
 		open: current,
 		isMobile: () => mobile(),
 		state: () => (current() ? "expanded" : "collapsed"),
 		setOpen,
 		toggleSidebar,
 	});
+	provide(NearestSidebar, api);
 
 	return html`<div
 		data-slot="sidebar-wrapper"
@@ -246,8 +259,19 @@ export interface SidebarTriggerProps {
 	class?: Reactive<string>;
 }
 
-export const SidebarTrigger = component<SidebarTriggerProps>((props) =>
-	Button({
+/** The provider's toggle, or the page-wide state's outside a provider. */
+function toggleNearest(): () => void {
+	const sidebar = inject(NearestSidebar);
+	if (sidebar !== null) return () => sidebar.toggleSidebar();
+	return () => {
+		const open = sidebarState();
+		open(!open());
+	};
+}
+
+export const SidebarTrigger = component<SidebarTriggerProps>((props) => {
+	const toggle = toggleNearest();
+	return Button({
 		variant: "ghost",
 		size: "icon",
 		label: props.label ?? "Toggle sidebar",
@@ -257,11 +281,11 @@ export const SidebarTrigger = component<SidebarTriggerProps>((props) =>
 				props.onToggle();
 				return;
 			}
-			sidebarState()(!sidebarState()());
+			toggle();
 		},
 		children: PanelLeftIcon({ class: "size-4" }),
-	}),
-);
+	});
+});
 
 export interface SidebarRailProps {
 	/** Accessible name and tooltip. Default `"Toggle sidebar"`. */
@@ -277,8 +301,9 @@ export interface SidebarRailProps {
  * keyboard has `cmd/ctrl + B` and the trigger, so a third stop on every page
  * would be noise.
  */
-export const SidebarRail = component<SidebarRailProps>(
-	(props) => html`<button
+export const SidebarRail = component<SidebarRailProps>((props) => {
+	const toggle = toggleNearest();
+	return html`<button
 		type="button"
 		data-slot="sidebar-rail"
 		aria-label="${props.label ?? "Toggle sidebar"}"
@@ -289,9 +314,9 @@ export const SidebarRail = component<SidebarRailProps>(
 				"hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
 				read(props.class),
 			)}"
-		@click="${() => sidebarState()(!sidebarState()())}"
-	></button>`,
-);
+		@click="${toggle}"
+	></button>`;
+});
 
 export interface SidebarInsetProps {
 	children?: Slot;
@@ -450,6 +475,9 @@ export interface SidebarMenuButtonProps extends SidebarMenuButtonVariants {
 }
 
 export const SidebarMenuButton = component<SidebarMenuButtonProps>((props) => {
+	const sidebar = inject(NearestSidebar);
+	const collapsed = (): boolean =>
+		sidebar === null ? sidebarCollapsed() : sidebar.state() === "collapsed";
 	const merged = (): string =>
 		cn(
 			sidebarMenuButtonVariants({
@@ -483,7 +511,7 @@ export const SidebarMenuButton = component<SidebarMenuButtonProps>((props) => {
 	// the entry and lose focus mid-keyboard-navigation. The tooltip decides for
 	// itself whether to open, which is the cheaper half to make conditional.
 	return html`${() =>
-		sidebarCollapsed()
+		collapsed()
 			? Tooltip({
 					children: () =>
 						html`${TooltipTrigger({
