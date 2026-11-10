@@ -424,10 +424,10 @@ export const Select = component<SelectProps>((props) => {
 });
 
 /**
- * `id`, `label` and `describedBy` as on `Input`: upstream's trigger takes every
- * button prop, and these are the ones that name it — a `FieldLabel` points its
- * `for` at the `id`, and a `<label for>` names a `<button>`. Without them the
- * combobox's only name was the value it showed.
+ * `id`, `label`, `labelledBy` and `describedBy`, as on `Combobox`: upstream's
+ * trigger takes every button prop, and these are the ones that name it — a
+ * `FieldLabel` points its `for` at the `id`, and a `<label for>` names a
+ * `<button>`. Without them the combobox's only name was the value it showed.
  */
 export interface SelectTriggerProps {
 	children?: Slot;
@@ -435,6 +435,8 @@ export interface SelectTriggerProps {
 	id?: string;
 	/** Accessible name (`aria-label`), for a select no `<label>` names. */
 	label?: Reactive<string | undefined>;
+	/** Id(s) of the element(s) that name it (`aria-labelledby`). */
+	labelledBy?: Reactive<string | undefined>;
 	describedBy?: Reactive<string | undefined>;
 	class?: Reactive<string>;
 }
@@ -446,6 +448,7 @@ export const SelectTrigger = component<SelectTriggerProps>((props) => {
 		data-slot="select-trigger"
 		id="${select.claimTriggerId(props.id)}"
 		aria-label="${accessor(props.label, undefined)}"
+		aria-labelledby="${accessor(props.labelledBy, undefined)}"
 		aria-describedby="${accessor(props.describedBy, undefined)}"
 		role="combobox"
 		aria-haspopup="listbox"

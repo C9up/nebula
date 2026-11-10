@@ -89,4 +89,20 @@ describe("nebula > naming a Select", () => {
 		// Left out, the trigger still gets a unique id of its own.
 		expect(trigger()?.id).toMatch(/^select-trigger/);
 	});
+
+	it("points aria-labelledby at a heading that names it", () => {
+		view = mount(
+			html`<h3 id="member-heading">Member role</h3>${roleSelect({
+				labelledBy: "member-heading",
+			})}`,
+		);
+		expect(trigger()?.getAttribute("aria-labelledby")).toBe("member-heading");
+	});
+
+	it("leaves the naming attributes off when none is given", () => {
+		view = mount(roleSelect({}));
+		expect(trigger()?.hasAttribute("aria-label")).toBe(false);
+		expect(trigger()?.hasAttribute("aria-labelledby")).toBe(false);
+		expect(trigger()?.hasAttribute("aria-describedby")).toBe(false);
+	});
 });
