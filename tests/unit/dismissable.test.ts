@@ -57,21 +57,45 @@ describe("dismissable layers", () => {
 		first.remove();
 	});
 
-	it("skips a layer that opted out of Escape and reaches the one below", () => {
+	it("dismisses nothing when the topmost layer opted out of Escape", () => {
+		// A modal that must be answered sits over a sheet holding a form:
+		// Escape must not tear the sheet down behind it.
+		const sheet = vi.fn();
+		const question = vi.fn();
+		const below = dismissable({
+			element: () => surface("sheet"),
+			onDismiss: sheet,
+		});
+		const above = dismissable({
+			element: () => surface("question"),
+			onDismiss: question,
+			escapeKey: false,
+		});
+
+		pressEscape();
+		expect(question).not.toHaveBeenCalled();
+		expect(sheet).not.toHaveBeenCalled();
+		above.remove();
+		pressEscape();
+		expect(sheet).toHaveBeenCalledTimes(1);
+		below.remove();
+	});
+
+	it("hands Escape to the layer below one that passes it through", () => {
 		const menu = vi.fn();
-		const tip = vi.fn();
+		const submenu = vi.fn();
 		const below = dismissable({
 			element: () => surface("menu"),
 			onDismiss: menu,
 		});
 		const above = dismissable({
-			element: () => surface("tip"),
-			onDismiss: tip,
-			escapeKey: false,
+			element: () => surface("submenu"),
+			onDismiss: submenu,
+			escapeKey: "passthrough",
 		});
 
 		pressEscape();
-		expect(tip).not.toHaveBeenCalled();
+		expect(submenu).not.toHaveBeenCalled();
 		expect(menu).toHaveBeenCalledTimes(1);
 		above.remove();
 		below.remove();

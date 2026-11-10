@@ -9,8 +9,8 @@
  *
  * So layers live in one stack and the rules are applied once, globally:
  *
- * - **Escape** reaches only the topmost layer that accepts it. That is what
- *   makes Escape close a submenu first and its parent menu second.
+ * - **Escape** reaches only the topmost layer, skipping those that pass it
+ *   through. One that refuses it dismisses nothing below.
  * - **Pointer outside** walks the stack top-down and stops at the first layer
  *   the event landed inside. Layers above it close, layers below it stay. A
  *   click in a parent menu therefore closes the submenu and nothing else.
@@ -35,8 +35,15 @@ export interface DismissableOptions {
 	 * immediately reopen on click.
 	 */
 	exclude?: () => ReadonlyArray<HTMLElement | null | undefined>;
-	/** Escape dismisses this layer when it is topmost. Default `true`. */
-	escapeKey?: boolean;
+	/**
+	 * Escape dismisses this layer when it is topmost. Default `true`.
+	 *
+	 * `false` refuses it: while this layer is on top, Escape dismisses nothing,
+	 * as a Radix layer that prevents its `onEscapeKeyDown`. `"passthrough"`
+	 * hands it to the layer below, for a surface that is part of the one under
+	 * it — a submenu, whose Escape closes the whole menu.
+	 */
+	escapeKey?: boolean | "passthrough";
 	/** A pointer press outside dismisses. Default `true`. */
 	outsidePointer?: boolean;
 	/** Focus moving outside dismisses. Default `false`. */
@@ -110,13 +117,14 @@ function stopListeningIfIdle(): void {
 function onKeyDown(event: KeyboardEvent): void {
 	if (event.key !== "Escape") return;
 
-	// Topmost layer that accepts Escape — not simply the topmost layer. A
-	// Tooltip stacked over a Popover opts out, and Escape must then reach the
-	// Popover rather than being swallowed.
+	// The topmost layer decides, past the ones that pass Escape through. One
+	// that refuses it stops here: falling through would close the sheet behind
+	// a dialog that has to be answered.
 	for (let i = stack.length - 1; i >= 0; i -= 1) {
 		const layer = stack[i];
 		if (layer === undefined) continue;
-		if (layer.escapeKey === false) continue;
+		if (layer.escapeKey === "passthrough") continue;
+		if (layer.escapeKey === false) return;
 		event.stopPropagation();
 		layer.onDismiss("escape");
 		return;

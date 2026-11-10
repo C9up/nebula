@@ -403,7 +403,8 @@ export function wireMenu(
 			element: () => element,
 			exclude: () => [trigger, panel],
 			onDismiss: () => closeSubmenusFrom(0),
-			escapeKey: false,
+			// Escape in a submenu closes the whole menu, as Radix's does.
+			escapeKey: "passthrough",
 		});
 
 		const inner = wireMenu(element, {
