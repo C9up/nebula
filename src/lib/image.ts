@@ -352,6 +352,18 @@ export function setImageEndpoint(path: string): void {
 }
 
 /**
+ * A root-relative `src` as the path under the endpoint's public roots.
+ *
+ * `/photos/hero.png` is how a page names a public file, and the endpoint
+ * resolves `src` inside its roots, refusing an absolute path: sent as is,
+ * every variant is a 404. Exactly one slash goes, so a protocol-relative
+ * `//host/…` stays what it is and is left to an application's own resolver.
+ */
+function relativeToRoots(src: string): string {
+	return src.startsWith("/") && !src.startsWith("//") ? src.slice(1) : src;
+}
+
+/**
  * The resolver used when an application installs none.
  *
  * Parameter names are one letter because they end up in every `srcset` entry
@@ -360,7 +372,7 @@ export function setImageEndpoint(path: string): void {
  */
 export const defaultImageResolver: ImageUrlResolver = (src, transform) => {
 	const params = new URLSearchParams({
-		src,
+		src: relativeToRoots(src),
 		w: String(Math.round(transform.width)),
 	});
 	if (transform.format !== undefined) params.set("f", transform.format);

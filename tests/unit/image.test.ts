@@ -217,12 +217,32 @@ describe("the default resolver", () => {
 				format: "webp",
 				quality: 70,
 			}),
-		).toBe("/__image?src=%2Fphotos%2Fa.jpg&w=640&f=webp&q=70");
+		).toBe("/__image?src=photos%2Fa.jpg&w=640&f=webp&q=70");
 	});
 
 	it("omits what was not asked for", () => {
 		expect(defaultImageResolver("/a.jpg", { width: 640 })).toBe(
-			"/__image?src=%2Fa.jpg&w=640",
+			"/__image?src=a.jpg&w=640",
+		);
+	});
+
+	/**
+	 * Locked by a literal, as the width list is: @c9up/prism's `/__image`
+	 * resolves `src` under its public roots and refuses an absolute path, so a
+	 * root-relative src sent as is answers 404 on every variant.
+	 */
+	it("names the file relative to the public roots, as /__image expects", () => {
+		expect(defaultImageResolver("/photos/hero.png", { width: 640 })).toBe(
+			"/__image?src=photos%2Fhero.png&w=640",
+		);
+		expect(defaultImageResolver("photos/hero.png", { width: 640 })).toBe(
+			"/__image?src=photos%2Fhero.png&w=640",
+		);
+	});
+
+	it("strips one leading slash only, so a protocol-relative URL is not turned into a path", () => {
+		expect(defaultImageResolver("//cdn.example/a.png", { width: 640 })).toBe(
+			"/__image?src=%2F%2Fcdn.example%2Fa.png&w=640",
 		);
 	});
 
