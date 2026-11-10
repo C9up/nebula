@@ -12,6 +12,7 @@
  */
 
 import { add } from "../cli/add.js";
+import { loadProjectConfig } from "../cli/projectConfig.js";
 import { argument, flag, type NebulaCommandClass } from "./contract.js";
 
 export default class NebulaAddCommand {
@@ -70,12 +71,16 @@ export default class NebulaAddCommand {
 			return;
 		}
 
+		const cwd = process.cwd();
+		const config = await loadProjectConfig(cwd);
 		const result = add({
-			cwd: process.cwd(),
+			cwd,
 			names: this.components,
 			force: this.force,
 			dryRun: this.dryRun,
+			paths: config.paths,
 			language: this.ts ? "ts" : this.js ? "js" : undefined,
+			defaultLanguage: config.language,
 		});
 
 		const out: string[] = [""];

@@ -8,6 +8,7 @@
  */
 
 import { type DiffState, diff } from "../cli/diff.js";
+import { loadProjectConfig } from "../cli/projectConfig.js";
 import { flag, type NebulaCommandClass } from "./contract.js";
 
 /** What each state means, and what to do about it. */
@@ -54,9 +55,13 @@ export default class NebulaDiffCommand {
 	js = false;
 
 	async run(): Promise<void> {
+		const cwd = process.cwd();
+		const config = await loadProjectConfig(cwd);
 		const result = diff({
-			cwd: process.cwd(),
+			cwd,
+			paths: config.paths,
 			language: this.ts ? "ts" : this.js ? "js" : undefined,
+			defaultLanguage: config.language,
 		});
 
 		if (result.entries.length === 0) {

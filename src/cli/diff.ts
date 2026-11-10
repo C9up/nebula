@@ -42,6 +42,8 @@ export interface DiffOptions {
 	cwd: string;
 	paths?: Partial<NebulaPaths>;
 	language?: Language;
+	/** The configured language: used when the tree says nothing. */
+	defaultLanguage?: Language;
 }
 
 export interface DiffResult {
@@ -58,7 +60,11 @@ export interface DiffResult {
 export function diff(options: DiffOptions): DiffResult {
 	const paths = { ...defaultPaths, ...options.paths };
 	const target = join(options.cwd, paths.components);
-	const language = options.language ?? detectLanguage(target) ?? "js";
+	const language =
+		options.language ??
+		detectLanguage(target) ??
+		options.defaultLanguage ??
+		"js";
 
 	const root = packageRoot(join(options.cwd, "package.json"));
 	const sourceRoot = join(root, language === "ts" ? "src" : "dist");

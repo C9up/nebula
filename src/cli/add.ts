@@ -27,6 +27,8 @@ export interface AddOptions {
 	paths?: Partial<NebulaPaths>;
 	/** Overrides both the detected language and the configured one. */
 	language?: Language;
+	/** The configured language: used when the tree says nothing. */
+	defaultLanguage?: Language;
 	force?: boolean;
 	/** Print what would happen and write nothing. */
 	dryRun?: boolean;
@@ -80,7 +82,11 @@ export function add(options: AddOptions): AddResult {
 		options.cwd,
 		options.paths?.components ?? defaultPaths.components,
 	);
-	const language = options.language ?? detectLanguage(target) ?? "js";
+	const language =
+		options.language ??
+		detectLanguage(target) ??
+		options.defaultLanguage ??
+		"js";
 
 	// The compiled output is what a browser can load. It ships in the package
 	// and `prepublishOnly` rebuilds it, so an installed copy always has it;
