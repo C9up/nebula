@@ -2,7 +2,7 @@
 
 > shadcn/ui, ported to Aurora, organised as atomic design. Zero runtime dependencies, copy-the-source registry, swappable CSS engine.
 
-Part of **[Ream](https://github.com/C9up/ream)** — a Rust-powered, AdonisJS-compatible Node.js framework. Independent, publishable package.
+Part of **[Ream](https://github.com/C9up/ream)** — a Rust-powered Node.js framework. Independent, publishable package.
 
 ## What this is
 
@@ -125,7 +125,7 @@ physical, because that is what the caller means.
 
 ## Choose your CSS engine
 
-nebula declares **no CSS engine dependency at all**. You install the engine you want; `config/nebula.ts` names it; nebula generates the matching stubs and build command. Same arrangement AdonisJS uses for its asset bundler.
+nebula declares **no CSS engine dependency at all**. You install the engine you want; `config/nebula.ts` names it; nebula generates the matching stubs and build command. The engine stays the application's own dependency: nebula ships the stubs for it, never the engine.
 
 ### The one thing you must install: `tw-animate-css`
 
