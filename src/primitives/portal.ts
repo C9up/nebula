@@ -12,7 +12,7 @@
  * content and the discipline to tear both down together.
  */
 
-import { render, type TemplateResult } from "@c9up/aurora";
+import { onMount, render, type TemplateResult } from "@c9up/aurora";
 
 export interface PortalOptions {
 	/** Where to mount. Defaults to `document.body`. */
@@ -58,4 +58,30 @@ export function portal(
 			host.remove();
 		},
 	};
+}
+
+export interface PortalPartOptions extends PortalOptions {
+	/** The host's `data-slot`, naming the part that put it there. */
+	slot: string;
+}
+
+/**
+ * Portal `content` once the calling component is mounted, and close it when
+ * the component unmounts. Call it from a component's setup.
+ *
+ * Setup also runs inside `renderToString`, where there is no document to
+ * append a host to, so the portal waits for the mount: the server renders
+ * nothing in place and the content is client-only, as a portal that renders
+ * only after its mount effect is. The close rides on the same hook, so a part
+ * cannot open a portal without also taking it away.
+ */
+export function portalOnMount(
+	content: TemplateResult,
+	options: PortalPartOptions,
+): void {
+	onMount(() => {
+		const mounted = portal(content, options);
+		mounted.host.setAttribute("data-slot", options.slot);
+		return () => mounted.close();
+	});
 }

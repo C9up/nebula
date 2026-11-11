@@ -33,7 +33,6 @@ import {
 	createContext,
 	html,
 	inject,
-	onUnmount,
 	provide,
 	type TemplateResult,
 } from "@c9up/aurora";
@@ -46,7 +45,7 @@ import { fadeInOut, zoomInOut } from "../lib/motion.js";
 import { type Reactive, read } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import { modalSurface } from "../primitives/modalSurface.js";
-import { portal } from "../primitives/portal.js";
+import { portalOnMount } from "../primitives/portal.js";
 import { dialogBackdropClasses } from "./Dialog.js";
 
 const panelClasses =
@@ -226,11 +225,10 @@ export interface AlertDialogPortalProps {
  * than standing in as a passthrough.
  */
 export const AlertDialogPortal = component<AlertDialogPortalProps>((props) => {
-	const mounted = portal(html`${slot(props.children)}`, {
+	portalOnMount(html`${slot(props.children)}`, {
 		container: props.container,
+		slot: "alert-dialog-portal",
 	});
-	mounted.host.setAttribute("data-slot", "alert-dialog-portal");
-	onUnmount(() => mounted.close());
 	return html``;
 });
 

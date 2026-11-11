@@ -43,7 +43,6 @@ import {
 	createContext,
 	html,
 	inject,
-	onUnmount,
 	provide,
 	signal,
 	type TemplateResult,
@@ -58,7 +57,7 @@ import { fadeInOut, zoomInOut } from "../lib/motion.js";
 import { type Reactive, read } from "../lib/props.js";
 import { controllable } from "../primitives/controllable.js";
 import { modalSurface } from "../primitives/modalSurface.js";
-import { portal } from "../primitives/portal.js";
+import { portalOnMount } from "../primitives/portal.js";
 
 export const dialogBackdropClasses =
 	"fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0";
@@ -233,11 +232,10 @@ export interface DialogPortalProps {
  * rather than standing in as a passthrough.
  */
 export const DialogPortal = component<DialogPortalProps>((props) => {
-	const mounted = portal(html`${slot(props.children)}`, {
+	portalOnMount(html`${slot(props.children)}`, {
 		container: props.container,
+		slot: "dialog-portal",
 	});
-	mounted.host.setAttribute("data-slot", "dialog-portal");
-	onUnmount(() => mounted.close());
 	return html``;
 });
 

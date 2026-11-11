@@ -49,7 +49,7 @@ import {
 	menuSubTriggerClasses,
 	registerSubmenu,
 } from "./menu.js";
-import { portal } from "./portal.js";
+import { portalOnMount } from "./portal.js";
 
 /** What a row needs from the menu it is in. */
 export interface MenuOwner {
@@ -347,10 +347,10 @@ export function createMenuParts(
 	});
 
 	const Portal = component<MenuPortalProps>((props) => {
-		const mounted = portal(html`${slot(props.children)}`, {
+		portalOnMount(html`${slot(props.children)}`, {
 			container: props.container,
+			slot: `${prefix}-portal`,
 		});
-		mounted.host.setAttribute("data-slot", `${prefix}-portal`);
 		return html``;
 	});
 
