@@ -47,7 +47,7 @@ import {
 	signal,
 	type TemplateResult,
 } from "@c9up/aurora";
-import { Button } from "../atoms/Button.js";
+import { buttonVariants } from "../atoms/Button.js";
 import type { Child, Parts, Slot } from "../lib/children.js";
 import { slot } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
@@ -299,8 +299,9 @@ export const DialogFooter = component<DialogFooterProps>((props) => {
 			? html`<button
 					type="button"
 					data-slot="dialog-close"
+					class="${buttonVariants({ variant: "outline" })}"
 					@click="${() => dialog.setOpen(false)}"
-				>${Button({ variant: "outline", children: props.closeLabel ?? "Close" })}</button>`
+				>${props.closeLabel ?? "Close"}</button>`
 			: null;
 	return html`<div
 		data-slot="dialog-footer"
