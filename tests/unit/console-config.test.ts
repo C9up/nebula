@@ -12,6 +12,7 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readFileSync,
 	rmSync,
 	symlinkSync,
 	writeFileSync,
@@ -19,6 +20,7 @@ import {
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { hashOf, writeManifest } from "../../src/cli/manifest.js";
 import AddCommand from "../../src/console/AddCommand.js";
 import DiffCommand from "../../src/console/DiffCommand.js";
 
@@ -148,5 +150,29 @@ describe("nebula:diff > config/nebula.ts", () => {
 		);
 		await new DiffCommand().run();
 		expect(out()).toMatch(/edited\s+atoms\/Badge\.ts/);
+	});
+	it("suggests only names nebula:add accepts, then runs them cleanly", async () => {
+		configure("export default { adapter: 'tailwind', language: 'ts' }\n");
+		const out = capture();
+		await add(["dropdown-menu"]);
+		// A shared primitive the package has since changed, the copy untouched.
+		const menu = join(project, "resources/pages/primitives/menu.ts");
+		appendFileSync(menu, "\n// released upstream\n");
+		const asCopied = hashOf(menu);
+		if (asCopied === undefined) throw new Error("menu.ts went missing");
+		writeManifest(join(project, "resources/pages"), {
+			"primitives/menu.ts": asCopied,
+		});
+
+		await new DiffCommand().run();
+		const suggested = /ream nebula:add --force (.+)/.exec(out())?.[1];
+		expect(suggested).toBe("dropdown-menu");
+
+		// What the user would paste: it must not stop on an unknown name.
+		const command = new AddCommand();
+		command.components = (suggested ?? "").split(" ");
+		command.force = true;
+		await command.run();
+		expect(readFileSync(menu, "utf8")).not.toContain("released upstream");
 	});
 });

@@ -18,7 +18,13 @@ import { join } from "node:path";
 import { defaultPaths, type Language, type NebulaPaths } from "../config.js";
 import { detectLanguage } from "./add.js";
 import { hashOf, readManifest } from "./manifest.js";
-import { loadRegistry, packageRoot } from "./registry.js";
+import {
+	loadRegistry,
+	packageRoot,
+	type Registry,
+	type RegistryItem,
+	resolveItems,
+} from "./registry.js";
 
 export type DiffState =
 	/** Copy, record and package all agree. */
@@ -46,9 +52,32 @@ export interface DiffOptions {
 	defaultLanguage?: Language;
 }
 
+/**
+ * How to bring the outdated files up to date with `nebula:add --force`.
+ *
+ * `nebula:add` takes registry names, never file paths: a shared file such as
+ * `lib/icons.ts` or `primitives/menu.ts` has no name of its own and travels
+ * with the components that use it. So the outdated files are mapped back to
+ * the installed components whose copy would bring them along.
+ */
+export interface UpdatePlan {
+	/**
+	 * Registry names to pass to `nebula:add --force`, sorted. Each one re-copies
+	 * only files that are outdated or untouched — never one you edited, and
+	 * never one whose history is unknown.
+	 */
+	components: string[];
+	/**
+	 * Outdated files none of those names can reach without overwriting a file
+	 * you changed, or that no installed component carries any more.
+	 */
+	uncovered: string[];
+}
+
 export interface DiffResult {
 	entries: DiffEntry[];
 	language: Language;
+	update: UpdatePlan;
 }
 
 /**
@@ -94,7 +123,99 @@ export function diff(options: DiffOptions): DiffResult {
 	}
 
 	entries.sort((a, b) => a.file.localeCompare(b.file));
-	return { entries, language };
+	const toCopy = (file: string): string =>
+		language === "ts" ? file : file.replace(/\.ts$/, ".js");
+	const update = planUpdate(registry, entries, {
+		installed: (item) =>
+			existsSync(join(target, toCopy(`${item.layer}/${item.title}.ts`))),
+		toCopy,
+	});
+	return { entries, language, update };
+}
+
+export interface PlanOptions {
+	/**
+	 * Whether the project has this component. Its own file — the registry
+	 * names an item after it — being in the tree is what says so.
+	 */
+	installed: (item: RegistryItem) => boolean;
+	/** A registry path (`.ts`) as it is spelled in the copied tree. */
+	toCopy: (file: string) => string;
+}
+
+/**
+ * Pick the registry names that update the outdated files, losing nothing.
+ *
+ * A component qualifies when it is installed and everything `nebula:add
+ * --force` would rewrite for it — its files and those of every component it
+ * pulls in — is outdated or untouched. One edited, conflicting or unknown file
+ * in that set rules it out: the suggestion is printed as safe to run as is.
+ *
+ * Among those, a greedy cover keeps the command short: the component reaching
+ * the most outdated files still left goes first, ties broken by name. A shared
+ * file then rides along with a component that needed re-copying anyway, rather
+ * than every component that happens to import it being listed.
+ */
+export function planUpdate(
+	registry: Registry,
+	entries: readonly DiffEntry[],
+	options: PlanOptions,
+): UpdatePlan {
+	const states = new Map(entries.map((entry) => [entry.file, entry.state]));
+	const outdated = new Set(
+		entries
+			.filter((entry) => entry.state === "outdated")
+			.map((entry) => entry.file),
+	);
+
+	const candidates: { name: string; reaches: Set<string> }[] = [];
+	for (const item of registry.items) {
+		if (!options.installed(item)) continue;
+		const rewritten = new Set(
+			resolveItems(registry, [item.name]).flatMap((entry) =>
+				entry.files.map(options.toCopy),
+			),
+		);
+		const lossy = [...rewritten].some((file) => {
+			const state = states.get(file);
+			return state !== undefined && state !== "outdated";
+		});
+		if (lossy) continue;
+		const reaches = new Set(
+			[...rewritten].filter((file) => outdated.has(file)),
+		);
+		if (reaches.size > 0) candidates.push({ name: item.name, reaches });
+	}
+
+	const left = new Set(outdated);
+	const components: string[] = [];
+	while (left.size > 0) {
+		let best: { name: string; count: number } | undefined;
+		for (const candidate of candidates) {
+			let count = 0;
+			for (const file of candidate.reaches) if (left.has(file)) count += 1;
+			if (count === 0) continue;
+			if (
+				best === undefined ||
+				count > best.count ||
+				(count === best.count && candidate.name < best.name)
+			) {
+				best = { name: candidate.name, count };
+			}
+		}
+		if (best === undefined) break;
+		const chosen = best.name;
+		components.push(chosen);
+		for (const candidate of candidates) {
+			if (candidate.name !== chosen) continue;
+			for (const file of candidate.reaches) left.delete(file);
+		}
+	}
+
+	return {
+		components: components.sort(),
+		uncovered: [...left].sort(),
+	};
 }
 
 function compare(hashes: {

@@ -79,28 +79,25 @@ export default class NebulaDiffCommand {
 			);
 		}
 
-		const outdated = result.entries.filter(
-			(entry) => entry.state === "outdated",
-		);
-		if (outdated.length > 0) {
+		const { components, uncovered } = result.update;
+		if (components.length > 0) {
 			out.push(
 				"",
-				`  ${outdated.length} can be updated with no loss:`,
-				`    ream nebula:add --force ${outdated.map(componentOf).join(" ")}`,
+				"  Outdated files that can be updated with no loss — the components that carry them:",
+				`    ream nebula:add --force ${components.join(" ")}`,
+			);
+		}
+		if (uncovered.length > 0) {
+			out.push(
+				"",
+				"  Outdated, but no installed component can re-copy them without overwriting",
+				"  a file you changed (or none carries them any more). Compare by hand:",
+				...uncovered.map((file) => `    ${file}`),
 			);
 		}
 		out.push("");
 		process.stdout.write(out.join("\n"));
 	}
-}
-
-/** `molecules/InputGroup.js` → `input-group`, as the registry names it. */
-function componentOf(entry: { file: string }): string {
-	const base = entry.file.split("/").pop() ?? entry.file;
-	return base
-		.replace(/\.(ts|js)$/, "")
-		.replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-		.toLowerCase();
 }
 
 // Fails the build if the class drifts from what the kernel dispatches against.

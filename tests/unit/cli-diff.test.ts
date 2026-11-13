@@ -113,3 +113,89 @@ describe("nebula diff", () => {
 		expect(stateOf(BUTTON)).toBe("unknown");
 	});
 });
+
+describe("nebula diff > the update it suggests", () => {
+	beforeEach(() => {
+		add({ cwd: project, names: ["select", "dropdown-menu"], language: "ts" });
+	});
+
+	const at = (file: string): string => join(project, COMPONENTS, file);
+
+	/** The package moved past the copy, as in the case above. */
+	function outdate(file: string): void {
+		appendFileSync(at(file), "\n// released upstream\n");
+		const asCopied = hashOf(at(file));
+		if (asCopied === undefined) throw new Error(`${file} went missing`);
+		writeManifest(join(project, COMPONENTS), { [file]: asCopied });
+	}
+
+	function edit(file: string): void {
+		appendFileSync(at(file), "\n// mine\n");
+	}
+
+	const plan = () => diff({ cwd: project, language: "ts" }).update;
+
+	it("names the component that carries a shared file, never the file", () => {
+		// `primitives/menu.ts` has no registry name; among what is installed,
+		// only dropdown-menu carries it.
+		outdate("primitives/menu.ts");
+
+		expect(plan()).toEqual({ components: ["dropdown-menu"], uncovered: [] });
+	});
+
+	it("suggests a command nebula:add runs as is, and that leaves nothing outdated", () => {
+		outdate("primitives/menu.ts");
+		outdate("lib/icons.ts");
+		outdate("atoms/Button.ts");
+		const { components } = plan();
+
+		// The ticket's failure: `nebula:add` stopped at the first name it did
+		// not know. Every suggested name must be one it accepts.
+		add({ cwd: project, names: components, language: "ts", force: true });
+
+		const left = diff({ cwd: project, language: "ts" }).entries.filter(
+			(entry) => entry.state === "outdated",
+		);
+		expect(left).toEqual([]);
+	});
+
+	it("keeps the command short: a shared file rides along with a component already listed", () => {
+		outdate("primitives/menu.ts");
+		outdate("lib/icons.ts");
+
+		// dropdown-menu carries both; select would be redundant.
+		expect(plan().components).toEqual(["dropdown-menu"]);
+	});
+
+	it("names a component whose own file moved", () => {
+		outdate("atoms/Button.ts");
+		outdate("lib/icons.ts");
+
+		expect(plan().components).toEqual(["button", "dropdown-menu"]);
+	});
+
+	it("never suggests a component whose copy would overwrite a file you edited", () => {
+		outdate("lib/icons.ts");
+		edit("organisms/DropdownMenu.ts");
+
+		expect(plan()).toEqual({ components: ["select"], uncovered: [] });
+	});
+
+	it("lists the outdated file apart when every component carrying it was edited", () => {
+		outdate("lib/icons.ts");
+		edit("organisms/DropdownMenu.ts");
+		edit("organisms/Select.ts");
+
+		expect(plan()).toEqual({ components: [], uncovered: ["lib/icons.ts"] });
+	});
+
+	it("does not count a component as installed once its own file is gone", () => {
+		outdate("primitives/menu.ts");
+		rmSync(at("organisms/DropdownMenu.ts"));
+
+		expect(plan()).toEqual({
+			components: [],
+			uncovered: ["primitives/menu.ts"],
+		});
+	});
+});
