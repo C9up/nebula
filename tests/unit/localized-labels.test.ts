@@ -39,6 +39,7 @@ import {
 	CarouselNext,
 	CarouselPrevious,
 } from "../../src/organisms/Carousel.js";
+import { Chart } from "../../src/organisms/Chart.js";
 import { type Column, DataTable } from "../../src/organisms/DataTable.js";
 import { DatePicker } from "../../src/organisms/DatePicker.js";
 import {
@@ -359,6 +360,25 @@ describe("nebula > the remaining labels", () => {
 			}),
 		);
 		expect(label(host, "[data-slot=settings-nav]")).toBe("Rubriques");
+	});
+
+	it("Chart names its plot and tells how to read it", () => {
+		const host = show(
+			Chart({
+				label: "Visites",
+				categoryKey: "mois",
+				data: [{ mois: "janv.", visites: 3 }],
+				series: [{ key: "visites", label: "Visites" }],
+				roleDescription: "graphique",
+				keyboardHint: "Les flèches lisent chaque catégorie.",
+			}),
+		);
+		const plot = host.querySelector("[data-slot=chart-plot]");
+		expect(plot?.getAttribute("aria-roledescription")).toBe("graphique");
+		expect(
+			document.getElementById(plot?.getAttribute("aria-describedby") ?? "")
+				?.textContent,
+		).toBe("Les flèches lisent chaque catégorie.");
 	});
 
 	it("Toaster names the dismiss cross", () => {

@@ -101,6 +101,13 @@ export interface ChartProps {
 	formatCategory?: (category: ChartCategory) => string;
 	/** BCP 47 locale for the default formatters. Default: the runtime's own. */
 	locale?: string;
+	/** What a screen reader calls the plot. Default `"chart"`. */
+	roleDescription?: string;
+	/**
+	 * How a screen reader is told to read the plot. Default `"Arrow keys read
+	 * each category."`.
+	 */
+	keyboardHint?: string;
 	class?: Reactive<string>;
 }
 
@@ -469,7 +476,7 @@ export const Chart = component<ChartProps>((props) => {
 				id="${plotId}"
 				data-slot="chart-plot"
 				role="group"
-				aria-roledescription="chart"
+				aria-roledescription="${props.roleDescription ?? "chart"}"
 				aria-labelledby="${titleId}"
 				aria-describedby="${hintId}"
 				tabindex="0"
@@ -518,7 +525,9 @@ export const Chart = component<ChartProps>((props) => {
 		</div>
 		<span id="${titleId}" class="sr-only">${props.label}</span>
 		<span id="${hintId}" class="sr-only">${
-			count === 0 ? "" : "Arrow keys read each category."
+			count === 0
+				? ""
+				: (props.keyboardHint ?? "Arrow keys read each category.")
 		}</span>
 		<div role="status" aria-live="polite" class="sr-only">${() => {
 			const index = active();
