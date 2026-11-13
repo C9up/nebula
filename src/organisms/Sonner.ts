@@ -872,6 +872,13 @@ export const Toaster = component<ToasterProps>((props) => {
 	const resolvedTheme = (): "light" | "dark" =>
 		state.theme === "system" ? (prefersDark() ? "dark" : "light") : state.theme;
 
+	/**
+	 * The list's placement, bound as a `.style` property: the CSSOM is not
+	 * subject to a Content-Security-Policy, where a `style` attribute is blocked
+	 * by any policy without `'unsafe-inline'` — and the list then fell into the
+	 * page flow. The server writes no property, so the list also carries `fixed`
+	 * as a class: before hydration it is empty, and still out of the flow.
+	 */
 	function listStyle(corner: Position): string {
 		const { x, y } = axesOf(corner);
 		const rules = [
@@ -910,8 +917,8 @@ export const Toaster = component<ToasterProps>((props) => {
 			data-x-position="${() => axesOf(corner()).x}"
 			dir="${props.dir === "auto" ? undefined : props.dir}"
 			tabindex="-1"
-			class="${() => cn("m-0 box-border list-none p-0 outline-none", read(props.class))}"
-			style="${() => listStyle(corner())}"
+			class="${() => cn("fixed z-[999999999] m-0 box-border list-none p-0 outline-none", read(props.class))}"
+			.style="${() => listStyle(corner())}"
 			@pointerenter="${() => expanded(true)}"
 			@pointermove="${() => expanded(true)}"
 			@pointerleave="${() => {
@@ -1338,7 +1345,7 @@ const ToastRow = component<ToastRowProps>((props) => {
 		data-expanded="${() => String(isExpanded())}"
 		data-testid="${() => record().testId}"
 		class="${surfaceClasses}"
-		style="${style}"
+		.style="${style}"
 	>${renderClose}${renderIcon}<div
 			data-content
 			class="${() =>
@@ -1360,7 +1367,7 @@ const ToastRow = component<ToastRowProps>((props) => {
 					? html`<span
 						aria-hidden="true"
 						class="absolute left-0 bottom-full w-full"
-						style="${`height:${state.gap + 1}px`}"
+						.style="${`height:${state.gap + 1}px`}"
 					></span>`
 					: null}</li>`;
 });

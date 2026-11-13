@@ -182,8 +182,7 @@ export const AccordionContent = component<AccordionContentProps>((props) => {
 		data-state="${() => (item.open() ? "open" : "closed")}"
 		aria-labelledby="${item.triggerId}"
 		?inert="${() => !item.open()}"
-		class="grid text-sm transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
-		style="${() => `grid-template-rows: ${item.open() ? "1fr" : "0fr"}`}"
+		class="grid grid-rows-[0fr] text-sm transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none data-[state=open]:grid-rows-[1fr]"
 	><div class="overflow-hidden"><div
 			class="${() => cn("pt-0 pb-4", read(props.class))}"
 		>${slot(props.children)}</div></div></div>`;

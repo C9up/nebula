@@ -117,14 +117,20 @@ export interface ResizablePanelProps {
  * share and the second takes the rest. The parts are upstream's so a layout
  * written against them reads the same; a third panel would simply have no
  * share of its own.
+ *
+ * The share is written through the CSSOM (`.style`), never as a `style`
+ * attribute: a Content-Security-Policy without `'unsafe-inline'` blocks the
+ * attribute, and the CSSOM is not subject to it. A property is not written by
+ * the server, so until hydration both panes carry `flex-1` and split the room
+ * evenly — the right layout for the default share, and never a collapsed one.
  */
 export const ResizablePanel = component<ResizablePanelProps>((props) => {
 	const group = inject(ResizableContext);
 	const first = group.claimPanel() === 1;
 	return html`<div
 		data-slot="resizable-panel"
-		class="${() => cn("overflow-hidden", first ? "" : "flex-1", read(props.class))}"
-		style="${() => (first ? `flex: 0 0 ${group.size()}%` : "")}"
+		class="${() => cn("flex-1 overflow-hidden", read(props.class))}"
+		.style="${() => (first ? `flex: 0 0 ${group.size()}%` : "")}"
 	>${slot(props.children)}</div>`;
 });
 

@@ -74,7 +74,16 @@ describe("Collapsible", () => {
 
 		expect(trigger?.getAttribute("aria-expanded")).toBe("false");
 		expect(panel?.hasAttribute("inert")).toBe(true);
-		expect(panel?.style.gridTemplateRows).toBe("0fr");
+		// Flattened by a class keyed on `data-state`, which the server writes:
+		// a `style` attribute would be blocked by a strict CSP, and a `.style`
+		// property is not in the server's markup, so the panel would show open
+		// until hydration.
+		expect(panel?.dataset.state).toBe("closed");
+		expect(panel?.classList.contains("grid-rows-[0fr]")).toBe(true);
+		expect(panel?.classList.contains("data-[state=open]:grid-rows-[1fr]")).toBe(
+			true,
+		);
+		expect(panel?.hasAttribute("style")).toBe(false);
 		view.dispose();
 	});
 
@@ -90,7 +99,7 @@ describe("Collapsible", () => {
 		);
 		expect(trigger?.getAttribute("aria-expanded")).toBe("true");
 		expect(panel?.hasAttribute("inert")).toBe(false);
-		expect(panel?.style.gridTemplateRows).toBe("1fr");
+		expect(panel?.dataset.state).toBe("open");
 		view.dispose();
 	});
 

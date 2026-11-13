@@ -1,10 +1,18 @@
 /**
  * Progress — a determinate progress bar.
  *
- * The fill is a full-width child translated left by the remaining percentage,
+ * The fill is a full-width shape translated left by the remaining percentage,
  * rather than a width animation. Transforms are composited off the main
  * thread; animating `width` relayouts the bar on every frame, which is visible
  * on a long upload.
+ *
+ * The shape is an SVG `<rect>` moved by its `transform` ATTRIBUTE, not a `<div>`
+ * moved by a `style` attribute. A Content-Security-Policy without
+ * `'unsafe-inline'` blocks every `style` attribute; an SVG presentation
+ * attribute is not a style attribute and passes. A `.style` property would pass
+ * too, but the server does not write properties, so the bar would read full
+ * until hydration — the attribute is in the server's markup, right from the
+ * first paint.
  *
  * A `value` of `null` means indeterminate, and drops `aria-valuenow` — the
  * ARIA spec is explicit that an absent value is how "unknown progress" is
@@ -55,10 +63,18 @@ export const Progress = component<ProgressProps>((props) => {
 				read(props.class),
 			)}"
 	>
-		<div
+<svg
 			data-slot="progress-indicator"
-			class="bg-primary h-full w-full flex-1 transition-transform"
-			style="${() => `transform: translateX(-${100 - percent()}%)`}"
-		></div>
+			aria-hidden="true"
+			focusable="false"
+			viewBox="0 0 100 1"
+			preserveAspectRatio="none"
+			class="fill-primary block h-full w-full"
+		><rect
+				width="100"
+				height="1"
+				transform="${() => `translate(${percent() - 100} 0)`}"
+				class="transition-transform"
+			/></svg>
 	</div>`;
 });

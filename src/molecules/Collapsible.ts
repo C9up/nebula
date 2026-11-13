@@ -115,9 +115,7 @@ export const CollapsibleContent = component<CollapsibleContentProps>(
 			data-state="${() => (collapsible.open() ? "open" : "closed")}"
 			aria-labelledby="${collapsible.triggerId}"
 			?inert="${() => !collapsible.open()}"
-			class="grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
-			style="${() =>
-				`grid-template-rows: ${collapsible.open() ? "1fr" : "0fr"}`}"
+			class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none data-[state=open]:grid-rows-[1fr]"
 		><div class="${() => cn("overflow-hidden", read(props.class))}">${slot(
 			props.children,
 		)}</div></div>`;

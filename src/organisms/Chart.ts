@@ -174,11 +174,12 @@ export const Chart = component<ChartProps>((props) => {
 		<div data-slot="chart-legend" class="mt-2 flex flex-wrap justify-center gap-4 text-xs">
 			${props.series.map(
 				(series, index) => html`<span class="flex items-center gap-1.5">
-					<span
+					<svg
 						aria-hidden="true"
-						class="size-2 shrink-0 rounded-[2px]"
-						style="${`background:${colorFor(series, index)}`}"
-					></span>
+						focusable="false"
+						viewBox="0 0 8 8"
+						class="size-2 shrink-0"
+					><rect width="8" height="8" rx="2" fill="${colorFor(series, index)}" /></svg>
 					<span class="text-muted-foreground">${series.label}</span>
 				</span>`,
 			)}

@@ -562,18 +562,28 @@ export interface SidebarMenuSkeletonProps {
  *
  * The widths vary per row, which is what stops a loading column from reading
  * as a bar chart. Seeded from a random draw the moment the row is built, so it
- * does not shift on every re-render.
+ * does not shift on every re-render. The draw picks a class, not a `style`
+ * attribute, which a Content-Security-Policy without `'unsafe-inline'` blocks.
  */
+const SKELETON_WIDTHS: readonly string[] = [
+	"max-w-[50%]",
+	"max-w-[60%]",
+	"max-w-[70%]",
+	"max-w-[80%]",
+	"max-w-[90%]",
+];
+
 export const SidebarMenuSkeleton = component<SidebarMenuSkeletonProps>(
 	(props) => {
-		const width = `${Math.floor(Math.random() * 40) + 50}%`;
+		const width =
+			SKELETON_WIDTHS[Math.floor(Math.random() * SKELETON_WIDTHS.length)];
 		return html`<div
 			data-slot="sidebar-menu-skeleton"
 			class="${() =>
 				cn("flex h-8 items-center gap-2 rounded-md px-2", read(props.class))}"
 		>${
 			props.showIcon === true ? Skeleton({ class: "size-4 rounded-md" }) : null
-		}<div class="flex-1" style="${`max-width: ${width}`}">${Skeleton({
+		}<div class="${cn("flex-1", width)}">${Skeleton({
 			class: "h-4 w-full",
 		})}</div></div>`;
 	},
