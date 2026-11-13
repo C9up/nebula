@@ -57,10 +57,16 @@ export {
 } from "./Carousel.js";
 export {
 	Chart,
+	type ChartBound,
+	type ChartCategory,
 	type ChartDatum,
 	type ChartProps,
 	type ChartSeries,
+	niceTicks,
+	type ValueAxisOptions,
+	valueAxis,
 	valueRange,
+	visibleCategories,
 } from "./Chart.js";
 export {
 	Combobox,
