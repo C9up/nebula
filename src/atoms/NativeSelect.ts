@@ -44,7 +44,17 @@ export interface NativeSelectProps {
 	required?: Reactive<boolean>;
 	invalid?: Reactive<boolean>;
 	describedBy?: Reactive<string | undefined>;
+	/** Styles the `<select>` itself. To change the control's width, use `wrapperClass`. */
 	class?: Reactive<string>;
+	/**
+	 * Sizes the control: the wrapper the chevron is positioned against.
+	 *
+	 * A width through `class` narrows the `<select>` and leaves the chevron at
+	 * the end of a full-width wrapper, with empty space between the control and
+	 * its own indicator. Merged over the wrapper's `w-full`, so `w-40` here
+	 * replaces it rather than competing with it.
+	 */
+	wrapperClass?: Reactive<string>;
 	onValueChange?: (value: string, event: Event) => void;
 }
 
@@ -95,7 +105,10 @@ export const NativeSelect = component<NativeSelectProps>((props) => {
 			${option.label}
 		</option>`;
 
-	return html`<div data-slot="native-select" class="relative inline-flex w-full items-center">
+	return html`<div
+		data-slot="native-select"
+		class="${() => cn("relative inline-flex w-full items-center", read(props.wrapperClass))}"
+	>
 		<select
 			id="${props.id}"
 			name="${props.name}"
