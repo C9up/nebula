@@ -89,10 +89,15 @@ export function sidebarCollapsed(): boolean {
 }
 
 export interface SidebarApi {
+	/** The column's state: persisted, and what the wide layout shows. */
 	readonly open: () => boolean;
+	/** The drawer's state on a phone: closed on every load, never persisted. */
+	readonly openMobile: () => boolean;
 	readonly isMobile: () => boolean;
 	readonly state: () => "expanded" | "collapsed";
 	setOpen(next: boolean): void;
+	setOpenMobile(next: boolean): void;
+	/** The drawer on a phone, the column otherwise. */
 	toggleSidebar(): void;
 }
 
@@ -124,6 +129,10 @@ export interface SidebarProviderProps {
 export const SidebarProvider = component<SidebarProviderProps>((props) => {
 	const open = sidebarState(props.defaultOpen ?? true);
 	const mobile = signal(false);
+	// Apart from the column's, as upstream: sharing it opened the drawer over
+	// the page on every load, since the column is open by default and its
+	// state outlives the page in the cookie.
+	const openMobile = signal(false);
 
 	function setOpen(next: boolean): void {
 		open(next);
@@ -131,7 +140,8 @@ export const SidebarProvider = component<SidebarProviderProps>((props) => {
 	}
 
 	function toggleSidebar(): void {
-		setOpen(!open());
+		if (mobile()) openMobile(!openMobile());
+		else setOpen(!open());
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {
@@ -167,9 +177,11 @@ export const SidebarProvider = component<SidebarProviderProps>((props) => {
 
 	const api = provide<SidebarApi>(SidebarContext, {
 		open: current,
+		openMobile: () => openMobile(),
 		isMobile: () => mobile(),
 		state: () => (current() ? "expanded" : "collapsed"),
 		setOpen,
+		setOpenMobile: (next) => openMobile(next),
 		toggleSidebar,
 	});
 	provide(NearestSidebar, api);
@@ -202,8 +214,8 @@ export const Sidebar = component<SidebarProps>((props) => {
 	return html`<div data-slot="sidebar-root">${() =>
 		sidebar.isMobile()
 			? Sheet({
-					open: () => sidebar.open(),
-					onOpenChange: (next) => sidebar.setOpen(next),
+					open: () => sidebar.openMobile(),
+					onOpenChange: (next) => sidebar.setOpenMobile(next),
 					children: () =>
 						SheetContent({
 							side,
