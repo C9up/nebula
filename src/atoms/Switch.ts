@@ -15,8 +15,14 @@ import { component, html } from "@c9up/aurora";
 import { cn } from "../lib/cn.js";
 import { accessor, type Reactive, read } from "../lib/props.js";
 
+/**
+ * The off fill names the unchecked state, as upstream's `data-[state=unchecked]:`
+ * does. Left bare, `dark:bg-input/80` weighed as much as `checked:bg-primary`
+ * and came later in the stylesheet, so a switch that was on looked off in the
+ * dark theme.
+ */
 export const switchTrackClasses =
-	"peer absolute inset-0 size-full appearance-none rounded-full border border-transparent bg-input shadow-xs outline-none transition-colors dark:bg-input/80 checked:bg-primary focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50";
+	"peer absolute inset-0 size-full appearance-none rounded-full border border-transparent shadow-xs outline-none transition-colors checked:bg-primary not-checked:bg-input dark:not-checked:bg-input/80 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50";
 
 export interface SwitchProps {
 	id?: string;
