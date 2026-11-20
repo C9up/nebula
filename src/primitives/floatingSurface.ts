@@ -87,10 +87,20 @@ interface Live {
 	 */
 	readonly anchor: HTMLElement;
 	readonly element: HTMLElement;
+	/**
+	 * What makes it behave as an open surface: `null` from the moment it
+	 * closes, through its exit animation. A surface reopened mid-exit is armed
+	 * again — reusing the node without this brought it back with no dismiss
+	 * layer, no repositioning and no focus trap.
+	 */
+	armed: Armed | null;
+	cancelExit: (() => void) | null;
+}
+
+interface Armed {
 	readonly position: AutoPosition;
 	readonly layer: DismissableLayer;
 	readonly trap: FocusTrap | null;
-	cancelExit: (() => void) | null;
 }
 
 /**
@@ -102,37 +112,11 @@ interface Live {
 export function floatingSurface(options: FloatingSurfaceOptions): void {
 	let live: Live | null = null;
 
-	function show(): void {
-		const anchor = options.anchor();
-		if (anchor === null) return;
-
-		if (live !== null) {
-			if (live.anchor === anchor) {
-				// The SAME anchor, already open and possibly mid-exit: cancel
-				// the teardown and reuse the node rather than stacking a second
-				// copy on top of the one fading out.
-				live.cancelExit?.();
-				live.cancelExit = null;
-				live.element.setAttribute("data-state", "open");
-				return;
-			}
-			// A DIFFERENT anchor. Content is built once per open, so reusing
-			// this node would show the previous anchor's content — one surface
-			// shared by the rows of a table showed the first row's entries
-			// however many rows were clicked. Its position, dismissal listeners
-			// and focus trap all belong to the old anchor too.
-			teardown();
-		}
-
-		const mount = portal(options.content());
-		const element = mount.host.firstElementChild;
-		if (!(element instanceof HTMLElement)) {
-			mount.close();
-			return;
-		}
-
-		element.setAttribute("data-state", "open");
-
+	/**
+	 * Position, dismissal and focus, in that order: the layer registers once
+	 * the content exists, the trap focuses a surface already positioned.
+	 */
+	function arm(anchor: HTMLElement, element: HTMLElement): Armed {
 		const position = autoPosition(anchor, element, {
 			placement: options.placement,
 			offset: options.offset,
@@ -164,20 +148,72 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 		} else if (options.autoFocus === true) {
 			focusSilently(options.initialFocus?.(element) ?? firstFocusable(element));
 		}
+		return { position, layer, trap };
+	}
 
-		live = { mount, anchor, element, position, layer, trap, cancelExit: null };
+	function disarm(current: Live): void {
+		const armed = current.armed;
+		if (armed === null) return;
+		current.armed = null;
+		armed.layer.remove();
+		armed.position.stop();
+		armed.trap?.release();
+	}
+
+	function show(): void {
+		const anchor = options.anchor();
+		if (anchor === null) return;
+
+		if (live !== null) {
+			if (live.anchor === anchor) {
+				// The SAME anchor, already open and possibly mid-exit: cancel
+				// the teardown and reuse the node rather than stacking a second
+				// copy on top of the one fading out.
+				live.cancelExit?.();
+				live.cancelExit = null;
+				live.element.setAttribute("data-state", "open");
+				if (live.armed === null) {
+					live.armed = arm(anchor, live.element);
+					// `onClosed` ran when it started closing, so the component
+					// unwired its items; it is open again and rewires them.
+					options.onOpened?.(live.element);
+				}
+				return;
+			}
+			// A DIFFERENT anchor. Content is built once per open, so reusing
+			// this node would show the previous anchor's content — one surface
+			// shared by the rows of a table showed the first row's entries
+			// however many rows were clicked. Its position, dismissal listeners
+			// and focus trap all belong to the old anchor too.
+			teardown();
+		}
+
+		const mount = portal(options.content());
+		const element = mount.host.firstElementChild;
+		if (!(element instanceof HTMLElement)) {
+			mount.close();
+			return;
+		}
+
+		element.setAttribute("data-state", "open");
+
+		live = {
+			mount,
+			anchor,
+			element,
+			armed: arm(anchor, element),
+			cancelExit: null,
+		};
 		options.onOpened?.(element);
 	}
 
 	function hide(): void {
 		const current = live;
-		if (current === null) return;
+		if (current === null || current.armed === null) return;
 
 		// Detach behaviour first, then animate out. A surface that is fading
 		// should not still be answering Escape or repositioning itself.
-		current.layer.remove();
-		current.position.stop();
-		current.trap?.release();
+		disarm(current);
 		returnFocusToAnchor(current.element, current.anchor);
 		current.element.setAttribute("data-state", "closed");
 		options.onClosed?.();
@@ -216,9 +252,7 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 		if (current === null) return;
 		live = null;
 		current.cancelExit?.();
-		current.layer.remove();
-		current.position.stop();
-		current.trap?.release();
+		disarm(current);
 		current.mount.close();
 	}
 
