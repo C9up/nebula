@@ -175,7 +175,12 @@ export interface AgendaProps {
 	/** `HH:mm` scrolled to when mounted. Default: the first range or event. */
 	scrollTo?: string;
 	class?: Reactive<string>;
-	/** Classes of the scrolling body: its height. Default `"max-h-[40rem]"`. */
+	/**
+	 * Classes of the body: its height. Default `"max-h-[40rem]"`, a body that
+	 * scrolls on its own. Give `""` to let the agenda take its full height in a
+	 * page that scrolls already: one scrollbar, the column headers staying in
+	 * view (they are sticky, and the root clips without scrolling).
+	 */
 	bodyClass?: string;
 	/** An event chosen: clicked, or Enter. */
 	onActivate?: (event: AgendaEvent) => void;
@@ -312,14 +317,21 @@ const HOUR_HEIGHT: Record<"sm" | "md" | "lg", string> = {
 	lg: "h-32",
 };
 
+/**
+ * An event is opaque: the card's colour underneath, the tone's tint laid
+ * over it as a background image. A translucent fill alone let a range's
+ * label show through the event above it.
+ */
 const EVENT_TONES: Record<AgendaTone, string> = {
 	default: "bg-card text-card-foreground border-border",
-	primary: "bg-primary/15 text-foreground border-primary",
+	primary:
+		"bg-card bg-linear-to-r from-primary/15 to-primary/15 text-foreground border-primary",
 	success:
-		"bg-emerald-500/15 text-foreground border-emerald-600 dark:border-emerald-400",
+		"bg-card bg-linear-to-r from-emerald-500/15 to-emerald-500/15 text-foreground border-emerald-600 dark:border-emerald-400",
 	warning:
-		"bg-amber-500/15 text-foreground border-amber-600 dark:border-amber-400",
-	danger: "bg-destructive/15 text-foreground border-destructive",
+		"bg-card bg-linear-to-r from-amber-500/15 to-amber-500/15 text-foreground border-amber-600 dark:border-amber-400",
+	danger:
+		"bg-card bg-linear-to-r from-destructive/15 to-destructive/15 text-foreground border-destructive",
 	muted: "bg-muted text-muted-foreground border-muted-foreground/40",
 };
 
@@ -1010,15 +1022,15 @@ export const Agenda = component<AgendaProps>((props) => {
 		data-slot="agenda"
 		role="group"
 		aria-label="${props.label}"
-		class="${() => cn("bg-background flex min-w-0 flex-col overflow-hidden rounded-lg border", read(props.class))}"
+		class="${() => cn("bg-background flex min-w-0 flex-col overflow-clip rounded-lg border", read(props.class))}"
 	>
 		<span id="${hintId}" hidden>${labels.keyboardHint}</span>
 		<div role="status" aria-live="polite" class="sr-only">${() => announcement()}</div>
-		<div class="bg-muted/30 flex border-b">
+		<div data-slot="agenda-header" class="bg-card sticky top-0 z-30 flex rounded-t-lg border-b">
 			<div class="w-14 shrink-0"></div>
 			${each(columns, (c) => c.key, renderHeader)}
 		</div>
-		<div id="${bodyId}" data-slot="agenda-body" class="${cn("overflow-y-auto", props.bodyClass ?? "max-h-[40rem]")}">
+		<div id="${bodyId}" data-slot="agenda-body" class="${cn(props.bodyClass === "" ? "" : "overflow-y-auto", props.bodyClass ?? "max-h-[40rem]")}">
 			<div class="flex">
 				<div aria-hidden="true" class="w-14 shrink-0">${hours.map(
 					(hour) =>

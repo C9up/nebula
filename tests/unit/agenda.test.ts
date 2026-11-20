@@ -398,6 +398,24 @@ describe("Agenda", () => {
 		});
 	});
 
+	it("scrolls on its own by default, and not at all with an empty body class, its headers sticky", () => {
+		mounted = mount(Agenda({ label: "Week", columns, events: [] }));
+		const body = () =>
+			mounted?.host.querySelector('[data-slot="agenda-body"]')?.className ?? "";
+		expect(body()).toContain("overflow-y-auto");
+		mounted.dispose();
+		mounted = mount(
+			Agenda({ label: "Week", columns, events: [], bodyClass: "" }),
+		);
+		expect(body()).not.toContain("overflow");
+		expect(
+			mounted.host.querySelector('[data-slot="agenda-header"]')?.className,
+		).toContain("sticky");
+		expect(
+			mounted.host.querySelector('[data-slot="agenda"]')?.className,
+		).toContain("overflow-clip");
+	});
+
 	it("draws the now line in today's column only", () => {
 		const now = (): Date => new Date(2026, 10, 17, 10, 0);
 		mounted = mount(Agenda({ label: "Week", columns, now, events: [] }));
