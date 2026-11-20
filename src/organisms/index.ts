@@ -14,6 +14,26 @@
  */
 
 export {
+	Agenda,
+	type AgendaChange,
+	type AgendaColumn,
+	type AgendaEvent,
+	type AgendaLabels,
+	type AgendaProps,
+	type AgendaRange,
+	type AgendaSlot,
+	type AgendaTone,
+	clampEnd,
+	clampMove,
+	clockOf,
+	isoDay,
+	type Lane,
+	lanesOf,
+	minutesOf,
+	snapDown,
+	snapNearest,
+} from "./Agenda.js";
+export {
 	AlertDialog,
 	AlertDialogAction,
 	type AlertDialogButtonProps,

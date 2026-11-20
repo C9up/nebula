@@ -393,6 +393,35 @@ export const cases: readonly Case[] = [
 					})}`,
 			}),
 	},
+	{
+		name: "agenda",
+		slot: "agenda",
+		build: () =>
+			organisms.Agenda({
+				label: "Week",
+				columns: [{ key: "mon", label: "Monday", date: "2026-11-16" }],
+				ranges: [
+					{
+						key: "r",
+						column: "mon",
+						start: "08:00",
+						end: "12:00",
+						label: "Block",
+					},
+				],
+				events: [
+					{
+						key: "e",
+						column: "mon",
+						start: "08:30",
+						end: "09:00",
+						title: "Visit",
+						movable: true,
+						resizable: true,
+					},
+				],
+			}),
+	},
 	{ name: "calendar", slot: "calendar", build: () => organisms.Calendar({}) },
 	{
 		name: "carousel",
