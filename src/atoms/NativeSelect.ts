@@ -53,6 +53,12 @@ export interface NativeSelectProps {
 	 * the end of a full-width wrapper, with empty space between the control and
 	 * its own indicator. Merged over the wrapper's `w-full`, so `w-40` here
 	 * replaces it rather than competing with it.
+	 *
+	 * Named deviation from shadcn, whose wrapper is `w-fit` and takes no
+	 * class: there `className` sizes the control, but the control can never
+	 * fill a form row, since a `w-full` select inside a `w-fit` box is only as
+	 * wide as its longest option. nebula keeps the full-width default forms
+	 * need and gives the width its own prop.
 	 */
 	wrapperClass?: Reactive<string>;
 	onValueChange?: (value: string, event: Event) => void;
