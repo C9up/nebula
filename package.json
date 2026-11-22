@@ -80,7 +80,7 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.12",
+    "@biomejs/biome": "^2.6.8",
     "@c9up/aurora": "^0.1.49",
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^22.20.1",
