@@ -154,7 +154,7 @@ for (const file of allFiles) {
 items.sort((left, right) => left.name.localeCompare(right.name));
 
 const registry = {
-	$schema: "https://r-eam.com/schemas/nebula-registry.json",
+	$schema: "https://reamjs.com/schemas/nebula-registry.json",
 	name: "@c9up/nebula",
 	homepage: "https://github.com/C9up/nebula",
 	/**
