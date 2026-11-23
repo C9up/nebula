@@ -9,6 +9,10 @@
 
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import {
+	E_NEBULA_INVALID_REGISTRY,
+	E_NEBULA_UNKNOWN_COMPONENT,
+} from "../errors.js";
 
 export type Layer = "atoms" | "molecules" | "organisms" | "templates";
 
@@ -66,9 +70,7 @@ function isRegistry(value: unknown): value is Registry {
 export function loadRegistry(path: string): Registry {
 	const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
 	if (!isRegistry(parsed)) {
-		throw new Error(
-			`${path} is not a valid nebula registry — regenerate it with \`pnpm registry\`.`,
-		);
+		throw new E_NEBULA_INVALID_REGISTRY([path]);
 	}
 	return parsed;
 }
@@ -103,9 +105,7 @@ export function resolveItems(
 		seen.add(name);
 		const item = byName.get(name);
 		if (item === undefined) {
-			throw new Error(
-				`unknown component "${name}" — run \`ream nebula:list\` to see what exists.`,
-			);
+			throw new E_NEBULA_UNKNOWN_COMPONENT([name]);
 		}
 		for (const dependency of item.dependencies) visit(dependency);
 		ordered.push(item);

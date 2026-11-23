@@ -21,6 +21,7 @@ import { resolve } from "node:path";
 import { adapterFor, isAdapterName } from "./adapters/index.js";
 import type { GeneratedFile } from "./adapters/types.js";
 import { type AdapterName, resolveConfig } from "./config.js";
+import { E_NEBULA_UNKNOWN_ADAPTER } from "./errors.js";
 import { stubsRoot } from "./stubs.js";
 
 /**
@@ -61,9 +62,7 @@ function adapterFrom(flags: Flags): AdapterName {
 	const requested = flags.adapter?.[0];
 	if (requested === undefined) return "tailwind";
 	if (!isAdapterName(requested)) {
-		throw new Error(
-			`[@c9up/nebula] unknown adapter "${requested}" — one of tailwind, unocss, css`,
-		);
+		throw new E_NEBULA_UNKNOWN_ADAPTER([requested]);
 	}
 	return requested;
 }

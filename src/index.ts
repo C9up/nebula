@@ -45,6 +45,7 @@ export {
 	type ResolvedNebulaConfig,
 	resolveConfig,
 } from "./config.js";
+export * as errors from "./errors.js";
 export { type Child, type Slot, slot } from "./lib/children.js";
 export * from "./lib/icons.js";
 export * from "./lib/index.js";

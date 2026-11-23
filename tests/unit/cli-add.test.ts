@@ -149,6 +149,9 @@ describe("nebula add", () => {
 		expect(() => add({ cwd: project, names: ["nope"] })).toThrow(
 			/unknown component "nope"/,
 		);
+		expect(() => add({ cwd: project, names: ["nope"] })).toThrow(
+			expect.objectContaining({ code: "E_NEBULA_UNKNOWN_COMPONENT" }),
+		);
 	});
 
 	it("follows the language the project already writes in", () => {
@@ -201,5 +204,46 @@ describe("detectLanguage", () => {
 		mkdirSync(dir, { recursive: true });
 		writeFileSync(join(dir, "README.md"), "");
 		expect(detectLanguage(dir)).toBeUndefined();
+	});
+});
+
+describe("nebula add > a broken install", () => {
+	/** A project whose `@c9up/nebula` is a stand-in holding only what is given. */
+	function withPackage(registry: string): string {
+		const app = mkdtempSync(join(tmpdir(), "nebula-broken-"));
+		const pkg = join(app, "node_modules", "@c9up", "nebula");
+		mkdirSync(pkg, { recursive: true });
+		writeFileSync(
+			join(app, "package.json"),
+			'{"name":"probe","type":"module"}',
+		);
+		writeFileSync(
+			join(pkg, "package.json"),
+			'{"name":"@c9up/nebula","exports":{"./package.json":"./package.json"}}',
+		);
+		writeFileSync(join(pkg, "registry.json"), registry);
+		return app;
+	}
+
+	it("refuses a registry that is not a nebula registry", () => {
+		const app = withPackage('{"components":[]}');
+		try {
+			expect(() => add({ cwd: app, names: ["button"] })).toThrow(
+				expect.objectContaining({ code: "E_NEBULA_INVALID_REGISTRY" }),
+			);
+		} finally {
+			rmSync(app, { recursive: true, force: true });
+		}
+	});
+
+	it("refuses to copy JavaScript the package has not built", () => {
+		const app = withPackage('{"items":[]}');
+		try {
+			expect(() => add({ cwd: app, names: [], language: "js" })).toThrow(
+				expect.objectContaining({ code: "E_NEBULA_SOURCES_NOT_BUILT" }),
+			);
+		} finally {
+			rmSync(app, { recursive: true, force: true });
+		}
 	});
 });

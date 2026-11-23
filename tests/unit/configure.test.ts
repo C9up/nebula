@@ -120,6 +120,9 @@ describe("configure", () => {
 		await expect(
 			configure(codemods, { adapter: ["tailwnid"] }),
 		).rejects.toThrow(/unknown adapter "tailwnid"/);
+		await expect(
+			configure(codemods, { adapter: ["tailwnid"] }),
+		).rejects.toMatchObject({ code: "E_NEBULA_UNKNOWN_ADAPTER" });
 	});
 
 	it("tells the user what to install, and never installs it", async () => {

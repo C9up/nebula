@@ -133,7 +133,34 @@ describe("nebula:add > config/nebula.ts", () => {
 		configure("export default { adapter: 'tailwind', language: 'rust' }\n");
 		capture();
 		await expect(add(["badge"])).rejects.toThrow(/config\/nebula\.ts/);
+		await expect(add(["badge"])).rejects.toMatchObject({
+			code: "E_NEBULA_INVALID_CONFIG",
+		});
 		expect(existsSync(join(project, "resources"))).toBe(false);
+	});
+
+	it("refuses a config with no default export", async () => {
+		configure("export const adapter = 'tailwind'\n");
+		capture();
+		await expect(add(["badge"])).rejects.toMatchObject({
+			code: "E_NEBULA_INVALID_CONFIG",
+		});
+	});
+
+	it("refuses a `paths` entry that is not a non-empty string", async () => {
+		configure("export default { paths: { components: '' } }\n");
+		capture();
+		await expect(add(["badge"])).rejects.toMatchObject({
+			code: "E_NEBULA_INVALID_CONFIG",
+		});
+	});
+
+	it("refuses `paths` that is not an object", async () => {
+		configure("export default { paths: 'resources/ui' }\n");
+		capture();
+		await expect(add(["badge"])).rejects.toMatchObject({
+			code: "E_NEBULA_INVALID_CONFIG",
+		});
 	});
 });
 

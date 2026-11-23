@@ -18,6 +18,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { defaultPaths, type Language, type NebulaPaths } from "../config.js";
+import { E_NEBULA_SOURCES_NOT_BUILT } from "../errors.js";
 import { hashOf, writeManifest } from "./manifest.js";
 import { loadRegistry, packageRoot, resolveItems } from "./registry.js";
 
@@ -93,9 +94,7 @@ export function add(options: AddOptions): AddResult {
 	// inside this workspace it needs `pnpm build` first.
 	const sourceRoot = join(root, language === "ts" ? "src" : "dist");
 	if (!existsSync(sourceRoot)) {
-		throw new Error(
-			`${sourceRoot} is missing — run \`pnpm build\` in the nebula package before adding in ${language} mode.`,
-		);
+		throw new E_NEBULA_SOURCES_NOT_BUILT([sourceRoot, language]);
 	}
 
 	const written: string[] = [];

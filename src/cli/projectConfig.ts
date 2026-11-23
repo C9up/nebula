@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Language, NebulaPaths } from "../config.js";
+import { E_NEBULA_INVALID_CONFIG } from "../errors.js";
 
 export interface ProjectConfig {
 	paths?: Partial<NebulaPaths>;
@@ -31,14 +32,18 @@ function pathsOf(
 ): Partial<NebulaPaths> | undefined {
 	if (value === undefined) return undefined;
 	if (!isRecord(value)) {
-		throw new Error(`${file}: \`paths\` must be an object.`);
+		throw new E_NEBULA_INVALID_CONFIG([
+			`${file}: \`paths\` must be an object.`,
+		]);
 	}
 	const paths: Partial<NebulaPaths> = {};
 	for (const key of ["components", "css", "output"] as const) {
 		const entry = value[key];
 		if (entry === undefined) continue;
 		if (typeof entry !== "string" || entry === "") {
-			throw new Error(`${file}: \`paths.${key}\` must be a non-empty string.`);
+			throw new E_NEBULA_INVALID_CONFIG([
+				`${file}: \`paths.${key}\` must be a non-empty string.`,
+			]);
 		}
 		paths[key] = entry;
 	}
@@ -48,7 +53,9 @@ function pathsOf(
 function languageOf(value: unknown, file: string): Language | undefined {
 	if (value === undefined) return undefined;
 	if (value === "ts" || value === "js") return value;
-	throw new Error(`${file}: \`language\` must be "ts" or "js".`);
+	throw new E_NEBULA_INVALID_CONFIG([
+		`${file}: \`language\` must be "ts" or "js".`,
+	]);
 }
 
 /** The config under `<cwd>/config`, or nothing when the app has none. */
@@ -60,7 +67,9 @@ export async function loadProjectConfig(cwd: string): Promise<ProjectConfig> {
 		const loaded: unknown = await import(pathToFileURL(file).href);
 		const config = isRecord(loaded) ? loaded.default : undefined;
 		if (!isRecord(config)) {
-			throw new Error(`${label} must export its config as the default export.`);
+			throw new E_NEBULA_INVALID_CONFIG([
+				`${label} must export its config as the default export.`,
+			]);
 		}
 		return {
 			paths: pathsOf(config.paths, label),
