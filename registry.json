@@ -1,5 +1,5 @@
 {
-  "$schema": "https://nebula.c9up.dev/registry.schema.json",
+  "$schema": "https://r-eam.com/schemas/nebula-registry.json",
   "name": "@c9up/nebula",
   "homepage": "https://github.com/C9up/nebula",
   "layout": "mirror",
