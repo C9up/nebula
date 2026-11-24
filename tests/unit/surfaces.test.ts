@@ -317,3 +317,66 @@ describe("modalSurface", () => {
 		expect(portals()).toHaveLength(0);
 	});
 });
+
+// ─── disposed while open ─────────────────────────────────────────────
+
+interface LifecycleHarness {
+	open: ReturnType<typeof signal<boolean>>;
+	onOpened: () => void;
+	onClosed: () => void;
+}
+
+const FloatingLifecycleHost = component<LifecycleHarness>((props) => {
+	floatingSurface({
+		anchor: () => document.getElementById("anchor"),
+		open: () => props.open(),
+		onClose: () => props.open(false),
+		content: () => html`<div id="surface" role="dialog"></div>`,
+		onOpened: props.onOpened,
+		onClosed: props.onClosed,
+	});
+	return html`<button id="anchor">Trigger</button>`;
+});
+
+const ModalLifecycleHost = component<LifecycleHarness>((props) => {
+	modalSurface({
+		open: () => props.open(),
+		onClose: () => props.open(false),
+		content: () => html`<div id="panel" role="dialog"></div>`,
+		onOpened: props.onOpened,
+		onClosed: props.onClosed,
+	});
+	return html`<button id="trigger">Open</button>`;
+});
+
+describe("a surface disposed while open", () => {
+	for (const [name, Host] of [
+		["floatingSurface", FloatingLifecycleHost],
+		["modalSurface", ModalLifecycleHost],
+	] as const) {
+		it(`${name} runs onClosed once, so what onOpened wired is released`, () => {
+			const open = signal(false);
+			const onOpened = vi.fn<() => void>();
+			const onClosed = vi.fn<() => void>();
+			const view = mount(Host({ open, onOpened, onClosed }));
+			open(true);
+			expect(onOpened).toHaveBeenCalledTimes(1);
+			view.dispose();
+			expect(onClosed).toHaveBeenCalledTimes(1);
+			expect(portals()).toHaveLength(0);
+			expect(layerCount()).toBe(0);
+			expect(isScrollLocked()).toBe(false);
+		});
+
+		it(`${name} does not run onClosed again for a surface already closed`, () => {
+			const open = signal(false);
+			const onClosed = vi.fn<() => void>();
+			const view = mount(Host({ open, onOpened: () => {}, onClosed }));
+			open(true);
+			open(false);
+			expect(onClosed).toHaveBeenCalledTimes(1);
+			view.dispose();
+			expect(onClosed).toHaveBeenCalledTimes(1);
+		});
+	}
+});

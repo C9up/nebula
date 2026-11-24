@@ -240,6 +240,27 @@ describe("Sonner > the stack", () => {
 		expect(lists[1]?.textContent).toContain("There");
 	});
 
+	it("places the list at its offsets, and an offset cannot add a declaration", async () => {
+		view = mount(
+			Toaster({
+				position: "bottom-right",
+				offset: {
+					bottom: "32px",
+					right: "8px;background-image:url(https://evil.example/x.png)",
+				},
+			}),
+		);
+		toast("Here");
+		await advance(0);
+		const list = one("[data-sonner-toaster]");
+		expect(list?.style.position).toBe("fixed");
+		expect(list?.style.bottom).toBe("32px");
+		// Not a length: dropped whole, nothing after its `;` is applied.
+		expect(list?.style.right).toBe("");
+		expect(list?.style.backgroundImage).toBe("");
+		expect(list?.getAttribute("style")).not.toContain("evil.example");
+	});
+
 	it("shows only the toasts addressed to it by toasterId", async () => {
 		view = mount(Toaster({ id: "side" }));
 		toast("Everyone");

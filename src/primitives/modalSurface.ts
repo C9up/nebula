@@ -99,13 +99,15 @@ export function modalSurface(options: ModalSurfaceOptions): void {
 		return { layer, trap, restoreSiblings };
 	}
 
-	function disarm(current: Live): void {
+	/** Detach the modal behaviour; false when it was already detached. */
+	function disarm(current: Live): boolean {
 		const armed = current.armed;
-		if (armed === null) return;
+		if (armed === null) return false;
 		current.armed = null;
 		armed.layer.remove();
 		armed.trap.release();
 		armed.restoreSiblings();
+		return true;
 	}
 
 	function show(): void {
@@ -163,7 +165,8 @@ export function modalSurface(options: ModalSurfaceOptions): void {
 		if (current === null) return;
 		live = null;
 		current.cancelExit?.();
-		disarm(current);
+		// Still open: what `onOpened` wired is released as on any close.
+		if (disarm(current)) options.onClosed?.();
 		current.unlock();
 		current.mount.close();
 	}

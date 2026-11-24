@@ -49,6 +49,7 @@ import type { Child } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { uid } from "../lib/id.js";
 import { type Reactive, read } from "../lib/props.js";
+import { styleDeclaration } from "../lib/style.js";
 
 /** A column of the grid: a day, a person on a day, a room. */
 export interface AgendaColumn {
@@ -99,7 +100,10 @@ export interface AgendaEvent {
 	title: string;
 	detail?: string;
 	tone?: AgendaTone;
-	/** Any CSS colour for the left edge: a category's own colour. */
+	/**
+	 * Any CSS colour for the left edge: a category's own colour. A value that
+	 * is not a colour is ignored, and the tone's colour stays.
+	 */
 	accent?: string;
 	/** Drawn struck through: cancelled. */
 	struck?: boolean;
@@ -921,9 +925,15 @@ export const Agenda = component<AgendaProps>((props) => {
 			const lane = d === null ? lanes().get(e.key) : undefined;
 			const start = d?.start ?? minutesOf(e.start) ?? from;
 			const end = d?.end ?? minutesOf(e.end) ?? start;
+			// Through the CSSOM: a value concatenated into the style text could
+			// end the declaration and add others. One that is not a colour is
+			// dropped, and the tone's colour stays.
 			const accent =
-				e.accent === undefined ? "" : `;border-left-color:${e.accent}`;
-			return `${geometry(d?.column ?? e.column, start, end, lane)}${accent}`;
+				e.accent === undefined
+					? ""
+					: styleDeclaration("border-left-color", e.accent);
+			const geometryText = geometry(d?.column ?? e.column, start, end, lane);
+			return accent === "" ? geometryText : `${geometryText};${accent}`;
 		};
 		const times = (): string => {
 			const d = held();

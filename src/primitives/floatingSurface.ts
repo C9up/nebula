@@ -151,13 +151,15 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 		return { position, layer, trap };
 	}
 
-	function disarm(current: Live): void {
+	/** Detach the open behaviour; false when it was already detached. */
+	function disarm(current: Live): boolean {
 		const armed = current.armed;
-		if (armed === null) return;
+		if (armed === null) return false;
 		current.armed = null;
 		armed.layer.remove();
 		armed.position.stop();
 		armed.trap?.release();
+		return true;
 	}
 
 	function show(): void {
@@ -247,12 +249,19 @@ export function floatingSurface(options: FloatingSurfaceOptions): void {
 		focusSilently(anchor);
 	}
 
+	/**
+	 * Remove the surface now, open or not. A surface still open gets its
+	 * `onClosed` too: what the component wired in `onOpened` (a menu's
+	 * document keydown listener) held the panel, its items and everything
+	 * they close over for the life of the page once the owner was disposed
+	 * while open.
+	 */
 	function teardown(): void {
 		const current = live;
 		if (current === null) return;
 		live = null;
 		current.cancelExit?.();
-		disarm(current);
+		if (disarm(current)) options.onClosed?.();
 		current.mount.close();
 	}
 

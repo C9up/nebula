@@ -76,6 +76,7 @@ import {
 	XIcon,
 } from "../lib/icons.js";
 import { type Reactive, read } from "../lib/props.js";
+import { styleDeclaration } from "../lib/style.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -886,18 +887,20 @@ export const Toaster = component<ToasterProps>((props) => {
 			"z-index:999999999",
 			`width:${narrow() ? "100%" : `${TOAST_WIDTH}px`}`,
 		];
+		// The offsets are the caller's strings: each goes through the CSSOM as
+		// one value, so none can end its declaration and add others.
 		if (narrow()) {
 			rules.push(
-				`${y}:${mobile[y]}`,
-				`left:${mobile.left}`,
-				`right:${mobile.right}`,
+				styleDeclaration(y, mobile[y]),
+				styleDeclaration("left", mobile.left),
+				styleDeclaration("right", mobile.right),
 			);
 		} else {
-			rules.push(`${y}:${offset[y]}`);
+			rules.push(styleDeclaration(y, offset[y]));
 			if (x === "center") rules.push("left:50%", "transform:translateX(-50%)");
-			else rules.push(`${x}:${offset[x]}`);
+			else rules.push(styleDeclaration(x, offset[x]));
 		}
-		return rules.join(";");
+		return rules.filter((rule) => rule !== "").join(";");
 	}
 
 	function renderList(

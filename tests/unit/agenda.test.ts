@@ -428,3 +428,64 @@ describe("Agenda", () => {
 		expect(line?.style.height).toBe("");
 	});
 });
+
+describe("agenda event accent", () => {
+	const columns = [{ key: "mon", label: "Monday", date: "2026-11-16" }];
+	let view: Mounted | undefined;
+	afterEach(() => {
+		view?.dispose();
+		view = undefined;
+	});
+
+	function blockOf(accent: string): HTMLElement {
+		view = mount(
+			Agenda({
+				label: "Week",
+				columns,
+				hours: [8, 18],
+				events: [
+					{
+						key: "a",
+						column: "mon",
+						start: "09:00",
+						end: "10:00",
+						title: "Visit",
+						accent,
+					},
+				],
+			}),
+		);
+		const block = view.host.querySelector<HTMLElement>(
+			'[data-slot="agenda-event"]',
+		);
+		if (block === null) throw new Error("no event block");
+		return block;
+	}
+
+	it("colours the left edge with a colour, and sets nothing else", () => {
+		const block = blockOf("#e11d48");
+		expect(block.style.borderLeftColor).toBe("rgb(225, 29, 72)");
+		expect(block.style.top).toBe("10%");
+		expect(block.style.position).toBe("");
+	});
+
+	it("cannot add a declaration through a `;`, and keeps the tone's edge", () => {
+		const block = blockOf(
+			"red;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2147483647;background-image:url(https://evil.example/seen.png)",
+		);
+		expect(block.style.position).toBe("");
+		expect(block.style.zIndex).toBe("");
+		expect(block.style.backgroundImage).toBe("");
+		// The geometry the component computed stands.
+		expect(block.style.top).toBe("10%");
+		expect(block.style.width).toBe("100%");
+		// Not a colour: dropped, so the tone class colours the edge.
+		expect(block.style.borderLeftColor).toBe("");
+	});
+
+	it("drops a value that is not a colour", () => {
+		const block = blockOf("url(https://evil.example/seen.png)");
+		expect(block.style.borderLeftColor).toBe("");
+		expect(block.getAttribute("style")).not.toContain("evil.example");
+	});
+});

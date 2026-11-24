@@ -22,7 +22,7 @@
  * closes one level, and activating an item closes everything.
  */
 
-import { html, type TemplateResult } from "@c9up/aurora";
+import { component, html, onMount, type TemplateResult } from "@c9up/aurora";
 import type { Child } from "../lib/children.js";
 import { cn } from "../lib/cn.js";
 import { CheckIcon, ChevronRightIcon, DotIcon } from "../lib/icons.js";
@@ -248,16 +248,6 @@ function renderRadioGroup(entry: MenuRadioGroup, closeAll: () => void): Child {
 }
 
 /**
- * A submenu's trigger row.
- *
- * The entries are stashed on the element through a WeakMap rather than an
- * attribute — they contain callbacks and nested structures, and serialising
- * those into the DOM is not possible. `wireMenu` reads them back when the row
- * is opened.
- */
-const submenuPanels = new WeakMap<Element, SubmenuPanel>();
-
-/**
  * How a submenu's panel is produced when the row is opened.
  *
  * A factory rather than the panel itself, because a submenu is built fresh on
@@ -273,6 +263,17 @@ const submenuPanels = new WeakMap<Element, SubmenuPanel>();
 export type SubmenuPanel = (options: { id: string }) => TemplateResult;
 
 function renderSubmenuTrigger(entry: MenuSubmenu, closeAll: () => void): Child {
+	return SubmenuTriggerRow({ entry, closeAll });
+}
+
+/**
+ * A submenu's trigger row: a component, so the panel factory it registers
+ * lives exactly as long as the row is mounted.
+ */
+const SubmenuTriggerRow = component<{
+	entry: MenuSubmenu;
+	closeAll: () => void;
+}>(({ entry, closeAll }) => {
 	const id = uid("menu-sub-trigger");
 	const row = html`<div
 		role="menuitem"
@@ -290,21 +291,24 @@ function renderSubmenuTrigger(entry: MenuSubmenu, closeAll: () => void): Child {
 	</div>`;
 
 	const entries = entry.entries;
-	pendingSubmenus.set(id, ({ id: panelId }) =>
+	registerSubmenu(id, ({ id: panelId }) =>
 		menuPanel({ id: panelId, entries, onCloseAll: closeAll }),
 	);
 	return row;
-}
+});
 
 /**
- * Entries waiting to be claimed by their element.
+ * The panel factory of each submenu trigger mounted in the document, by the
+ * trigger's `data-submenu` id.
  *
- * The trigger's entries are known while the template is built, but the element
- * does not exist until it is mounted. This bridges the two: `wireMenu` moves
- * each set from here onto the real element and clears the id, so nothing is
- * retained after the menu closes.
+ * The factory holds callbacks and nested markup, which cannot be serialised
+ * into an attribute. It is known while the template is built, and the row
+ * only exists once mounted: an entry is added when the trigger mounts and
+ * removed when it unmounts. A template built on the server is never mounted,
+ * so nothing is kept there — a factory registered while building it stayed
+ * here for the life of the process, with everything its items close over.
  */
-const pendingSubmenus = new Map<string, SubmenuPanel>();
+const mountedSubmenus = new Map<string, SubmenuPanel>();
 
 function activate(
 	disabled: boolean | undefined,
@@ -346,8 +350,6 @@ export function wireMenu(
 	panel: HTMLElement,
 	options: WireMenuOptions,
 ): () => void {
-	claimSubmenuEntries(panel);
-
 	const open: Array<{ close(): void }> = [];
 
 	function closeSubmenusFrom(depth: number): void {
@@ -376,7 +378,9 @@ export function wireMenu(
 	});
 
 	function openSubmenu(trigger: HTMLElement): void {
-		const build = submenuPanels.get(trigger);
+		const triggerId = trigger.getAttribute("data-submenu");
+		const build =
+			triggerId === null ? undefined : mountedSubmenus.get(triggerId);
 		if (build === undefined) return;
 		closeSubmenusFrom(0);
 
@@ -504,26 +508,20 @@ export function wireMenu(
 	};
 }
 
-/** Move each submenu's panel factory from the build-time map onto its element. */
-function claimSubmenuEntries(panel: HTMLElement): void {
-	for (const node of panel.querySelectorAll("[data-submenu]")) {
-		const id = node.getAttribute("data-submenu");
-		if (id === null) continue;
-		const build = pendingSubmenus.get(id);
-		if (build === undefined) continue;
-		submenuPanels.set(node, build);
-		pendingSubmenus.delete(id);
-	}
-}
-
 /**
- * Register a composed submenu panel against a trigger id.
+ * Register a submenu's panel factory against its trigger id, for as long as
+ * the component whose setup calls this is mounted. Call it from a setup.
  *
  * The parts in `DropdownMenu` and friends build their own markup, so they hand
  * the factory over directly instead of going through `MenuEntry`.
  */
 export function registerSubmenu(id: string, build: SubmenuPanel): void {
-	pendingSubmenus.set(id, build);
+	onMount(() => {
+		mountedSubmenus.set(id, build);
+		return () => {
+			if (mountedSubmenus.get(id) === build) mountedSubmenus.delete(id);
+		};
+	});
 }
 
 // ─── entry guards ────────────────────────────────────────────────────

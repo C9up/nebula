@@ -44,6 +44,7 @@
         "lib/cn.ts",
         "lib/id.ts",
         "lib/props.ts",
+        "lib/style.ts",
         "organisms/Agenda.ts"
       ],
       "dependencies": []
@@ -1068,6 +1069,7 @@
         "lib/cn.ts",
         "lib/icons.ts",
         "lib/props.ts",
+        "lib/style.ts",
         "organisms/Sonner.ts"
       ],
       "dependencies": []
